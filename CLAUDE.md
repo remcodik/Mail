@@ -1,5 +1,34 @@
 # MailAI — Claude Code Project Prompt
 
+## Implementation status
+
+> **Current state (2026-03-17):** Greenfield project. Only this `CLAUDE.md` exists. All Python backend files, UI files, and configuration files need to be created.
+
+| File | Status |
+|------|--------|
+| `server.py` | Not created |
+| `gmail_client.py` | Not created |
+| `intelligence.py` | Not created |
+| `orchestrator.py` | Not created |
+| `auth.py` | Not created |
+| `requirements.txt` | Not created |
+| `.env.example` | Not created |
+| `ui/index.html` | Not created |
+| `ui/style.css` | Not created |
+| `ui/app.js` | Not created |
+
+### Suggested build order
+
+1. `requirements.txt` + `.env.example` — dependencies and config first
+2. `auth.py` — OAuth2 flow needed before anything else works
+3. `gmail_client.py` — Gmail API wrapper, prerequisite for all email features
+4. `intelligence.py` — all Claude API calls; start with `classify_email` + `summarize_thread`
+5. `orchestrator.py` — `process_inbox()` pipeline wiring the above together
+6. `server.py` — MCP server exposing tools to Claude Code
+7. `ui/` — iPhone frontend, can be built in parallel with backend
+
+---
+
 ## What this app is
 
 An AI-powered mail app for iPhone that connects to Gmail. It:
@@ -151,3 +180,43 @@ list_sent(max_results)
 - `.env` for all secrets — never hardcode
 - Mobile CSS: use `env(safe-area-inset-*)`, `touch-action: pan-y` for swipe
 - All Claude API calls go through `intelligence.py` — no direct `anthropic` calls elsewhere
+
+## AI assistant workflow
+
+### Before writing code
+
+1. Read this file fully.
+2. Check `## Implementation status` to see what exists.
+3. Read any existing source files before modifying them.
+4. Follow the suggested build order when starting from scratch.
+
+### Adding new features
+
+- New Claude API calls → add to `intelligence.py` only; never call `anthropic` directly from other modules.
+- New Gmail operations → add to `gmail_client.py`; keep raw API calls isolated there.
+- New MCP tools → register in `server.py`; implementation lives in the appropriate module.
+- New UI screens → add route/tab in `app.js`, markup in `index.html`, styles in `style.css`.
+
+### Environment variables
+
+All secrets and config go in `.env` (gitignored). Document new vars in `.env.example` with placeholder values.
+
+Required vars:
+```
+ANTHROPIC_API_KEY=
+GMAIL_CREDENTIALS_PATH=credentials.json
+GMAIL_TOKEN_PATH=token.json
+```
+
+### Testing approach
+
+- Test `intelligence.py` functions with fixture emails (plain dicts) — no Gmail API needed.
+- Test `gmail_client.py` with mocked `googleapiclient` responses.
+- Run `python -m pytest` from the repo root.
+
+### Git workflow
+
+- Branch naming: `claude/<short-description>-<session-id>`
+- Commit after each logical unit of work (one module, one feature).
+- Never commit `.env`, `credentials.json`, or `token.json`.
+- Push with: `git push -u origin <branch-name>`
