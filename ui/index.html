@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="MailAI" />
+  <title>MailAI</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ── App Shell ──────────────────────────────────────────────────────────── -->
+<div id="app">
+
+  <!-- Header -->
+  <header id="header">
+    <h1 id="screen-title">Inbox</h1>
+    <button id="refresh-btn" class="icon-btn" aria-label="Refresh">&#8635;</button>
+  </header>
+
+  <!-- Category Tabs (Home) -->
+  <nav id="category-tabs" class="tab-bar">
+    <button class="tab active" data-tab="urgent">Urgent</button>
+    <button class="tab" data-tab="reply_needed">Reply</button>
+    <button class="tab" data-tab="newsletter">Newsletter</button>
+    <button class="tab" data-tab="junk">Junk</button>
+    <button class="tab" data-tab="ticket">Tickets</button>
+    <button class="tab" data-tab="awaiting_reply">Waiting</button>
+  </nav>
+
+  <!-- Main Content Area -->
+  <main id="content">
+    <!-- Screens injected by app.js -->
+  </main>
+
+  <!-- Bottom Navigation -->
+  <nav id="bottom-nav">
+    <button class="nav-btn active" data-screen="home">
+      <span class="nav-icon">&#9993;</span>
+      <span>Home</span>
+    </button>
+    <button class="nav-btn" data-screen="tasks">
+      <span class="nav-icon">&#9745;</span>
+      <span>Tasks</span>
+    </button>
+    <button class="nav-btn" data-screen="settings">
+      <span class="nav-icon">&#9881;</span>
+      <span>Settings</span>
+    </button>
+  </nav>
+
+</div>
+
+<!-- ── Modals ─────────────────────────────────────────────────────────────── -->
+
+<!-- Email Detail Modal -->
+<div id="email-modal" class="modal hidden">
+  <div class="modal-inner">
+    <button class="modal-back" id="email-modal-back">&#8592; Back</button>
+    <div id="email-detail-content"></div>
+  </div>
+</div>
+
+<!-- Changelog Modal -->
+<div id="changelog-modal" class="modal hidden">
+  <div class="modal-inner">
+    <button class="modal-back" id="changelog-modal-back">&#8592; Back</button>
+    <h2>What's New</h2>
+    <div id="changelog-content"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast hidden"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
