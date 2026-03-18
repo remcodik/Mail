@@ -6,24 +6,77 @@ Exposes:
 """
 
 import json
+import os
+import secrets
 from pathlib import Path
 
 from dotenv import load_dotenv
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, redirect, request, session, url_for, send_from_directory
 from flask_cors import CORS
 
+import auth
 import gmail_client as gmail
 import intelligence as ai
 import orchestrator as orch
 
 load_dotenv()
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="ui")
+app.secret_key = os.getenv("SECRET_KEY", secrets.token_hex(32))
 CORS(app)
 
 VERSION_FILE = Path("version.json")
 CHANGELOG_FILE = Path("changelog.json")
 RULES_FILE = Path("rules.json")
+
+
+def _require_auth():
+    """Return a 401 response if Gmail is not authenticated, else None."""
+    if auth.get_credentials() is None:
+        return jsonify({"error": "Not authenticated. Visit /auth/login"}), 401
+    return None
+
+
+# ── Static UI ─────────────────────────────────────────────────────────────────
+
+@app.route("/")
+def serve_index():
+    return send_from_directory("ui", "index.html")
+
+
+@app.route("/<path:filename>")
+def serve_static(filename):
+    return send_from_directory("ui", filename)
+
+
+# ── Gmail OAuth2 ──────────────────────────────────────────────────────────────
+
+@app.route("/auth/login")
+def auth_login():
+    redirect_uri = url_for("auth_callback", _external=True)
+    flow = auth.get_web_flow(redirect_uri)
+    authorization_url, state = flow.authorization_url(access_type="offline", prompt="consent")
+    session["oauth_state"] = state
+    return redirect(authorization_url)
+
+
+@app.route("/auth/callback")
+def auth_callback():
+    redirect_uri = url_for("auth_callback", _external=True)
+    flow = auth.get_web_flow(redirect_uri)
+    flow.fetch_token(authorization_response=request.url)
+    creds = flow.credentials
+    auth._save_credentials(creds)
+    return """
+    <html><body style="font-family:sans-serif;text-align:center;padding:60px">
+    <h2>&#10003; Gmail connected!</h2>
+    <p>You can now <a href="/">open the app</a>.</p>
+    <p style="font-size:12px;color:#888">
+      To keep auth across Render deploys, set this as <code>GOOGLE_TOKEN_JSON</code> env var:<br><br>
+      <textarea rows="4" style="width:90%;font-size:11px">""" + creds.to_json() + """</textarea>
+    </p>
+    </body></html>
+    """
 
 
 def _load_json(path: Path, default) -> any:
@@ -208,9 +261,8 @@ def api_corrections():
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    import os
     host = os.getenv("FLASK_HOST", "0.0.0.0")
-    port = int(os.getenv("FLASK_PORT", 5000))
+    port = int(os.getenv("PORT", os.getenv("FLASK_PORT", 5000)))
     debug = os.getenv("FLASK_DEBUG", "false").lower() == "true"
     print(f"MailAI server starting on http://{host}:{port}")
     app.run(host=host, port=port, debug=debug)
