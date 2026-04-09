@@ -1,0 +1,22 @@
+# Secrets — never commit these
+credentials.json
+token.json
+.env
+*.pkpass
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Runtime data
+waiting.json
+snoozed.json
+corrections.json
+rules.json
+tasks.md
+
+# OS
+.DS_Store
