@@ -1,0 +1,38 @@
+[
+  {
+    "version": "1.1.0",
+    "date": "2026-04-09T00:00:00",
+    "label": "Auth Guard + Apple Wallet",
+    "changes": [
+      "Fixed: all /api/* routes now require Gmail authentication via before_request guard",
+      "Added /auth/status endpoint so the UI can check auth state without receiving a 401",
+      "Implemented Apple Wallet .pkpass generation (wallet.py) for tickets, boarding passes, and receipts",
+      "Added /api/email/<id>/wallet endpoint — downloads a .pkpass file for any ticket email",
+      "Wired 'Add to Wallet' button in the UI to the new wallet endpoint",
+      "Removed passkit4py dependency (replaced with stdlib zipfile + hashlib approach)"
+    ]
+  },
+  {
+    "version": "1.0.0",
+    "date": "2026-03-17T00:00:00",
+    "label": "Initial Release",
+    "changes": [
+      "Initial app structure and project setup",
+      "Gmail OAuth2 authentication flow",
+      "Email classification into 8 categories (urgent, reply_needed, newsletter, junk, fyi, ticket, awaiting_reply, scheduling)",
+      "AI-powered email summarization (2-3 sentences per thread)",
+      "Task extraction from emails with due dates",
+      "AI reply drafting with professional tone",
+      "Ticket and boarding pass detection",
+      "Scheduling intent detection with appointment proposals",
+      "Sent-mail monitoring for follow-up reminders",
+      "Newsletter unsubscribe via List-Unsubscribe header",
+      "User correction loop — wrong category feedback improves future classification",
+      "MCP server with 9 Gmail tools",
+      "iPhone-optimized mobile web UI with swipe gestures",
+      "Category tabs: Urgent, Reply, Newsletter, Junk, Tickets, Waiting",
+      "Settings screen with classification rules editor",
+      "Version history accessible from Settings menu"
+    ]
+  }
+]
