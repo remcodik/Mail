@@ -6,8 +6,11 @@ Exposes:
 """
 
 import json
+import logging
 import os
 import secrets
+import threading
+import time
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -269,6 +272,23 @@ def api_corrections():
     return jsonify(_load_json(corrections_file, []))
 
 
+# ── Snooze ───────────────────────────────────────────────────────────────────
+
+@app.route("/api/email/<message_id>/snooze", methods=["POST"])
+def api_snooze(message_id: str):
+    """Snooze an email. Body: {"duration": "1h"|"3h"|"tomorrow"|"3d"|"1w"}"""
+    data = request.json or {}
+    duration = data.get("duration", "3h")
+    record = orch.snooze_email(message_id, duration)
+    return jsonify({"status": "snoozed", "wake_at": record["wake_at"]})
+
+
+@app.route("/api/snoozed/due")
+def api_snoozed_due():
+    """Return emails that have woken up from snooze (for inbox re-injection)."""
+    return jsonify(orch.get_due_snoozed())
+
+
 # ── Apple Wallet ──────────────────────────────────────────────────────────────
 
 @app.route("/api/email/<message_id>/wallet", methods=["POST"])
@@ -289,11 +309,41 @@ def api_wallet(message_id: str):
     )
 
 
+# ── Sent-mail background poller ───────────────────────────────────────────────
+
+_POLL_INTERVAL = int(os.getenv("SENT_POLL_INTERVAL", 900))  # seconds, default 15 min
+
+def _sent_poller() -> None:
+    """Background thread: poll sent mail and create follow-up reminders."""
+    log = logging.getLogger("sent_poller")
+    # Wait for server to finish starting before first run
+    time.sleep(30)
+    while True:
+        try:
+            if auth.get_credentials() is not None:
+                orch.process_sent()
+                log.info("process_sent() completed")
+        except Exception:
+            log.exception("process_sent() failed")
+        time.sleep(_POLL_INTERVAL)
+
+
+def _start_sent_poller() -> None:
+    t = threading.Thread(target=_sent_poller, name="sent-poller", daemon=True)
+    t.start()
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     host = os.getenv("FLASK_HOST", "0.0.0.0")
     port = int(os.getenv("PORT", os.getenv("FLASK_PORT", 5000)))
     debug = os.getenv("FLASK_DEBUG", "false").lower() == "true"
+    _start_sent_poller()
     print(f"MailAI server starting on http://{host}:{port}")
     app.run(host=host, port=port, debug=debug)
+else:
+    # Started via gunicorn — still launch the poller
+    logging.basicConfig(level=logging.INFO)
+    _start_sent_poller()

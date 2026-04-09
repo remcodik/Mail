@@ -1,7 +1,7 @@
 """Inbox processing pipeline — coordinates Gmail, intelligence, and task storage."""
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import gmail_client as gmail
@@ -9,6 +9,7 @@ import intelligence as ai
 
 TASKS_FILE = Path("tasks.md")
 WAITING_FILE = Path("waiting.json")
+SNOOZED_FILE = Path("snoozed.json")
 
 
 def _load_waiting() -> list[dict]:
@@ -132,3 +133,54 @@ def dismiss_waiting(email_id: str) -> None:
 def get_newsletters() -> list[dict]:
     """Return emails classified as newsletters."""
     return gmail.list_emails(query="label:mailai/newsletter", max_results=50)
+
+
+# ── Snooze ────────────────────────────────────────────────────────────────────
+
+def _load_snoozed() -> list[dict]:
+    if SNOOZED_FILE.exists():
+        return json.loads(SNOOZED_FILE.read_text())
+    return []
+
+
+def _save_snoozed(snoozed: list[dict]) -> None:
+    SNOOZED_FILE.write_text(json.dumps(snoozed, indent=2))
+
+
+SNOOZE_DURATIONS = {
+    "1h":        timedelta(hours=1),
+    "3h":        timedelta(hours=3),
+    "tomorrow":  timedelta(days=1),
+    "3d":        timedelta(days=3),
+    "1w":        timedelta(weeks=1),
+}
+
+
+def snooze_email(email_id: str, duration: str) -> dict:
+    """Snooze an email for a given duration key.
+
+    Removes the email from INBOX immediately and records its wake-up time.
+    Returns the snooze record.
+    """
+    delta = SNOOZE_DURATIONS.get(duration, timedelta(hours=3))
+    wake_at = (datetime.now() + delta).isoformat()
+    record = {"id": email_id, "wake_at": wake_at, "duration": duration}
+
+    snoozed = _load_snoozed()
+    # Remove any existing snooze for this email
+    snoozed = [s for s in snoozed if s["id"] != email_id]
+    snoozed.append(record)
+    _save_snoozed(snoozed)
+
+    gmail.archive_email(email_id)
+    return record
+
+
+def get_due_snoozed() -> list[dict]:
+    """Return snoozed emails whose wake_at time has passed, and un-snooze them."""
+    snoozed = _load_snoozed()
+    now = datetime.now().isoformat()
+    due = [s for s in snoozed if s["wake_at"] <= now]
+    remaining = [s for s in snoozed if s["wake_at"] > now]
+    _save_snoozed(remaining)
+    return due

@@ -15,6 +15,7 @@ load_dotenv()
 _client = anthropic.Anthropic()
 MODEL = "claude-sonnet-4-6"
 CORRECTIONS_FILE = Path("corrections.json")
+RULES_FILE = Path("rules.json")
 
 CATEGORIES = [
     "urgent",
@@ -32,6 +33,20 @@ def _load_corrections() -> list[dict]:
     if CORRECTIONS_FILE.exists():
         return json.loads(CORRECTIONS_FILE.read_text())[-10:]
     return []
+
+
+def _rules_prompt() -> str:
+    if not RULES_FILE.exists():
+        return ""
+    rules = json.loads(RULES_FILE.read_text())
+    if not rules:
+        return ""
+    lines = ["User-defined classification rules (highest priority — always obey):"]
+    for r in rules:
+        text = r.get("rule", "") if isinstance(r, dict) else str(r)
+        if text:
+            lines.append(f"  - {text}")
+    return "\n".join(lines) + "\n\n"
 
 
 def _corrections_prompt() -> str:
@@ -58,8 +73,10 @@ def _email_context(email: dict) -> str:
 
 def classify_email(email: dict) -> str:
     """Classify an email into one of the 8 categories."""
+    rules = _rules_prompt()
     corrections = _corrections_prompt()
     prompt = (
+        f"{rules}"
         f"{corrections}"
         f"Classify the following email into exactly one of these categories:\n"
         f"{', '.join(CATEGORIES)}\n\n"

@@ -194,7 +194,7 @@ function renderEmailList() {
   });
 
   list.querySelectorAll('.swipe-btn.snooze').forEach(btn => {
-    btn.addEventListener('click', () => showToast('Snooze coming soon'));
+    btn.addEventListener('click', () => openSnoozeSheet(btn.dataset.id));
   });
 }
 
@@ -627,8 +627,76 @@ function renderWaitingScreen() {
   });
 }
 
+// ── Snooze sheet ───────────────────────────────────────────────────────────
+const SNOOZE_OPTIONS = [
+  { label: 'In 1 hour',    value: '1h' },
+  { label: 'In 3 hours',   value: '3h' },
+  { label: 'Tomorrow',     value: 'tomorrow' },
+  { label: 'In 3 days',    value: '3d' },
+  { label: 'In 1 week',    value: '1w' },
+];
+
+function openSnoozeSheet(emailId) {
+  // Remove any existing sheet
+  document.getElementById('snooze-sheet')?.remove();
+
+  const sheet = document.createElement('div');
+  sheet.id = 'snooze-sheet';
+  sheet.style.cssText = `
+    position:fixed;inset:0;z-index:300;display:flex;flex-direction:column;
+    justify-content:flex-end;background:rgba(0,0,0,0.4);
+  `;
+  sheet.innerHTML = `
+    <div style="background:var(--card);border-radius:16px 16px 0 0;padding:16px;
+                padding-bottom:calc(16px + env(safe-area-inset-bottom));">
+      <div style="font-size:15px;font-weight:700;margin-bottom:12px;text-align:center;">
+        Snooze until…
+      </div>
+      ${SNOOZE_OPTIONS.map(o => `
+        <button data-duration="${o.value}" style="
+          display:block;width:100%;height:50px;background:none;border:none;
+          border-bottom:1px solid var(--border);font-size:16px;color:var(--accent);
+          cursor:pointer;text-align:center;">
+          ${o.label}
+        </button>
+      `).join('')}
+      <button id="snooze-cancel" style="
+        display:block;width:100%;height:50px;background:none;border:none;
+        font-size:16px;font-weight:600;color:var(--danger);cursor:pointer;
+        margin-top:4px;text-align:center;">
+        Cancel
+      </button>
+    </div>
+  `;
+
+  document.body.appendChild(sheet);
+
+  sheet.querySelectorAll('[data-duration]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      sheet.remove();
+      api(`/api/email/${emailId}/snooze`, {
+        method: 'POST',
+        body: JSON.stringify({ duration: btn.dataset.duration }),
+      }).then(() => {
+        state.emails = state.emails.filter(e => e.id !== emailId);
+        renderEmailList();
+        showToast(`Snoozed — ${btn.textContent.trim()}`);
+      });
+    });
+  });
+
+  document.getElementById('snooze-cancel').addEventListener('click', () => sheet.remove());
+  sheet.addEventListener('click', e => { if (e.target === sheet) sheet.remove(); });
+}
+
 // ── Boot ───────────────────────────────────────────────────────────────────
 (function init() {
   api('/api/version').then(v => { state.version = v; }).catch(() => {});
+  // Re-inject any emails that woke up from snooze into the local cache
+  api('/api/snoozed/due').then(due => {
+    if (due.length > 0) {
+      showToast(`${due.length} snoozed email${due.length > 1 ? 's' : ''} returned`);
+    }
+  }).catch(() => {});
   renderScreen();
 })();
