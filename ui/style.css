@@ -1,0 +1,378 @@
+/* ── Reset & base ──────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --border: #e0e0e0;
+  --text: #1a1a1a;
+  --text-sub: #6e6e73;
+  --accent: #1a73e8;
+  --danger: #ea4335;
+  --radius: 12px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --header-h: 52px;
+  --account-bar-h: 44px;
+  --tab-h: 44px;
+  --nav-h: calc(56px + var(--safe-bottom));
+}
+
+html, body {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+.hidden { display: none !important; }
+
+/* ── Screens ───────────────────────────────────────────────────── */
+.screen { position: fixed; inset: 0; display: flex; flex-direction: column; }
+
+/* ── Login screen ──────────────────────────────────────────────── */
+.login-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px calc(32px + var(--safe-bottom));
+  padding-top: calc(32px + var(--safe-top));
+  text-align: center;
+  background: var(--surface);
+}
+.login-logo { font-size: 64px; margin-bottom: 16px; }
+.login-title { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+.login-sub { color: var(--text-sub); margin-bottom: 40px; font-size: 15px; }
+.login-btn {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 16px; padding: 14px 28px; border-radius: 28px;
+  text-decoration: none;
+}
+.login-hint {
+  margin-top: 20px; color: var(--text-sub); font-size: 13px; line-height: 1.5;
+}
+
+/* ── Header ────────────────────────────────────────────────────── */
+.app-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: calc(var(--safe-top) + 8px) 16px 8px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  min-height: calc(var(--header-h) + var(--safe-top));
+  position: relative; z-index: 10;
+}
+.header-left { display: flex; align-items: center; gap: 8px; }
+.app-name { font-size: 18px; font-weight: 700; }
+.header-right { display: flex; gap: 4px; }
+.icon-btn {
+  background: none; border: none; font-size: 20px;
+  padding: 6px 10px; cursor: pointer; border-radius: 8px;
+  color: var(--text);
+}
+.icon-btn:active { background: var(--bg); }
+
+/* ── Version badge ─────────────────────────────────────────────── */
+.version-badge {
+  font-size: 11px; color: var(--text-sub);
+  background: var(--bg); padding: 2px 7px; border-radius: 10px;
+}
+
+/* ── Account bar ───────────────────────────────────────────────── */
+.account-bar {
+  display: flex; gap: 8px; padding: 6px 12px;
+  overflow-x: auto; background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  scrollbar-width: none;
+  min-height: var(--account-bar-h);
+  align-items: center;
+}
+.account-bar::-webkit-scrollbar { display: none; }
+
+.account-chip {
+  flex-shrink: 0;
+  padding: 5px 14px;
+  border-radius: 20px;
+  border: 2px solid transparent;
+  font-size: 13px; font-weight: 500; cursor: pointer;
+  background: var(--bg); color: var(--text);
+  transition: all .15s;
+  white-space: nowrap;
+}
+.account-chip.active {
+  background: var(--accent); color: #fff; border-color: var(--accent);
+}
+.account-chip[data-account="all"].active {
+  background: #333; border-color: #333;
+}
+
+/* ── Tab bar ───────────────────────────────────────────────────── */
+.tab-bar {
+  display: flex; overflow-x: auto;
+  background: var(--surface);
+  border-bottom: 2px solid var(--border);
+  scrollbar-width: none;
+}
+.tab-bar::-webkit-scrollbar { display: none; }
+
+.tab {
+  flex-shrink: 0;
+  padding: 10px 14px;
+  border: none; background: none;
+  font-size: 13px; font-weight: 500;
+  color: var(--text-sub); cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  white-space: nowrap;
+  transition: color .15s;
+}
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ── Email list ────────────────────────────────────────────────── */
+.email-list {
+  flex: 1; overflow-y: auto;
+  padding: 8px 0 calc(var(--nav-h) + 8px);
+  -webkit-overflow-scrolling: touch;
+}
+.loading, .empty {
+  text-align: center; padding: 60px 24px;
+  color: var(--text-sub); font-size: 15px;
+}
+
+/* ── Email card ────────────────────────────────────────────────── */
+.email-card {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  touch-action: pan-y;
+  user-select: none;
+  transition: transform .15s, opacity .15s;
+  position: relative;
+}
+.email-card:active { opacity: .85; }
+
+.account-dot-sm {
+  width: 10px; height: 10px; border-radius: 50%;
+  flex-shrink: 0; margin-top: 5px;
+}
+
+.card-body { flex: 1; min-width: 0; }
+.card-sender { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-subject { font-size: 13px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+.card-snippet { font-size: 12px; color: var(--text-sub); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; margin-top: 3px; }
+.card-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
+.card-time { font-size: 11px; color: var(--text-sub); white-space: nowrap; }
+.card-account-label { font-size: 10px; padding: 2px 6px; border-radius: 8px; color: #fff; }
+
+/* Swipe action indicator */
+.swipe-actions {
+  position: absolute; right: 0; top: 0; bottom: 0;
+  display: flex; align-items: stretch;
+  overflow: hidden;
+}
+.swipe-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  width: 72px; border: none; cursor: pointer; font-size: 11px; gap: 4px;
+  color: #fff;
+}
+.swipe-btn.archive { background: #34a853; }
+.swipe-btn.delete  { background: var(--danger); }
+
+/* ── Sheets ────────────────────────────────────────────────────── */
+.sheet {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column;
+  z-index: 100;
+}
+.sheet::before {
+  content: ''; position: absolute; inset: 0;
+  background: rgba(0,0,0,.4);
+}
+.sheet-handle {
+  width: 36px; height: 4px; border-radius: 2px;
+  background: rgba(0,0,0,.2); margin: 10px auto 0;
+  position: relative; z-index: 1;
+}
+.sheet-content {
+  margin-top: auto;
+  background: var(--surface);
+  border-radius: 20px 20px 0 0;
+  overflow-y: auto;
+  max-height: 92vh;
+  padding: 4px 0 calc(20px + var(--safe-bottom));
+  position: relative; z-index: 1;
+}
+.sheet-title {
+  font-size: 18px; font-weight: 700;
+  padding: 16px 20px 8px;
+}
+
+/* ── Detail sheet ──────────────────────────────────────────────── */
+.detail-header {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.back-btn {
+  background: none; border: none; font-size: 18px;
+  cursor: pointer; padding: 0 4px; color: var(--text-sub);
+  flex-shrink: 0;
+}
+.detail-subject { font-size: 16px; font-weight: 600; }
+.detail-from { font-size: 13px; color: var(--text-sub); margin-top: 3px; }
+.account-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+
+.detail-card {
+  margin: 12px 16px 0;
+  padding: 14px;
+  background: var(--bg);
+  border-radius: var(--radius);
+}
+.card-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .5px; color: var(--text-sub); margin-bottom: 8px;
+}
+
+.detail-body {
+  padding: 16px 20px;
+  font-size: 14px; line-height: 1.6;
+  color: var(--text-sub);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.detail-actions {
+  display: flex; gap: 10px; padding: 12px 16px;
+  flex-wrap: wrap;
+}
+
+/* Reply card */
+.reply-card textarea {
+  width: 100%; border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px;
+  font-size: 14px; resize: vertical; min-height: 100px;
+  font-family: inherit; background: var(--surface);
+}
+.reply-actions { display: flex; gap: 10px; margin-top: 10px; }
+
+/* Tasks list */
+.detail-card ul { padding-left: 0; list-style: none; }
+.detail-card li {
+  display: flex; gap: 8px; align-items: baseline;
+  padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 14px;
+}
+.detail-card li:last-child { border: none; }
+.task-due { font-size: 12px; color: var(--text-sub); margin-left: auto; white-space: nowrap; }
+
+/* ── Settings ──────────────────────────────────────────────────── */
+.settings-section { padding: 16px 20px 0; }
+.settings-label {
+  font-size: 12px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .5px; color: var(--text-sub); margin-bottom: 10px;
+}
+.settings-account-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+}
+.settings-account-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+.settings-account-info { flex: 1; }
+.settings-account-email { font-size: 14px; font-weight: 500; }
+.settings-account-date { font-size: 12px; color: var(--text-sub); }
+.settings-remove-btn {
+  background: none; border: 1px solid var(--danger);
+  color: var(--danger); border-radius: 8px; padding: 4px 10px;
+  font-size: 12px; cursor: pointer;
+}
+.settings-add-btn {
+  display: inline-block; margin-top: 14px;
+  text-decoration: none;
+}
+.settings-version {
+  font-size: 13px; color: var(--text-sub); padding: 8px 0;
+}
+
+/* ── Tasks sheet ───────────────────────────────────────────────── */
+#tasks-list { padding: 8px 16px; }
+.task-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+.task-row:last-child { border: none; }
+.task-check {
+  width: 20px; height: 20px; border-radius: 50%;
+  border: 2px solid var(--border); flex-shrink: 0; cursor: pointer;
+}
+.task-account-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── Correction modal ──────────────────────────────────────────── */
+.modal {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,.5);
+  display: flex; align-items: flex-end;
+}
+.modal-box {
+  width: 100%;
+  background: var(--surface);
+  border-radius: 20px 20px 0 0;
+  padding: 20px 20px calc(20px + var(--safe-bottom));
+}
+.modal-title {
+  font-size: 16px; font-weight: 700; margin-bottom: 16px;
+}
+.cat-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 8px; margin-bottom: 14px;
+}
+.cat-btn {
+  padding: 12px; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--bg); font-size: 14px; cursor: pointer; text-align: left;
+}
+.cat-btn:active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* ── Buttons ───────────────────────────────────────────────────── */
+.btn-primary {
+  background: var(--accent); color: #fff;
+  border: none; border-radius: 10px;
+  padding: 12px 20px; font-size: 15px; font-weight: 600;
+  cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-primary:active { opacity: .85; }
+.btn-ghost {
+  background: none; border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 16px;
+  font-size: 14px; cursor: pointer; color: var(--text);
+}
+.btn-ghost:active { background: var(--bg); }
+.btn-ghost.btn-danger { color: var(--danger); border-color: var(--danger); }
+.btn-ghost.small { font-size: 12px; padding: 6px 12px; }
+
+/* ── Bottom nav ────────────────────────────────────────────────── */
+.bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  height: var(--nav-h);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  padding-bottom: var(--safe-bottom);
+  z-index: 50;
+}
+.nav-item {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 3px;
+  background: none; border: none; font-size: 11px;
+  color: var(--text-sub); cursor: pointer;
+}
+.nav-item.active { color: var(--accent); }
+.nav-icon { font-size: 20px; }
+
+/* ── Overdue badge ─────────────────────────────────────────────── */
+.overdue-badge {
+  font-size: 11px; background: var(--danger);
+  color: #fff; padding: 2px 6px; border-radius: 8px; margin-left: 6px;
+}

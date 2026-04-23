@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>MailAI</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<!-- ── Add account screen ─────────────────────────── -->
+<div id="screen-login" class="screen hidden">
+  <div class="login-center">
+    <div class="login-logo">✉️</div>
+    <h1 class="login-title">MailAI</h1>
+    <p class="login-sub">AI-powered Gmail — triage, summarise, act</p>
+    <a href="/api/accounts/add" class="btn-primary login-btn">
+      <svg width="20" height="20" viewBox="0 0 48 48" fill="none">
+        <path d="M6 8h36l-18 14L6 8z" fill="#fff"/>
+        <path d="M6 8v32h36V8" stroke="#fff" stroke-width="3" fill="none"/>
+      </svg>
+      Sign in with Gmail
+    </a>
+    <p class="login-hint">Your data stays on your device.<br>OAuth2 — no password stored.</p>
+    <div id="login-version" class="version-badge"></div>
+  </div>
+</div>
+
+<!-- ── Main app ───────────────────────────────────── -->
+<div id="screen-app" class="screen hidden">
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-left">
+      <span class="app-name">MailAI</span>
+      <span id="version-badge" class="version-badge"></span>
+    </div>
+    <div class="header-right">
+      <button class="icon-btn" id="btn-refresh" title="Refresh">⟳</button>
+      <button class="icon-btn" id="btn-settings" title="Settings">⚙</button>
+    </div>
+  </header>
+
+  <!-- Account chips -->
+  <div class="account-bar" id="account-bar">
+    <button class="account-chip active" data-account="all">All</button>
+  </div>
+
+  <!-- Category tabs -->
+  <div class="tab-bar" id="tab-bar">
+    <button class="tab active" data-tab="urgent">🔴 Urgent</button>
+    <button class="tab" data-tab="reply_needed">↩ Reply</button>
+    <button class="tab" data-tab="newsletter">📰 News</button>
+    <button class="tab" data-tab="ticket">🎫 Tickets</button>
+    <button class="tab" data-tab="waiting">⏳ Waiting</button>
+    <button class="tab" data-tab="junk">🗑 Junk</button>
+    <button class="tab" data-tab="fyi">ℹ FYI</button>
+  </div>
+
+  <!-- Email list -->
+  <main class="email-list" id="email-list">
+    <div class="loading" id="loading">Loading…</div>
+    <div class="empty" id="empty" style="display:none">Nothing here ✓</div>
+  </main>
+
+  <!-- Bottom nav -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-screen="inbox">
+      <span class="nav-icon">✉</span><span>Inbox</span>
+    </button>
+    <button class="nav-item" data-screen="tasks">
+      <span class="nav-icon">✓</span><span>Tasks</span>
+    </button>
+    <button class="nav-item" data-screen="settings">
+      <span class="nav-icon">⚙</span><span>Settings</span>
+    </button>
+  </nav>
+</div>
+
+<!-- ── Email detail sheet ─────────────────────────── -->
+<div id="detail-sheet" class="sheet hidden">
+  <div class="sheet-handle"></div>
+  <div class="sheet-content">
+    <div class="detail-header">
+      <button class="back-btn" id="detail-close">✕</button>
+      <div>
+        <div class="detail-subject" id="detail-subject"></div>
+        <div class="detail-from" id="detail-from"></div>
+      </div>
+      <span class="account-dot" id="detail-account-dot"></span>
+    </div>
+
+    <div class="detail-card summary-card" id="detail-summary-card">
+      <div class="card-label">AI Summary</div>
+      <div id="detail-summary"></div>
+    </div>
+
+    <div class="detail-card tasks-card" id="detail-tasks-card">
+      <div class="card-label">Action items</div>
+      <ul id="detail-tasks"></ul>
+    </div>
+
+    <div class="detail-card reply-card" id="detail-reply-card">
+      <div class="card-label">Suggested reply</div>
+      <textarea id="detail-reply-text" rows="6"></textarea>
+      <div class="reply-actions">
+        <button class="btn-primary" id="btn-send-reply">Send</button>
+        <button class="btn-ghost" id="btn-discard-reply">Discard</button>
+      </div>
+    </div>
+
+    <div class="detail-card ticket-card" id="detail-ticket-card">
+      <div class="card-label">Ticket / Pass</div>
+      <div id="detail-ticket-info"></div>
+      <button class="btn-primary" id="btn-add-wallet">Add to Wallet</button>
+    </div>
+
+    <div class="detail-body" id="detail-body"></div>
+
+    <div class="detail-actions">
+      <button class="btn-ghost" id="btn-archive">Archive</button>
+      <button class="btn-ghost btn-danger" id="btn-delete">Delete</button>
+      <button class="btn-ghost small" id="btn-wrong-cat">Wrong category?</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Settings sheet ─────────────────────────────── -->
+<div id="settings-sheet" class="sheet hidden">
+  <div class="sheet-handle"></div>
+  <div class="sheet-content">
+    <h2 class="sheet-title">Settings</h2>
+
+    <section class="settings-section">
+      <div class="settings-label">Accounts</div>
+      <div id="settings-accounts"></div>
+      <a href="/api/accounts/add" class="btn-primary settings-add-btn">+ Add Gmail account</a>
+    </section>
+
+    <section class="settings-section">
+      <div class="settings-label">About</div>
+      <div id="settings-version" class="settings-version"></div>
+    </section>
+  </div>
+</div>
+
+<!-- ── Tasks sheet ────────────────────────────────── -->
+<div id="tasks-sheet" class="sheet hidden">
+  <div class="sheet-handle"></div>
+  <div class="sheet-content">
+    <h2 class="sheet-title">Tasks</h2>
+    <div id="tasks-list"></div>
+  </div>
+</div>
+
+<!-- ── Category correction modal ─────────────────── -->
+<div id="correction-modal" class="modal hidden">
+  <div class="modal-box">
+    <div class="modal-title">Correct category</div>
+    <div class="cat-grid" id="cat-grid"></div>
+    <button class="btn-ghost" id="correction-cancel">Cancel</button>
+  </div>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
