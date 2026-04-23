@@ -19,6 +19,7 @@ SCOPES = [
 TOKENS_DIR = Path("tokens")
 ACCOUNTS_FILE = Path("data/accounts.json")
 SECRETS_FILE = os.getenv("GOOGLE_CLIENT_SECRETS_FILE", "credentials.json")
+SECRETS_JSON = os.getenv("GOOGLE_CREDENTIALS_JSON")  # full JSON string, used on Railway
 
 ACCOUNT_COLORS = [
     "#1a73e8",  # Google blue
@@ -53,6 +54,12 @@ def get_account(email: str) -> dict | None:
 
 
 def create_auth_flow(redirect_uri: str) -> Flow:
+    if SECRETS_JSON:
+        return Flow.from_client_config(
+            json.loads(SECRETS_JSON),
+            scopes=SCOPES,
+            redirect_uri=redirect_uri,
+        )
     return Flow.from_client_secrets_file(
         SECRETS_FILE,
         scopes=SCOPES,
