@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="MailAI">
+  <title>MailAI</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ── Inbox view ── -->
+  <div id="view-inbox" class="view active">
+    <header class="app-header">
+      <h1>MailAI</h1>
+      <button id="btn-refresh" class="icon-btn" title="Fetch new mail">↻</button>
+    </header>
+    <nav class="category-tabs" id="category-tabs">
+      <button class="tab active" data-category="all">All</button>
+      <button class="tab" data-category="urgent">Urgent</button>
+      <button class="tab" data-category="reply_needed">Reply</button>
+      <button class="tab" data-category="newsletter">Newsletter</button>
+      <button class="tab" data-category="ticket">Tickets</button>
+      <button class="tab" data-category="awaiting_reply">Waiting</button>
+      <button class="tab" data-category="junk">Junk</button>
+      <button class="tab" data-category="fyi">FYI</button>
+    </nav>
+    <div id="email-list" class="email-list">
+      <p class="empty-state">Tap ↻ to fetch emails</p>
+    </div>
+  </div>
+
+  <!-- ── Detail view ── -->
+  <div id="view-detail" class="view slide-right">
+    <header class="detail-header">
+      <button id="btn-back" class="back-btn">‹ Inbox</button>
+    </header>
+    <div id="email-detail-content" class="detail-content"></div>
+  </div>
+
+  <!-- ── Tasks view ── -->
+  <div id="view-tasks" class="view slide-right">
+    <header class="app-header">
+      <h1>Tasks</h1>
+    </header>
+    <div id="task-list" class="task-list">
+      <p class="empty-state">No tasks yet</p>
+    </div>
+  </div>
+
+  <!-- ── Waiting view ── -->
+  <div id="view-waiting" class="view slide-right">
+    <header class="app-header">
+      <h1>Waiting</h1>
+    </header>
+    <div id="waiting-list" class="waiting-list">
+      <p class="empty-state">No pending follow-ups</p>
+    </div>
+  </div>
+
+  <!-- ── Settings view ── -->
+  <div id="view-settings" class="view slide-right">
+    <header class="app-header">
+      <h1>Settings</h1>
+    </header>
+    <div class="settings-content">
+      <section class="settings-section">
+        <h2>Processing</h2>
+        <label class="settings-row">
+          Max emails per fetch
+          <input type="number" id="setting-max-results" value="30" min="1" max="100">
+        </label>
+      </section>
+      <section class="settings-section">
+        <h2>Corrections</h2>
+        <div id="corrections-list"></div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ── Bottom nav ── -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-view="view-inbox">
+      <span class="nav-icon">✉</span>
+      <span class="nav-label">Inbox</span>
+    </button>
+    <button class="nav-item" data-view="view-waiting">
+      <span class="nav-icon">⏳</span>
+      <span class="nav-label">Waiting</span>
+    </button>
+    <button class="nav-item" data-view="view-tasks">
+      <span class="nav-icon">✓</span>
+      <span class="nav-label">Tasks</span>
+    </button>
+    <button class="nav-item" data-view="view-settings">
+      <span class="nav-icon">⚙</span>
+      <span class="nav-label">Settings</span>
+    </button>
+  </nav>
+
+  <!-- ── Loading overlay ── -->
+  <div id="loading" class="loading hidden">
+    <div class="spinner"></div>
+    <p>Processing emails…</p>
+  </div>
+
+  <!-- ── Toast ── -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
