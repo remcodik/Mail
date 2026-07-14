@@ -1,0 +1,705 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MailAI — iPhone Mockups</title>
+<style>
+  html,body{margin:0}
+  :root {
+    --paper: #EEF2F6;
+    --surface: #FFFFFF;
+    --surface-2: #F5F7FA;
+    --ink: #15202B;
+    --ink-2: #4A5A6A;
+    --ink-3: #7C8B9A;
+    --line: #E2E8EF;
+    --accent: #0FA398;
+    --accent-ink: #0A6E67;
+    --shadow: 20px 40px 80px -30px rgba(21,32,43,.30), 0 6px 20px -8px rgba(21,32,43,.20);
+    /* semantic category colors */
+    --c-urgent: #E5484D;
+    --c-reply: #E8912B;
+    --c-news: #3E7BF0;
+    --c-junk: #8A94A6;
+    --c-ticket: #8257E6;
+    --c-wait: #0FA398;
+    --bezel: #0B0F14;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #0B1016;
+      --surface: #141D28;
+      --surface-2: #101821;
+      --ink: #EAF0F5;
+      --ink-2: #A7B4C0;
+      --ink-3: #6F7E8C;
+      --line: #223040;
+      --accent: #23C4B6;
+      --accent-ink: #7EE9DF;
+      --shadow: 20px 40px 90px -30px rgba(0,0,0,.65), 0 6px 20px -8px rgba(0,0,0,.5);
+      --bezel: #05080B;
+    }
+  }
+  :root[data-theme="light"] {
+    --paper: #EEF2F6; --surface: #FFFFFF; --surface-2: #F5F7FA;
+    --ink: #15202B; --ink-2: #4A5A6A; --ink-3: #7C8B9A; --line: #E2E8EF;
+    --accent: #0FA398; --accent-ink: #0A6E67; --bezel: #0B0F14;
+    --shadow: 20px 40px 80px -30px rgba(21,32,43,.30), 0 6px 20px -8px rgba(21,32,43,.20);
+  }
+  :root[data-theme="dark"] {
+    --paper: #0B1016; --surface: #141D28; --surface-2: #101821;
+    --ink: #EAF0F5; --ink-2: #A7B4C0; --ink-3: #6F7E8C; --line: #223040;
+    --accent: #23C4B6; --accent-ink: #7EE9DF; --bezel: #05080B;
+    --shadow: 20px 40px 90px -30px rgba(0,0,0,.65), 0 6px 20px -8px rgba(0,0,0,.5);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(1200px 700px at 85% -10%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 60%),
+      var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: clamp(28px, 5vw, 72px) clamp(18px, 4vw, 40px) 96px; }
+
+  /* ---------- Masthead ---------- */
+  .mast { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 20px 40px; justify-content: space-between; margin-bottom: 12px; }
+  .eyebrow {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 12px; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--accent-ink); font-weight: 600; margin: 0 0 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .eyebrow::before { content: ""; width: 26px; height: 2px; background: var(--accent); border-radius: 2px; }
+  h1 { font-size: clamp(2.3rem, 5.5vw, 4rem); line-height: 1.02; letter-spacing: -.03em; margin: 0; font-weight: 700; text-wrap: balance; }
+  h1 .thin { color: var(--ink-2); font-weight: 400; }
+  .lede { color: var(--ink-2); font-size: clamp(1rem, 1.4vw, 1.15rem); max-width: 46ch; margin: 18px 0 0; text-wrap: pretty; }
+  .meta { text-align: right; color: var(--ink-3); font-size: 13px; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+  .meta b { color: var(--ink); font-weight: 600; }
+
+  .divider { height: 1px; background: var(--line); margin: 40px 0 8px; }
+
+  /* ---------- Gallery ---------- */
+  .gallery {
+    display: grid; gap: clamp(36px, 5vw, 64px) clamp(24px, 3vw, 40px);
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    justify-items: center; margin-top: 40px;
+  }
+  .cell { width: 100%; max-width: 320px; display: flex; flex-direction: column; align-items: center; }
+  .caption { margin-top: 22px; width: 100%; }
+  .caption .n {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px;
+    color: var(--accent-ink); letter-spacing: .1em; font-weight: 600;
+  }
+  .caption h3 { margin: 4px 0 6px; font-size: 1.12rem; letter-spacing: -.01em; }
+  .caption p { margin: 0; color: var(--ink-2); font-size: .92rem; }
+
+  /* ---------- iPhone frame ---------- */
+  .phone {
+    position: relative; width: 300px; height: 620px; flex: none;
+    background: var(--bezel); border-radius: 52px; padding: 12px;
+    box-shadow: var(--shadow), inset 0 0 0 2px rgba(255,255,255,.06);
+  }
+  .phone::after { /* side buttons */
+    content: ""; position: absolute; left: -3px; top: 130px; width: 3px; height: 64px;
+    background: var(--bezel); border-radius: 3px;
+    box-shadow: 0 84px 0 var(--bezel), 0 -46px 0 0 var(--bezel);
+  }
+  .glass {
+    position: relative; height: 100%; border-radius: 42px; overflow: hidden;
+    background: var(--surface-2); display: flex; flex-direction: column;
+  }
+  .island {
+    position: absolute; top: 11px; left: 50%; transform: translateX(-50%);
+    width: 92px; height: 26px; background: #05080B; border-radius: 16px; z-index: 40;
+  }
+  .statusbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 24px 6px; font-size: 13px; font-weight: 600; color: var(--ink);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  .statusbar .icons { display: flex; align-items: center; gap: 6px; }
+  .statusbar svg { display: block; }
+
+  .app { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-2); }
+  .apphead { padding: 6px 18px 10px; background: var(--surface-2); }
+  .apphead .brand { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-3); font-weight: 600; letter-spacing: .04em; }
+  .apphead .brand .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+  .apphead h2 { margin: 6px 0 2px; font-size: 1.55rem; letter-spacing: -.02em; }
+  .apphead .sub { font-size: 12.5px; color: var(--ink-2); }
+
+  /* category tab strip */
+  .tabs { display: flex; gap: 7px; overflow-x: auto; padding: 12px 18px 4px; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    flex: none; border: 1px solid var(--line); background: var(--surface);
+    color: var(--ink-2); font: inherit; font-size: 12.5px; font-weight: 600;
+    padding: 7px 12px; border-radius: 999px; cursor: pointer; white-space: nowrap;
+    display: flex; align-items: center; gap: 6px; transition: .18s;
+  }
+  .tab .badge { background: var(--line); color: var(--ink-2); border-radius: 999px; font-size: 10.5px; padding: 1px 6px; font-family: ui-monospace, monospace; }
+  .tab[aria-selected="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+  .tab[aria-selected="true"] .badge { background: color-mix(in srgb, var(--surface) 25%, transparent); color: var(--surface); }
+  .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .list { flex: 1; overflow: hidden; padding: 10px 14px 4px; display: flex; flex-direction: column; gap: 9px; }
+  .list[hidden] { display: none; }
+
+  /* email card */
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+    padding: 12px 13px; display: grid; grid-template-columns: 34px 1fr; gap: 10px; position: relative;
+  }
+  .card .av {
+    width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+    font-weight: 700; font-size: 13px; color: #fff;
+  }
+  .card .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .card .from { font-weight: 650; font-size: 13.5px; letter-spacing: -.01em; }
+  .card .time { font-size: 11px; color: var(--ink-3); font-family: ui-monospace, monospace; flex: none; }
+  .card .subj { font-size: 12.5px; color: var(--ink); margin: 1px 0 4px; font-weight: 550; }
+  .card .snip { font-size: 12px; color: var(--ink-2); line-height: 1.45;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .card .chip { margin-top: 7px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 700;
+    letter-spacing: .04em; text-transform: uppercase; padding: 3px 8px; border-radius: 6px;
+    color: var(--cc, var(--ink-2)); background: color-mix(in srgb, var(--cc, var(--ink-3)) 14%, transparent);
+  }
+  .chip::before { content: ""; width: 6px; height: 6px; border-radius: 2px; background: var(--cc, var(--ink-3)); }
+  .u-urgent { --cc: var(--c-urgent); } .u-reply { --cc: var(--c-reply); }
+  .u-news { --cc: var(--c-news); } .u-junk { --cc: var(--c-junk); }
+  .u-ticket { --cc: var(--c-ticket); } .u-wait { --cc: var(--c-wait); }
+
+  .ai-note { font-size: 11.5px; color: var(--accent-ink); display: flex; gap: 6px; margin-top: 6px; align-items: flex-start; }
+  .ai-note svg { flex: none; margin-top: 1px; }
+
+  /* bottom nav */
+  .nav {
+    display: flex; justify-content: space-around; align-items: center;
+    padding: 10px 8px calc(10px + env(safe-area-inset-bottom)); background: var(--surface);
+    border-top: 1px solid var(--line);
+  }
+  .nav a { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10px; color: var(--ink-3); text-decoration: none; font-weight: 600; }
+  .nav a.on { color: var(--accent); }
+  .nav svg { display: block; }
+
+  /* generic screen scaffolding (detail, tickets, etc.) */
+  .scroll { flex: 1; overflow: hidden; padding: 12px 14px; display: flex; flex-direction: column; gap: 11px; }
+  .backbar { display: flex; align-items: center; gap: 8px; padding: 4px 16px 6px; font-size: 13px; color: var(--accent); font-weight: 600; }
+
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 13px; }
+  .panel .h { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); font-weight: 700; margin: 0 0 7px; display: flex; align-items: center; gap: 6px; }
+  .panel.ai { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: color-mix(in srgb, var(--accent) 7%, var(--surface)); }
+  .panel.ai .h { color: var(--accent-ink); }
+  .panel p { margin: 0; font-size: 12.5px; color: var(--ink); line-height: 1.5; }
+
+  .task { display: flex; gap: 9px; align-items: flex-start; font-size: 12.5px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .task:last-child { border-bottom: 0; }
+  .task .box { width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid var(--ink-3); flex: none; margin-top: 1px; }
+  .task .due { color: var(--c-reply); font-size: 11px; font-weight: 600; font-family: ui-monospace, monospace; }
+
+  .reply-body { font-size: 12.5px; color: var(--ink-2); line-height: 1.5; background: var(--surface-2); border-radius: 10px; padding: 10px; border: 1px solid var(--line); }
+  .btnrow { display: flex; gap: 7px; margin-top: 10px; }
+  .btn { flex: 1; text-align: center; font-size: 12.5px; font-weight: 650; padding: 9px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+  .btn.pri { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.ghost { background: transparent; }
+  .btn.danger { color: var(--c-urgent); border-color: color-mix(in srgb, var(--c-urgent) 40%, var(--line)); }
+
+  /* newsletter rows */
+  .nrow { display: grid; grid-template-columns: 20px 1fr auto; gap: 10px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 11px 12px; }
+  .nrow .cbx { width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--accent); display: grid; place-items: center; }
+  .nrow .cbx.on { background: var(--accent); }
+  .nrow .nm { font-size: 12.5px; font-weight: 600; }
+  .nrow .fr { font-size: 11px; color: var(--ink-3); }
+  .nrow .acts { display: flex; gap: 6px; }
+  .pill { font-size: 10.5px; font-weight: 700; padding: 5px 9px; border-radius: 8px; border: 1px solid var(--line); color: var(--ink-2); background: var(--surface-2); }
+  .pill.unsub { color: var(--c-urgent); border-color: color-mix(in srgb, var(--c-urgent) 35%, var(--line)); }
+
+  /* wallet ticket cards */
+  .ticket { border-radius: 16px; padding: 14px; color: #fff; position: relative; overflow: hidden; }
+  .ticket.evt { background: linear-gradient(135deg, #8257E6, #5b34c9); }
+  .ticket.board { background: linear-gradient(135deg, #1E7FD6, #0E5AA7); }
+  .ticket.rcpt { background: linear-gradient(135deg, #2B3542, #1a222c); }
+  .ticket .tt { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; opacity: .8; font-weight: 700; }
+  .ticket .ev { font-size: 16px; font-weight: 700; margin: 3px 0 8px; letter-spacing: -.01em; }
+  .ticket .grid { display: flex; gap: 16px; font-size: 11px; }
+  .ticket .grid .k { opacity: .7; text-transform: uppercase; letter-spacing: .06em; font-size: 9px; }
+  .ticket .grid .v { font-weight: 700; font-size: 13px; font-family: ui-monospace, monospace; }
+  .ticket .code { margin-top: 10px; height: 30px; border-radius: 5px; background:
+    repeating-linear-gradient(90deg, #fff 0 2px, transparent 2px 4px, #fff 4px 5px, transparent 5px 9px); opacity: .92; }
+  .wallet-btn { display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 9px; background: #000; color: #fff; border-radius: 9px; padding: 9px; font-size: 12px; font-weight: 600; }
+
+  /* waiting rows */
+  .wcard { background: var(--surface); border: 1px solid var(--line); border-radius: 15px; padding: 12px; }
+  .wcard.over { border-color: color-mix(in srgb, var(--c-urgent) 45%, var(--line)); }
+  .wcard .top { display: flex; justify-content: space-between; gap: 8px; }
+  .wcard .to { font-size: 13px; font-weight: 650; }
+  .wcard .days { font-size: 11px; font-weight: 700; font-family: ui-monospace, monospace; color: var(--ink-3); }
+  .wcard .days.hot { color: var(--c-urgent); }
+  .wcard .sj { font-size: 12px; color: var(--ink-2); margin: 3px 0 9px; }
+
+  /* settings rules */
+  .rule { background: var(--surface); border: 1px solid var(--line); border-radius: 13px; padding: 11px 12px; font-size: 12.5px; display: flex; gap: 9px; align-items: flex-start; }
+  .rule .ic { width: 26px; height: 26px; border-radius: 8px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent-ink); display: grid; place-items: center; flex: none; font-size: 14px; }
+  .rule b { font-weight: 700; }
+  .rule .g { color: var(--ink-2); }
+  .seghead { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); font-weight: 700; margin: 6px 2px 0; }
+
+  /* footer */
+  .foot { margin-top: 72px; padding-top: 28px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 16px 40px; justify-content: space-between; color: var(--ink-3); font-size: 13px; }
+  .foot .legend { display: flex; flex-wrap: wrap; gap: 8px 14px; }
+  .foot .lg { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); font-weight: 600; }
+  .foot .lg i { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .tab, .btn { transition: background .18s, color .18s, border-color .18s; }
+    .cell { animation: rise .6s cubic-bezier(.2,.7,.2,1) both; }
+    .cell:nth-child(2){animation-delay:.05s}.cell:nth-child(3){animation-delay:.1s}
+    .cell:nth-child(4){animation-delay:.15s}.cell:nth-child(5){animation-delay:.2s}.cell:nth-child(6){animation-delay:.25s}
+    @keyframes rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">MailAI · Product Mockup</p>
+    <div class="mast">
+      <div>
+        <h1>An inbox that <span class="thin">triages,<br>summarizes &amp; acts</span> for you.</h1>
+        <p class="lede">Six core screens of the MailAI iPhone web app — Claude sorts every message into a category, writes the summary, extracts the tasks, and keeps an eye on replies you're still waiting for.</p>
+      </div>
+      <div class="meta">
+        <div><b>Concept mockup</b></div>
+        <div>Gmail · Claude · Apple Wallet</div>
+        <div>v0 — 2026-07-14</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="divider"></div>
+
+  <div class="gallery">
+
+    <!-- 1. HOME (interactive tabs) -->
+    <div class="cell">
+      <div class="phone">
+        <div class="glass">
+          <div class="island"></div>
+          <div class="statusbar">
+            <span>9:41</span>
+            <span class="icons">
+              <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg>
+              <svg width="22" height="11" viewBox="0 0 22 11" fill="none"><rect x="1" y="1" width="17" height="9" rx="2.5" stroke="currentColor" opacity=".5"/><rect x="2.5" y="2.5" width="12" height="6" rx="1.2" fill="currentColor"/><rect x="19" y="4" width="1.6" height="3.5" rx="1" fill="currentColor" opacity=".6"/></svg>
+            </span>
+          </div>
+          <div class="app">
+            <div class="apphead">
+              <div class="brand"><span class="dot"></span> MAILAI · dik.remco@gmail.com</div>
+              <h2>Today</h2>
+              <div class="sub">Claude triaged <b>34 new</b> · 6 need you</div>
+            </div>
+            <div class="tabs" role="tablist" id="tabs">
+              <button class="tab" role="tab" data-cat="urgent" aria-selected="true">Urgent <span class="badge">3</span></button>
+              <button class="tab" role="tab" data-cat="reply" aria-selected="false">Reply <span class="badge">4</span></button>
+              <button class="tab" role="tab" data-cat="news" aria-selected="false">Newsletter <span class="badge">9</span></button>
+              <button class="tab" role="tab" data-cat="wait" aria-selected="false">Waiting <span class="badge">2</span></button>
+            </div>
+
+            <div class="list" data-list="urgent">
+              <article class="card">
+                <div class="av" style="background:#E5484D">SB</div>
+                <div>
+                  <div class="top"><span class="from">Sarah Bennett</span><span class="time">08:12</span></div>
+                  <div class="subj">Re: Q3 board deck — need numbers by noon</div>
+                  <div class="snip">Can you get me the revised revenue slide before the 12:00 review? The chair specifically asked for it.</div>
+                  <div class="ai-note"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>Deadline today 12:00 · 1 task extracted</div>
+                  <div class="chip"><span class="chip u-urgent">Urgent</span></div>
+                </div>
+              </article>
+              <article class="card">
+                <div class="av" style="background:#B54708">DR</div>
+                <div>
+                  <div class="top"><span class="from">Dr. Reyes' office</span><span class="time">07:40</span></div>
+                  <div class="subj">Appointment reminder — tomorrow 09:30</div>
+                  <div class="snip">This is a reminder for your appointment. Reply C to confirm or R to reschedule.</div>
+                  <div class="ai-note"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>Wants a reply · confirm suggested</div>
+                  <div class="chip"><span class="chip u-urgent">Urgent</span></div>
+                </div>
+              </article>
+              <article class="card">
+                <div class="av" style="background:#C11574">AWS</div>
+                <div>
+                  <div class="top"><span class="from">AWS Billing</span><span class="time">06:03</span></div>
+                  <div class="subj">Budget alert: 90% of monthly limit reached</div>
+                  <div class="snip">Your account has reached 90% of the $500 budget you configured for July.</div>
+                  <div class="chip"><span class="chip u-urgent">Urgent</span></div>
+                </div>
+              </article>
+            </div>
+
+            <div class="list" data-list="reply" hidden>
+              <article class="card">
+                <div class="av" style="background:#E8912B">JL</div>
+                <div>
+                  <div class="top"><span class="from">Jordan Lee</span><span class="time">Yest</span></div>
+                  <div class="subj">Coffee next week?</div>
+                  <div class="snip">Would love to catch up — are you around Tue or Wed afternoon?</div>
+                  <div class="ai-note"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>Draft reply ready · proposes Tue 15:00</div>
+                  <div class="chip"><span class="chip u-reply">Reply needed</span></div>
+                </div>
+              </article>
+              <article class="card">
+                <div class="av" style="background:#0E7C86">MP</div>
+                <div>
+                  <div class="top"><span class="from">Maya Patel</span><span class="time">Yest</span></div>
+                  <div class="subj">Feedback on the onboarding copy</div>
+                  <div class="snip">Left a few comments in the doc — mainly the welcome screen. Thoughts by Friday?</div>
+                  <div class="chip"><span class="chip u-reply">Reply needed</span></div>
+                </div>
+              </article>
+              <article class="card">
+                <div class="av" style="background:#5B34C9">TK</div>
+                <div>
+                  <div class="top"><span class="from">Tomás Krause</span><span class="time">Mon</span></div>
+                  <div class="subj">Contract redlines attached</div>
+                  <div class="snip">Please review section 4 and let me know if the payment terms work for you.</div>
+                  <div class="chip"><span class="chip u-reply">Reply needed</span></div>
+                </div>
+              </article>
+            </div>
+
+            <div class="list" data-list="news" hidden>
+              <article class="card">
+                <div class="av" style="background:#3E7BF0">ST</div>
+                <div>
+                  <div class="top"><span class="from">Stratechery</span><span class="time">06:00</span></div>
+                  <div class="subj">The AI hardware question</div>
+                  <div class="snip">Why the constraint has quietly moved from models to power, and what that means…</div>
+                  <div class="ai-note"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>One-tap unsubscribe available</div>
+                  <div class="chip"><span class="chip u-news">Newsletter</span></div>
+                </div>
+              </article>
+              <article class="card">
+                <div class="av" style="background:#2B7A3B">TL</div>
+                <div>
+                  <div class="top"><span class="from">The Long Read</span><span class="time">05:30</span></div>
+                  <div class="subj">Weekend edition · 5 stories</div>
+                  <div class="snip">Your curated selection for the week is ready to read.</div>
+                  <div class="chip"><span class="chip u-news">Newsletter</span></div>
+                </div>
+              </article>
+            </div>
+
+            <div class="list" data-list="wait" hidden>
+              <article class="card">
+                <div class="av" style="background:#0FA398">FIN</div>
+                <div>
+                  <div class="top"><span class="from">To: Finance team</span><span class="time">5d ago</span></div>
+                  <div class="subj">Approval on the vendor invoice?</div>
+                  <div class="snip">Following up — still need sign-off to release payment before month end.</div>
+                  <div class="ai-note"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>No reply in 5 days · overdue</div>
+                  <div class="chip"><span class="chip u-wait">Awaiting reply</span></div>
+                </div>
+              </article>
+              <article class="card">
+                <div class="av" style="background:#0E7C86">RC</div>
+                <div>
+                  <div class="top"><span class="from">To: Recruiter</span><span class="time">2d ago</span></div>
+                  <div class="subj">Availability for next round</div>
+                  <div class="snip">Sent my availability — let me know which slot works on your end.</div>
+                  <div class="chip"><span class="chip u-wait">Awaiting reply</span></div>
+                </div>
+              </article>
+            </div>
+
+            <nav class="nav">
+              <a class="on" href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 10l8-6 8 6v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg>Home</a>
+              <a href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h11"/></svg>Tasks</a>
+              <a href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.6-2-3.4-2.4 1a7 7 0 0 0-1.7-1L14.5 3h-5l-.3 2.3a7 7 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7 7 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.3 2.3h5l.3-2.3a7 7 0 0 0 1.7-1l2.4 1 2-3.4-2-1.6a7 7 0 0 0 .1-1z"/></svg>Settings</a>
+            </nav>
+          </div>
+        </div>
+      </div>
+      <div class="caption">
+        <span class="n">01 · Home</span>
+        <h3>Category tabs</h3>
+        <p>Tap a category to filter the inbox. Every card carries the AI verdict — the summary snippet, and what Claude already did about it. Try the tabs.</p>
+      </div>
+    </div>
+
+    <!-- 2. EMAIL DETAIL -->
+    <div class="cell">
+      <div class="phone">
+        <div class="glass">
+          <div class="island"></div>
+          <div class="statusbar"><span>9:41</span><span class="icons">
+            <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg>
+            <svg width="22" height="11" viewBox="0 0 22 11" fill="none"><rect x="1" y="1" width="17" height="9" rx="2.5" stroke="currentColor" opacity=".5"/><rect x="2.5" y="2.5" width="12" height="6" rx="1.2" fill="currentColor"/><rect x="19" y="4" width="1.6" height="3.5" rx="1" fill="currentColor" opacity=".6"/></svg>
+          </span></div>
+          <div class="app">
+            <div class="backbar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg> Urgent</div>
+            <div class="apphead" style="padding-top:0">
+              <h2 style="font-size:1.15rem;line-height:1.25">Q3 board deck — need numbers by noon</h2>
+              <div class="sub" style="margin-top:4px"><b>Sarah Bennett</b> · today 08:12</div>
+            </div>
+            <div class="scroll">
+              <div class="panel ai">
+                <p class="h"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg> AI summary</p>
+                <p>Sarah needs the revised Q3 revenue slide before the 12:00 board review — the chair asked for it specifically. She'll assemble the rest of the deck once your numbers land.</p>
+              </div>
+              <div class="panel">
+                <p class="h">Extracted tasks</p>
+                <div class="task"><span class="box"></span><div>Send revised Q3 revenue slide to Sarah<br><span class="due">Due today · 12:00</span></div></div>
+                <div class="task"><span class="box"></span><div>Confirm final figures with Finance<br><span class="due">Due today · 11:00</span></div></div>
+              </div>
+              <div class="panel">
+                <p class="h">Suggested reply · professional</p>
+                <div class="reply-body">Hi Sarah — sending the revised revenue slide by 11:30, ahead of the review. Confirming the figures with Finance first thing. Shout if the chair wants anything else on it.</div>
+                <div class="btnrow">
+                  <button class="btn pri">Send</button>
+                  <button class="btn">Edit</button>
+                  <button class="btn ghost">Discard</button>
+                </div>
+              </div>
+              <div class="btnrow">
+                <button class="btn">Archive</button>
+                <button class="btn danger">Delete</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="caption">
+        <span class="n">02 · Detail</span>
+        <h3>Read once, act once</h3>
+        <p>Summary card, the tasks Claude pulled out, and a ready-to-send draft in your tone. Send, edit, or discard — nothing leaves without a tap.</p>
+      </div>
+    </div>
+
+    <!-- 3. NEWSLETTER -->
+    <div class="cell">
+      <div class="phone">
+        <div class="glass">
+          <div class="island"></div>
+          <div class="statusbar"><span>9:41</span><span class="icons">
+            <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg>
+            <svg width="22" height="11" viewBox="0 0 22 11" fill="none"><rect x="1" y="1" width="17" height="9" rx="2.5" stroke="currentColor" opacity=".5"/><rect x="2.5" y="2.5" width="12" height="6" rx="1.2" fill="currentColor"/><rect x="19" y="4" width="1.6" height="3.5" rx="1" fill="currentColor" opacity=".6"/></svg>
+          </span></div>
+          <div class="app">
+            <div class="apphead">
+              <div class="brand"><span class="dot"></span> NEWSLETTERS</div>
+              <h2>9 subscriptions</h2>
+              <div class="sub">Select to clean up · unsubscribe reads the List-Unsubscribe header</div>
+            </div>
+            <div class="scroll">
+              <div class="nrow"><span class="cbx on"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5"><path d="M4 12l6 6L20 6"/></svg></span>
+                <div><div class="nm">Stratechery</div><div class="fr">Daily · 22 unread</div></div>
+                <div class="acts"><span class="pill unsub">Unsubscribe</span><span class="pill">Archive</span></div></div>
+              <div class="nrow"><span class="cbx on"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5"><path d="M4 12l6 6L20 6"/></svg></span>
+                <div><div class="nm">Product Hunt Daily</div><div class="fr">Daily · 40 unread</div></div>
+                <div class="acts"><span class="pill unsub">Unsubscribe</span><span class="pill">Archive</span></div></div>
+              <div class="nrow"><span class="cbx"></span>
+                <div><div class="nm">The Long Read</div><div class="fr">Weekly · 3 unread</div></div>
+                <div class="acts"><span class="pill unsub">Unsubscribe</span><span class="pill">Archive</span></div></div>
+              <div class="nrow"><span class="cbx"></span>
+                <div><div class="nm">Figma Updates</div><div class="fr">Monthly · 1 unread</div></div>
+                <div class="acts"><span class="pill unsub">Unsubscribe</span><span class="pill">Archive</span></div></div>
+              <div class="nrow"><span class="cbx on"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5"><path d="M4 12l6 6L20 6"/></svg></span>
+                <div><div class="nm">Morning Brew</div><div class="fr">Daily · 61 unread</div></div>
+                <div class="acts"><span class="pill unsub">Unsubscribe</span><span class="pill">Archive</span></div></div>
+            </div>
+            <div style="padding:10px 14px calc(12px + env(safe-area-inset-bottom));background:var(--surface);border-top:1px solid var(--line)">
+              <button class="btn pri" style="width:100%">Archive all 3 selected</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="caption">
+        <span class="n">03 · Newsletter</span>
+        <h3>Clean up in bulk</h3>
+        <p>Every subscription in one place. Unsubscribe calls the real List-Unsubscribe URL (with a confirm), or archive the whole selection at once.</p>
+      </div>
+    </div>
+
+    <!-- 4. TICKETS / WALLET -->
+    <div class="cell">
+      <div class="phone">
+        <div class="glass">
+          <div class="island"></div>
+          <div class="statusbar"><span>9:41</span><span class="icons">
+            <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg>
+            <svg width="22" height="11" viewBox="0 0 22 11" fill="none"><rect x="1" y="1" width="17" height="9" rx="2.5" stroke="currentColor" opacity=".5"/><rect x="2.5" y="2.5" width="12" height="6" rx="1.2" fill="currentColor"/><rect x="19" y="4" width="1.6" height="3.5" rx="1" fill="currentColor" opacity=".6"/></svg>
+          </span></div>
+          <div class="app">
+            <div class="apphead">
+              <div class="brand"><span class="dot"></span> TICKETS &amp; PASSES</div>
+              <h2>Ready for Wallet</h2>
+              <div class="sub">Detected in your inbox · 3 items</div>
+            </div>
+            <div class="scroll">
+              <div class="ticket evt">
+                <div class="tt">Event ticket · Ticketmaster</div>
+                <div class="ev">Radiohead — O2 Arena</div>
+                <div class="grid">
+                  <div><div class="k">Date</div><div class="v">18 Jul</div></div>
+                  <div><div class="k">Time</div><div class="v">19:30</div></div>
+                  <div><div class="k">Seat</div><div class="v">B14</div></div>
+                </div>
+                <div class="code"></div>
+                <div class="wallet-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3H4z"/><path d="M4 11h16v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" opacity=".7"/></svg> Add to Apple Wallet</div>
+              </div>
+              <div class="ticket board">
+                <div class="tt">Boarding pass · KLM</div>
+                <div class="ev">AMS → JFK · KL641</div>
+                <div class="grid">
+                  <div><div class="k">Gate</div><div class="v">D7</div></div>
+                  <div><div class="k">Boards</div><div class="v">10:05</div></div>
+                  <div><div class="k">Seat</div><div class="v">7A</div></div>
+                </div>
+                <div class="code"></div>
+                <div class="wallet-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3H4z"/><path d="M4 11h16v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" opacity=".7"/></svg> Add to Apple Wallet</div>
+              </div>
+              <div class="ticket rcpt">
+                <div class="tt">Reservation · Booking.com</div>
+                <div class="ev">Hotel Pulitzer · Amsterdam</div>
+                <div class="grid">
+                  <div><div class="k">Check-in</div><div class="v">22 Jul</div></div>
+                  <div><div class="k">Nights</div><div class="v">2</div></div>
+                  <div><div class="k">Conf#</div><div class="v">4471</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="caption">
+        <span class="n">04 · Tickets</span>
+        <h3>Straight to Wallet</h3>
+        <p>Claude spots tickets, boarding passes and reservations, pulls out the details, and generates a .pkpass — one tap to add.</p>
+      </div>
+    </div>
+
+    <!-- 5. WAITING -->
+    <div class="cell">
+      <div class="phone">
+        <div class="glass">
+          <div class="island"></div>
+          <div class="statusbar"><span>9:41</span><span class="icons">
+            <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg>
+            <svg width="22" height="11" viewBox="0 0 22 11" fill="none"><rect x="1" y="1" width="17" height="9" rx="2.5" stroke="currentColor" opacity=".5"/><rect x="2.5" y="2.5" width="12" height="6" rx="1.2" fill="currentColor"/><rect x="19" y="4" width="1.6" height="3.5" rx="1" fill="currentColor" opacity=".6"/></svg>
+          </span></div>
+          <div class="app">
+            <div class="apphead">
+              <div class="brand"><span class="dot"></span> WAITING ON REPLIES</div>
+              <h2>You're owed 3</h2>
+              <div class="sub">Sent with a request · no reply yet</div>
+            </div>
+            <div class="scroll">
+              <div class="wcard over">
+                <div class="top"><span class="to">Finance team</span><span class="days hot">5 days · overdue</span></div>
+                <div class="sj">Approval on the vendor invoice before month end?</div>
+                <div class="btnrow"><button class="btn pri">Follow up</button><button class="btn">Done</button></div>
+              </div>
+              <div class="wcard">
+                <div class="top"><span class="to">Alex (recruiter)</span><span class="days">2 days</span></div>
+                <div class="sj">Which interview slot works on your end?</div>
+                <div class="btnrow"><button class="btn pri">Follow up</button><button class="btn">Done</button></div>
+              </div>
+              <div class="wcard">
+                <div class="top"><span class="to">Landlord</span><span class="days">1 day</span></div>
+                <div class="sj">Can we schedule the boiler inspection this week?</div>
+                <div class="btnrow"><button class="btn pri">Follow up</button><button class="btn">Done</button></div>
+              </div>
+              <div class="ai-note" style="padding:2px 4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>Auto-dismisses the moment a reply lands.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="caption">
+        <span class="n">05 · Waiting</span>
+        <h3>Nothing slips</h3>
+        <p>Sent something and heard nothing back? It surfaces here with days-since, highlights overdue, and drafts a polite nudge on request.</p>
+      </div>
+    </div>
+
+    <!-- 6. SETTINGS / RULES -->
+    <div class="cell">
+      <div class="phone">
+        <div class="glass">
+          <div class="island"></div>
+          <div class="statusbar"><span>9:41</span><span class="icons">
+            <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg>
+            <svg width="22" height="11" viewBox="0 0 22 11" fill="none"><rect x="1" y="1" width="17" height="9" rx="2.5" stroke="currentColor" opacity=".5"/><rect x="2.5" y="2.5" width="12" height="6" rx="1.2" fill="currentColor"/><rect x="19" y="4" width="1.6" height="3.5" rx="1" fill="currentColor" opacity=".6"/></svg>
+          </span></div>
+          <div class="app">
+            <div class="apphead">
+              <div class="brand"><span class="dot"></span> RULES &amp; CORRECTIONS</div>
+              <h2>Teach the triage</h2>
+              <div class="sub">Plain-language rules · Claude learns from corrections</div>
+            </div>
+            <div class="scroll">
+              <div class="seghead">Your rules</div>
+              <div class="rule"><span class="ic">★</span><div><b>Emails from my boss</b> <span class="g">are always</span> <b style="color:var(--c-urgent)">Urgent</b></div></div>
+              <div class="rule"><span class="ic">✈</span><div><b>Anything from klm.com</b> <span class="g">goes to</span> <b style="color:var(--c-ticket)">Tickets</b></div></div>
+              <div class="rule"><span class="ic">🔕</span><div><b>LinkedIn digests</b> <span class="g">are</span> <b style="color:var(--c-junk)">Junk</b></div></div>
+              <button class="btn" style="border-style:dashed;color:var(--accent-ink)">+ Add a rule</button>
+
+              <div class="seghead">Recent corrections</div>
+              <div class="rule"><span class="ic" style="background:color-mix(in srgb,var(--c-reply) 16%,transparent);color:var(--c-reply)">↺</span>
+                <div><span class="g">You moved</span> <b>“Invoice #A-231”</b> <span class="g">from</span> Junk <span class="g">→</span> <b style="color:var(--c-ticket)">Tickets</b></div></div>
+              <div class="rule"><span class="ic" style="background:color-mix(in srgb,var(--c-reply) 16%,transparent);color:var(--c-reply)">↺</span>
+                <div><span class="g">You moved</span> <b>“Team offsite”</b> <span class="g">from</span> FYI <span class="g">→</span> <b style="color:var(--c-reply)">Reply</b></div></div>
+              <div class="ai-note" style="padding:2px 4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>Your last 10 corrections guide every new classification.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="caption">
+        <span class="n">06 · Settings</span>
+        <h3>Rules in plain English</h3>
+        <p>Write rules the way you'd say them. Every "wrong category" correction becomes a few-shot example that sharpens the next triage.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <footer class="foot">
+    <div>
+      <div style="color:var(--ink);font-weight:700;font-size:15px;margin-bottom:6px">MailAI — concept mockup</div>
+      Static preview of the six core screens. See <b style="color:var(--ink)">docs/ROADMAP.md</b> for the phased build plan and the GitHub tracking issue.
+    </div>
+    <div class="legend" aria-label="Category legend">
+      <span class="lg"><i style="background:var(--c-urgent)"></i>Urgent</span>
+      <span class="lg"><i style="background:var(--c-reply)"></i>Reply</span>
+      <span class="lg"><i style="background:var(--c-news)"></i>Newsletter</span>
+      <span class="lg"><i style="background:var(--c-ticket)"></i>Ticket</span>
+      <span class="lg"><i style="background:var(--c-wait)"></i>Waiting</span>
+      <span class="lg"><i style="background:var(--c-junk)"></i>Junk</span>
+    </div>
+  </footer>
+</div>
+
+<script>
+  (function () {
+    var tabs = document.getElementById('tabs');
+    if (!tabs) return;
+    var app = tabs.closest('.app');
+    tabs.addEventListener('click', function (e) {
+      var btn = e.target.closest('.tab');
+      if (!btn) return;
+      tabs.querySelectorAll('.tab').forEach(function (t) { t.setAttribute('aria-selected', String(t === btn)); });
+      var cat = btn.dataset.cat;
+      app.querySelectorAll('.list').forEach(function (l) { l.hidden = (l.dataset.list !== cat); });
+    });
+  })();
+</script>
+</body>
+</html>

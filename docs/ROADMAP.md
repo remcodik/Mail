@@ -157,8 +157,15 @@ Goal: Wallet, scheduling, polish.
 
 ---
 
-## 6. Tracking
+## 6. Mockup
 
-- **Meta / epic issue:** see the pinned tracking issue in GitHub Issues.
+An interactive iPhone mockup of the six core screens lives at
+[`docs/mockup.html`](./mockup.html) — open it in any browser (adapts to
+light/dark). The Home screen's category tabs are clickable. This is a static
+design reference for Phases 1–2, not shipping code.
+
+## 7. Tracking
+
+- **Meta / epic issue:** see the pinned tracking issue in GitHub Issues (#22).
 - **Per-feature issues:** labeled `phase:0|1|2|3`, `area:*`, and `type:feature`.
 - **This document** is the living plan; update it as decisions land.
