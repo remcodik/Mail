@@ -124,7 +124,7 @@ Goal: connect Gmail, classify inbox, browse by category, read AI summaries.
 - `intelligence.summarize_thread`
 - `orchestrator.process_inbox()` — idempotent pipeline (**G11**)
 - `server.py` — MCP tools + serve UI
-- UI: Home category tabs + Email detail (summary card)
+- UI: **Cockpit start screen** (category count tiles → tap to drill into a list) + Home category tabs + Email detail (summary card)
 
 ### Phase 2 — v1: act on mail
 Goal: draft replies, extract tasks, manage newsletters/junk, follow-ups.
@@ -141,9 +141,11 @@ Goal: Wallet, scheduling, polish.
 - Ticket detection (`detect_ticket`)
 - Delivery & pickup detection (`detect_delivery`) → **Deliveries** tab (carrier, status, ETA, pickup location/code)
 - Purchase/order & receipt detection (`detect_purchase`) → **Purchases** tab (merchant, order #, total; optional Wallet receipt)
+- Travel/itinerary detection (`detect_travel`) → **Travel** tab, grouped by trip (flights, hotels, trains, car)
 - Apple Wallet pass generation + delivery (**G6**)
 - Scheduling intent + appointment proposals (Calendar)
 - Rules engine (plain-language classification rules)
+- **User-customizable categories** — add / reorder / hide cockpit tiles; custom category definitions feed the classifier (extends the rules engine)
 - Hardening: rate limits, cost caps, privacy disclosure (**G8**, **G10**, **G12**)
 
 ---
@@ -161,10 +163,12 @@ Goal: Wallet, scheduling, polish.
 
 ## 6. Mockup
 
-An interactive iPhone mockup of the six core screens lives at
+An interactive iPhone mockup of the seven core screens lives at
 [`docs/mockup.html`](./mockup.html) — open it in any browser (adapts to
-light/dark). The Home screen's category tabs are clickable. This is a static
-design reference for Phases 1–2, not shipping code.
+light/dark). It starts with the **Cockpit** (category count tiles), then the
+Category view (clickable tabs, incl. Travel), Email detail, Newsletter,
+Tickets/Wallet, Waiting, and Settings (category customization). This is a
+static design reference for Phases 1–2, not shipping code.
 
 ## 7. Tracking
 

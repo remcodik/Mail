@@ -50,6 +50,7 @@ Claude classifies every email into one of:
 | `ticket` | Extract data → Apple Wallet pass |
 | `delivery` | Package/shipping update or pickup ready → show status, ETA, pickup location/code; surface in Deliveries tab |
 | `purchase` | Order/purchase confirmation or receipt → extract merchant, order #, total; offer Wallet receipt, link to delivery once shipped |
+| `travel` | Flight/hotel/train/car booking or itinerary → group by trip, show dates, confirmation, check-in; Travel tab |
 | `awaiting_reply` | Sent email with request → create follow-up reminder |
 | `scheduling` | Mentions meeting → generate appointment proposal |
 
@@ -63,6 +64,7 @@ draft_reply(email, tone="professional") -> str
 detect_ticket(email) -> dict | None                 # {type, event, date, seat, barcode_url}
 detect_delivery(email) -> dict | None               # {carrier, tracking_number, status, eta, pickup_location, pickup_code}
 detect_purchase(email) -> dict | None               # {merchant, order_id, total, currency, items}
+detect_travel(email) -> dict | None                 # {type, provider, origin, destination, depart, arrive, confirmation, trip_id}
 detect_scheduling_intent(email) -> bool
 detect_request_in_sent(email) -> bool               # for follow-up reminders
 generate_appointment_proposal(email) -> str         # ready-to-send reply with time slots
@@ -71,8 +73,16 @@ suggest_followup_date(email) -> date
 
 ## iPhone UI screens
 
-### Home — Category tabs
-- Tabs: Urgent · Reply · Newsletter · Junk · Tickets · Deliveries · Purchases · Waiting
+### Cockpit — Start screen (default)
+- Total-overview dashboard: a grid of **tiles**, one per category
+- Each tile shows the category name, a live **count** of mails/actions, and a short action hint (e.g. "2 need action", "1 ready for pickup", "1 overdue")
+- Tap a tile → drills into that category's list (the Category view below)
+- Header shows a two-stat summary: "need you today" vs "auto-handled"
+- Tiles reflect the user's category config (order, visibility, custom categories) from Settings
+- Bottom nav: Cockpit / Tasks / Settings
+
+### Home / Category view — Category tabs
+- Tabs: Urgent · Reply · Newsletter · Junk · Tickets · Deliveries · Purchases · Travel · Waiting
 - Email cards show: sender, subject, AI summary snippet, timestamp
 - Swipe left → Archive | Delete | Snooze options
 - Bottom nav: Home / Tasks / Settings
@@ -102,6 +112,7 @@ suggest_followup_date(email) -> date
 - Auto-dismisses when reply arrives
 
 ### Settings / Rules screen
+- **Cockpit categories:** reorder (drag), toggle visibility, and **add custom categories** — each becomes a cockpit tile. Custom categories carry a name, color/icon, and a plain-language definition used by the classifier.
 - Plain-language classification rules
 - Add / edit / delete rules
 - Example: "Emails from my boss are always urgent"
