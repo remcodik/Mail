@@ -24,6 +24,8 @@
     --c-junk: #8A94A6;
     --c-ticket: #8257E6;
     --c-wait: #0FA398;
+    --c-delivery: #2E9E5B;
+    --c-purchase: #D6336C;
     --bezel: #0B0F14;
   }
   @media (prefers-color-scheme: dark) {
@@ -175,6 +177,7 @@
   .u-urgent { --cc: var(--c-urgent); } .u-reply { --cc: var(--c-reply); }
   .u-news { --cc: var(--c-news); } .u-junk { --cc: var(--c-junk); }
   .u-ticket { --cc: var(--c-ticket); } .u-wait { --cc: var(--c-wait); }
+  .u-delivery { --cc: var(--c-delivery); } .u-purchase { --cc: var(--c-purchase); }
 
   .ai-note { font-size: 11.5px; color: var(--accent-ink); display: flex; gap: 6px; margin-top: 6px; align-items: flex-start; }
   .ai-note svg { flex: none; margin-top: 1px; }
@@ -310,6 +313,8 @@
               <button class="tab" role="tab" data-cat="urgent" aria-selected="true">Urgent <span class="badge">3</span></button>
               <button class="tab" role="tab" data-cat="reply" aria-selected="false">Reply <span class="badge">4</span></button>
               <button class="tab" role="tab" data-cat="news" aria-selected="false">Newsletter <span class="badge">9</span></button>
+              <button class="tab" role="tab" data-cat="delivery" aria-selected="false">Deliveries <span class="badge">3</span></button>
+              <button class="tab" role="tab" data-cat="purchase" aria-selected="false">Purchases <span class="badge">3</span></button>
               <button class="tab" role="tab" data-cat="wait" aria-selected="false">Waiting <span class="badge">2</span></button>
             </div>
 
@@ -420,6 +425,70 @@
               </article>
             </div>
 
+            <div class="list" data-list="delivery" hidden>
+              <article class="card">
+                <div class="av" style="background:#EA580C">PN</div>
+                <div>
+                  <div class="top"><span class="from">PostNL</span><span class="time">08:55</span></div>
+                  <div class="subj">Out for delivery — arrives 13:00–15:00</div>
+                  <div class="snip">Parcel 3SABC1234567890 is on the van today. Track it live or leave delivery instructions.</div>
+                  <div class="ai-note"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>Arrives today 13:00–15:00 · track live</div>
+                  <div class="chip"><span class="chip u-delivery">Delivery</span></div>
+                </div>
+              </article>
+              <article class="card">
+                <div class="av" style="background:#1E7FD6">DH</div>
+                <div>
+                  <div class="top"><span class="from">DHL Parcel</span><span class="time">Yest</span></div>
+                  <div class="subj">Ready for pickup — locker until 18 Jul</div>
+                  <div class="snip">Collect at Albert Heijn, Overtoom 116 · locker 12. Bring ID and code 8842.</div>
+                  <div class="ai-note"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>Pickup by 18 Jul · code 8842</div>
+                  <div class="chip"><span class="chip u-delivery">Pickup ready</span></div>
+                </div>
+              </article>
+              <article class="card">
+                <div class="av" style="background:#0E7C86">AZ</div>
+                <div>
+                  <div class="top"><span class="from">Amazon</span><span class="time">07:20</span></div>
+                  <div class="subj">Arriving today: USB-C cable + 2 items</div>
+                  <div class="snip">Your order is arriving today by 9pm. No signature required.</div>
+                  <div class="chip"><span class="chip u-delivery">Delivery</span></div>
+                </div>
+              </article>
+            </div>
+
+            <div class="list" data-list="purchase" hidden>
+              <article class="card">
+                <div class="av" style="background:#15202B">AP</div>
+                <div>
+                  <div class="top"><span class="from">Apple</span><span class="time">06:40</span></div>
+                  <div class="subj">Your receipt from Apple · €12.99</div>
+                  <div class="snip">Order W1234567 — iCloud+ 200GB monthly. Billed to Visa ···4471.</div>
+                  <div class="ai-note"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>Total €12.99 · order W1234567</div>
+                  <div class="chip"><span class="chip u-purchase">Purchase</span></div>
+                </div>
+              </article>
+              <article class="card">
+                <div class="av" style="background:#D6336C">ZL</div>
+                <div>
+                  <div class="top"><span class="from">Zalando</span><span class="time">Yest</span></div>
+                  <div class="subj">Order confirmed — €89,95</div>
+                  <div class="snip">2 items · running shoes + socks. Estimated delivery 17 Jul.</div>
+                  <div class="ai-note"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>Links to the Deliveries tab when it ships</div>
+                  <div class="chip"><span class="chip u-purchase">Order confirmed</span></div>
+                </div>
+              </article>
+              <article class="card">
+                <div class="av" style="background:#276EF1">UB</div>
+                <div>
+                  <div class="top"><span class="from">Uber Receipts</span><span class="time">Mon</span></div>
+                  <div class="subj">Your Monday trip · €18,40</div>
+                  <div class="snip">Centraal Station → Zuidas · 22 min. Receipt attached.</div>
+                  <div class="chip"><span class="chip u-purchase">Receipt</span></div>
+                </div>
+              </article>
+            </div>
+
             <nav class="nav">
               <a class="on" href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 10l8-6 8 6v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg>Home</a>
               <a href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h11"/></svg>Tasks</a>
@@ -431,7 +500,7 @@
       <div class="caption">
         <span class="n">01 · Home</span>
         <h3>Category tabs</h3>
-        <p>Tap a category to filter the inbox. Every card carries the AI verdict — the summary snippet, and what Claude already did about it. Try the tabs.</p>
+        <p>Tap a category to filter the inbox — including <b>Deliveries</b> (parcels &amp; pickups) and <b>Purchases</b> (order confirmations &amp; receipts). Every card carries the AI verdict. Try the tabs.</p>
       </div>
     </div>
 
@@ -681,6 +750,8 @@
       <span class="lg"><i style="background:var(--c-reply)"></i>Reply</span>
       <span class="lg"><i style="background:var(--c-news)"></i>Newsletter</span>
       <span class="lg"><i style="background:var(--c-ticket)"></i>Ticket</span>
+      <span class="lg"><i style="background:var(--c-delivery)"></i>Delivery</span>
+      <span class="lg"><i style="background:var(--c-purchase)"></i>Purchase</span>
       <span class="lg"><i style="background:var(--c-wait)"></i>Waiting</span>
       <span class="lg"><i style="background:var(--c-junk)"></i>Junk</span>
     </div>

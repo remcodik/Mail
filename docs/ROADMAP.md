@@ -139,6 +139,8 @@ Goal: draft replies, extract tasks, manage newsletters/junk, follow-ups.
 ### Phase 3 — v2: rich integrations
 Goal: Wallet, scheduling, polish.
 - Ticket detection (`detect_ticket`)
+- Delivery & pickup detection (`detect_delivery`) → **Deliveries** tab (carrier, status, ETA, pickup location/code)
+- Purchase/order & receipt detection (`detect_purchase`) → **Purchases** tab (merchant, order #, total; optional Wallet receipt)
 - Apple Wallet pass generation + delivery (**G6**)
 - Scheduling intent + appointment proposals (Calendar)
 - Rules engine (plain-language classification rules)

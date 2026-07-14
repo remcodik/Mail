@@ -48,6 +48,8 @@ Claude classifies every email into one of:
 | `junk` | Auto-archive or delete after 7 days |
 | `fyi` | Mark read, archive |
 | `ticket` | Extract data → Apple Wallet pass |
+| `delivery` | Package/shipping update or pickup ready → show status, ETA, pickup location/code; surface in Deliveries tab |
+| `purchase` | Order/purchase confirmation or receipt → extract merchant, order #, total; offer Wallet receipt, link to delivery once shipped |
 | `awaiting_reply` | Sent email with request → create follow-up reminder |
 | `scheduling` | Mentions meeting → generate appointment proposal |
 
@@ -59,6 +61,8 @@ summarize_thread(messages) -> summary: str          # 2-3 sentences
 extract_tasks(email) -> list[dict]                  # [{task, due_date}]
 draft_reply(email, tone="professional") -> str
 detect_ticket(email) -> dict | None                 # {type, event, date, seat, barcode_url}
+detect_delivery(email) -> dict | None               # {carrier, tracking_number, status, eta, pickup_location, pickup_code}
+detect_purchase(email) -> dict | None               # {merchant, order_id, total, currency, items}
 detect_scheduling_intent(email) -> bool
 detect_request_in_sent(email) -> bool               # for follow-up reminders
 generate_appointment_proposal(email) -> str         # ready-to-send reply with time slots
@@ -68,7 +72,7 @@ suggest_followup_date(email) -> date
 ## iPhone UI screens
 
 ### Home — Category tabs
-- Tabs: Urgent · Reply · Newsletter · Junk · Tickets · Waiting
+- Tabs: Urgent · Reply · Newsletter · Junk · Tickets · Deliveries · Purchases · Waiting
 - Email cards show: sender, subject, AI summary snippet, timestamp
 - Swipe left → Archive | Delete | Snooze options
 - Bottom nav: Home / Tasks / Settings
