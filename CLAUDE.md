@@ -66,10 +66,16 @@ Claude classifies every email into one of:
   (*what kind of mail / what to do*).
 - **Label:** zero-or-more per email, AI-assigned, cross-cutting tags for
   *project / customer / topic* (e.g. `Project Apollo`, `Acme Corp`, `Invoices`).
-- **Correction → learning:** the user fixes a label in one tap; the fix is stored
-  as a correction keyed by sender and **applied to all mail from that sender**, and
-  fed back as few-shot so `suggest_labels` improves over time (mirrors the
-  category correction loop). Labels are filterable (tap a label → all its mail).
+- **Correction → learning (with approval):** the user fixes a label in one tap,
+  which changes only that email; MailAI then **proposes** a rule ("Always tag mail
+  from X as Y?") that the user **approves or declines**. On approval the rule is
+  saved (keyed by sender), applied to all mail from that sender, and fed back as
+  few-shot so `suggest_labels` improves over time (mirrors the category correction
+  loop). Nothing is generalised until approved.
+- **Per-label cockpit:** tapping a label opens a mini-cockpit for that
+  customer/project — a label-coloured hero (need-you vs just-info) and buckets
+  **Needs attention · To reply · Waiting · Just info**, plus that label's open
+  tasks and a "top of the pile" preview; each bucket drills into a filtered list.
 
 ## Tasks
 

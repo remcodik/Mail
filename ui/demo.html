@@ -670,15 +670,67 @@ a{color:inherit}
     };
   }
 
-  // ---------- screen: label filter ----------
-  function viewLabel(id){
+  // ---------- screen: label cockpit (a mini-cockpit per customer/project) ----------
+  function labelMsgs(id){ return state.messages.filter(function(m){ return !m.archived && inSel(m) && (m.labels||[]).indexOf(id)>=0; }); }
+  function bucketOf(m){
+    if(m.cat==='urgent' || (m.cat==='waiting' && m.overdue)) return 'attention';
+    if(m.cat==='reply') return 'reply';
+    if(m.cat==='waiting') return 'waiting';
+    return 'info';
+  }
+  function bucketMatch(m, bucket){ return bucket==='need' ? (bucketOf(m)==='attention' || bucketOf(m)==='reply') : bucketOf(m)===bucket; }
+  function labelOpenTasks(id){ return (state.tasks||[]).filter(function(t){ if(t.done) return false; var m=msgById(t.msgId); return m && (m.labels||[]).indexOf(id)>=0; }); }
+  var BUCKETS = [
+    { key:'attention', name:'Needs attention', sub:'urgent & overdue', color:'var(--c-urgent)', icon:ICONS.urgent },
+    { key:'reply',     name:'To reply',        sub:'should reply',     color:'var(--c-reply)',  icon:ICONS.reply },
+    { key:'waiting',   name:'Waiting',         sub:'awaiting others',  color:'var(--c-wait)',   icon:ICONS.waiting },
+    { key:'info',      name:'Just info',       sub:'no action needed', color:'var(--c-fyi)',    icon:ICONS.fyi }
+  ];
+  var BUCKET_TITLE = { need:'Need you', attention:'Needs attention', reply:'To reply', waiting:'Waiting', info:'Just info' };
+
+  function viewLabel(spec){
+    var parts = spec.split('/'), id = parts[0], bucket = parts[1];
     var l = labelById(id); if(!l){ location.hash='#/'; return null; }
-    var ms = state.messages.filter(function(m){ return !m.archived && inSel(m) && (m.labels||[]).indexOf(id)>=0; });
-    var body = ms.length ? '<div class="list">'+ms.map(cardHTML).join('')+'</div>'
-                         : '<div class="empty">No mail labelled “'+esc(l.name)+'” in this view.</div>';
+    if(bucket) return viewLabelBucket(l, bucket);
+
+    var ms = labelMsgs(id);
+    var count = function(k){ return ms.filter(function(m){ return bucketMatch(m,k); }).length; };
+    var needYou = count('need');
+    var money = ms.reduce(function(s,m){ return s + (m.total||0); }, 0);
+    var tasks = labelOpenTasks(id);
+
+    var tiles = BUCKETS.map(function(bk){
+      return '<button class="tile" style="--tc:'+bk.color+'" data-nav="#/label/'+id+'/'+bk.key+'">'
+        + '<span class="ticon">'+svg(bk.icon,15)+'</span><span class="tcount">'+count(bk.key)+'</span>'
+        + '<span class="tname">'+bk.name+'</span><span class="tsub">'+bk.sub+'</span></button>';
+    }).join('');
+
+    var attn = ms.filter(function(m){ return bucketOf(m)==='attention' || bucketOf(m)==='reply'; }).slice(0,3);
+    var preview = attn.length ? '<div class="seghead" style="padding-left:14px">Top of the pile</div><div class="list" style="padding-top:0">'+attn.map(cardHTML).join('')+'</div>' : '';
+    var taskBlock = tasks.length ? '<div class="seghead" style="padding-left:14px">Tasks · '+esc(l.name)+'</div><div class="list" style="padding-top:0">'+tasks.slice(0,4).map(taskRow).join('')+'</div>' : '';
+
     return {
       top: '<button class="back" data-nav="#/">'+svg('<path d="M15 18l-6-6 6-6"/>',16)+' Cockpit</button>'
-         + '<h1><span class="lbl" style="--lc:'+l.color+';font-size:.8em;vertical-align:middle">'+esc(l.name)+'</span></h1>',
+         + '<h1><span class="lbl" style="--lc:'+l.color+';font-size:.82em;vertical-align:middle">'+esc(l.name)+'</span></h1>'
+         + '<div class="sub">'+ms.length+' mail'+(ms.length===1?'':'s')+(money?(' · €'+money.toFixed(0)):'')+(tasks.length?(' · '+tasks.length+' task'+(tasks.length===1?'':'s')):'')+'</div>',
+      withBack: true,
+      tabs: acctSwitcher(),
+      body: '<div class="hero" style="background:linear-gradient(135deg,'+l.color+',color-mix(in srgb,'+l.color+' 50%,#0b1220))">'
+          + '<button class="hstat" data-nav="#/label/'+id+'/need"><div class="big">'+needYou+'</div><div class="hl">need you ›</div></button>'
+          + '<button class="hstat soft" data-nav="#/label/'+id+'/info"><div class="big">'+count('info')+'</div><div class="hl">just info ›</div></button>'
+          + '</div>'
+          + '<div class="herohint">Your <b>'+esc(l.name)+'</b> workspace — everything tagged this label, split by what needs you.</div>'
+          + '<div class="tilegrid">'+tiles+'</div>'
+          + preview + taskBlock,
+      nav: 'cockpit'
+    };
+  }
+  function viewLabelBucket(l, bucket){
+    var ms = labelMsgs(l.id).filter(function(m){ return bucketMatch(m, bucket); });
+    var body = ms.length ? '<div class="list">'+ms.map(cardHTML).join('')+'</div>' : '<div class="empty">Nothing here in “'+esc(l.name)+'”.</div>';
+    return {
+      top: '<button class="back" data-nav="#/label/'+l.id+'">'+svg('<path d="M15 18l-6-6 6-6"/>',16)+' '+esc(l.name)+'</button>'
+         + '<h1>'+(BUCKET_TITLE[bucket]||bucket)+'</h1>',
       withBack: true, tabs: acctSwitcher(), body: body, nav: 'cockpit'
     };
   }
