@@ -28,10 +28,12 @@ class Store:
             if seed:
                 bucket = demo_seed.fresh_inbox()
             else:
-                # Live user: real category taxonomy, but no accounts/mail until they connect one.
-                bucket = {"accounts": [], "categories": demo_seed.default_categories(), "messages": []}
+                # Live user: real category taxonomy, but no accounts/mail/labels until they act.
+                bucket = {"accounts": [], "categories": demo_seed.default_categories(), "labels": [], "messages": []}
+            bucket.setdefault("labels", [])
             bucket["profile"] = {"id": user_id, "email": email or (user_id + "@example.com"), "name": "Remco"}
-            bucket["tokens"] = {}  # {account_id: oauth token dict}
+            bucket["tokens"] = {}            # {account_id: oauth token dict}
+            bucket["label_corrections"] = []  # [{sender, label_id, action}] — learning signal
             self._users[user_id] = bucket
             self._persist(user_id)
 
@@ -51,6 +53,12 @@ class Store:
     def categories(self, user_id: str) -> list[dict]:
         return self._bucket(user_id)["categories"]
 
+    def labels(self, user_id: str) -> list[dict]:
+        return self._bucket(user_id).get("labels", [])
+
+    def label_corrections(self, user_id: str) -> list[dict]:
+        return self._bucket(user_id).get("label_corrections", [])
+
     def messages(self, user_id: str, account: str = "all", include_archived: bool = False) -> list[dict]:
         msgs = self._bucket(user_id)["messages"]
         out = []
@@ -68,6 +76,7 @@ class Store:
             "profile": b["profile"],
             "accounts": b["accounts"],
             "categories": b["categories"],
+            "labels": b.get("labels", []),
             "messages": self.messages(user_id, account=account),
         }
 
@@ -121,6 +130,39 @@ class Store:
                     self._persist(user_id)
                     return True
         return False
+
+    def add_label_def(self, user_id: str, label: dict) -> None:
+        with self._lock:
+            labels = self._bucket(user_id).setdefault("labels", [])
+            if not any(l["id"] == label["id"] for l in labels):
+                labels.append(label)
+                self._persist(user_id)
+
+    def fix_label(self, user_id: str, message_id: str, label_id: str) -> dict:
+        """Add/remove a label on a message, record the correction, and apply it to
+        all mail from the same sender (the learning signal). Returns action + count."""
+        with self._lock:
+            b = self._bucket(user_id)
+            src = next((m for m in b["messages"] if m["id"] == message_id), None)
+            if not src:
+                return {"action": "none", "updated": 0}
+            sender = src.get("from")
+            action = "add" if label_id not in src.get("labels", []) else "remove"
+            corr = b.setdefault("label_corrections", [])
+            corr[:] = [c for c in corr if not (c["sender"] == sender and c["label_id"] == label_id)]
+            corr.append({"sender": sender, "label_id": label_id, "action": action})
+            n = 0
+            for m in b["messages"]:
+                if m.get("from") != sender:
+                    continue
+                labels = m.setdefault("labels", [])
+                if action == "add" and label_id not in labels:
+                    labels.append(label_id)
+                elif action == "remove" and label_id in labels:
+                    labels.remove(label_id)
+                n += 1
+            self._persist(user_id)
+            return {"action": action, "updated": n}
 
 
 def make_store() -> "Store":

@@ -60,6 +60,24 @@ Claude classifies every email into one of:
 | `awaiting_reply` | Sent email with request → create follow-up reminder |
 | `scheduling` | Mentions meeting → generate appointment proposal |
 
+## Labels (vs categories)
+
+- **Category:** exactly one per email, AI-assigned, drives the cockpit tiles
+  (*what kind of mail / what to do*).
+- **Label:** zero-or-more per email, AI-assigned, cross-cutting tags for
+  *project / customer / topic* (e.g. `Project Apollo`, `Acme Corp`, `Invoices`).
+- **Correction → learning:** the user fixes a label in one tap; the fix is stored
+  as a correction keyed by sender and **applied to all mail from that sender**, and
+  fed back as few-shot so `suggest_labels` improves over time (mirrors the
+  category correction loop). Labels are filterable (tap a label → all its mail).
+
+## Tasks
+
+Extracted from emails; each task **keeps a link to its source mail** (tap a task
+→ open the email). Tasks can be created from an email (whole email or a specific
+extracted action). Cockpit ↔ Tasks reachable from the bottom nav and the sticky
+top-right actions.
+
 ## Intelligence functions (intelligence.py)
 
 ```python
@@ -71,6 +89,7 @@ detect_ticket(email) -> dict | None                 # {type, event, date, seat, 
 detect_delivery(email) -> dict | None               # {carrier, tracking_number, status, eta, pickup_location, pickup_code}
 detect_purchase(email) -> dict | None               # {merchant, order_id, total, currency, items}
 detect_travel(email) -> dict | None                 # {type, provider, origin, destination, depart, arrive, confirmation, trip_id}
+suggest_labels(email, labels, corrections) -> list[str]  # AI label assignment, learns from corrections
 detect_scheduling_intent(email) -> bool
 detect_request_in_sent(email) -> bool               # for follow-up reminders
 generate_appointment_proposal(email) -> str         # ready-to-send reply with time slots

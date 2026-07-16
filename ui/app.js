@@ -53,6 +53,53 @@
     var a = acctById(sel); return a ? a.name+' · '+a.email : 'All mail';
   }
 
+  // ---------- labels + learning loop ----------
+  function labelById(id){ return (state.labels||[]).filter(function(l){ return l.id===id; })[0]; }
+  function labelChips(m){
+    if(!m.labels || !m.labels.length) return '';
+    return m.labels.map(function(id){ var l=labelById(id); return l ? '<span class="lbl mini" style="--lc:'+l.color+'">'+esc(l.name)+'</span>' : ''; }).join('');
+  }
+  function labelCount(id){ return state.messages.filter(function(m){ return !m.archived && inSel(m) && (m.labels||[]).indexOf(id)>=0; }).length; }
+
+  var LEARN_KEY = 'mailai-learn-v1';
+  function loadLearned(){ try { return JSON.parse(localStorage.getItem(LEARN_KEY)) || []; } catch(e){ return []; } }
+  function saveLearned(){ try { localStorage.setItem(LEARN_KEY, JSON.stringify(state.labelRules||[])); } catch(e){} }
+  function learnRule(sender, labelId, action){
+    state.labelRules = (state.labelRules||[]).filter(function(r){ return !(r.sender===sender && r.labelId===labelId); });
+    state.labelRules.push({ sender: sender, labelId: labelId, action: action });
+    saveLearned();
+  }
+  function applyRule(sender, labelId, action){
+    var n = 0;
+    state.messages.forEach(function(m){
+      if(m.from !== sender) return;
+      if(!m.labels) m.labels = [];
+      var i = m.labels.indexOf(labelId);
+      if(action==='add' && i<0){ m.labels.push(labelId); }
+      else if(action==='remove' && i>=0){ m.labels.splice(i,1); }
+      n++;
+    });
+    return n;
+  }
+  function applyLearnedToAll(){ (state.labelRules||[]).forEach(function(r){ applyRule(r.sender, r.labelId, r.action); }); }
+  function fixLabel(msgId, labelId){
+    var m = msgById(msgId); if(!m) return;
+    var adding = (m.labels||[]).indexOf(labelId) < 0;
+    learnRule(m.from, labelId, adding ? 'add' : 'remove');   // remember the correction
+    var n = applyRule(m.from, labelId, adding ? 'add' : 'remove'); // apply to same-sender mail
+    apiPost('/api/messages/'+msgId+'/labels', { label_id: labelId }); // persist server-side when live
+    var l = labelById(labelId);
+    toast((adding ? 'Labelled “' : 'Removed “') + (l?l.name:labelId) + '” — learned from ' + m.from + (n>1 ? (' · '+n+' mails') : ''));
+  }
+
+  function labelsRow(){
+    if(!state.labels || !state.labels.length) return '';
+    var chips = state.labels.map(function(l){
+      return '<button class="lblchip" style="--lc:'+l.color+'" data-nav="#/label/'+l.id+'">'+esc(l.name)+' <b>'+labelCount(l.id)+'</b></button>';
+    }).join('');
+    return '<div class="lblrow"><span class="lblrow-h">'+SPARK+' Labels</span>'+chips+'</div>';
+  }
+
   function hintFor(cat){
     var ms = msgsIn(cat.id), n = ms.length, a;
     switch(cat.id){
@@ -84,7 +131,7 @@
     return {
       top: '<div class="brand"><span class="dot"></span> MailAI · Cockpit</div>'
          + '<h1>Good morning, Remco</h1><div class="sub">Tue 15 Jul · '+esc(selLabel())+' · '+active.length+' active</div>',
-      body: acctSwitcher() + '<div class="hero"><div class="hstat"><div class="big">'+needYou+'</div><div class="hl">need you today</div></div>'
+      body: acctSwitcher() + labelsRow() + '<div class="hero"><div class="hstat"><div class="big">'+needYou+'</div><div class="hl">need you today</div></div>'
           + '<div class="hstat"><div class="big">'+autoHandled+'</div><div class="hl">auto-handled</div></div></div>'
           + '<div class="tilegrid">'+tiles
           + '<button class="tile add" style="grid-column:1/-1" data-act="addcat">'+svg('<path d="M12 5v14M5 12h14"/>',15)+' Add a category tile</button></div>',
@@ -98,7 +145,7 @@
       + '<span><span class="top"><span class="from">'+esc(m.from)+'</span><span class="time">'+esc(m.time)+'</span></span>'
       + '<span class="subj">'+esc(m.subject)+'</span><span class="snip">'+esc(m.snippet)+'</span>'
       + (m.ai ? '<span class="ai-note">'+SPARK+esc(m.ai)+'</span>' : '')
-      + '<span class="chip-wrap" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:7px"><span class="chip" style="--cc:'+catById(m.cat).color+'">'+esc(m.chip||catById(m.cat).name)+'</span>'+acctTag(m)+'</span></span></button>';
+      + '<span class="chip-wrap" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:7px"><span class="chip" style="--cc:'+catById(m.cat).color+'">'+esc(m.chip||catById(m.cat).name)+'</span>'+acctTag(m)+labelChips(m)+'</span></span></button>';
   }
   function newsletterHTML(m){
     return '<div class="nrow"><div><div class="nm">'+esc(m.from)+' '+acctTag(m)+'</div><div class="fr">'+esc(m.freq||'')+' · '+(m.unread||0)+' unread</div></div>'
@@ -141,6 +188,19 @@
     };
   }
 
+  // ---------- screen: label filter ----------
+  function viewLabel(id){
+    var l = labelById(id); if(!l){ location.hash='#/'; return null; }
+    var ms = state.messages.filter(function(m){ return !m.archived && inSel(m) && (m.labels||[]).indexOf(id)>=0; });
+    var body = ms.length ? '<div class="list">'+ms.map(cardHTML).join('')+'</div>'
+                         : '<div class="empty">No mail labelled “'+esc(l.name)+'” in this view.</div>';
+    return {
+      top: '<button class="back" data-nav="#/">'+svg('<path d="M15 18l-6-6 6-6"/>',16)+' Cockpit</button>'
+         + '<h1><span class="lbl" style="--lc:'+l.color+';font-size:.8em;vertical-align:middle">'+esc(l.name)+'</span></h1>',
+      withBack: true, tabs: acctSwitcher(), body: body, nav: 'cockpit'
+    };
+  }
+
   // ---------- screen: detail ----------
   function viewDetail(id){
     var m = msgById(id); if(!m || m.archived){ location.hash='#/'; return null; }
@@ -156,6 +216,14 @@
     } else {
       parts.push('<div class="panel"><p class="h">Message</p><p>'+esc(m.snippet)+'</p></div>');
     }
+    // labels — AI-assigned, tap to fix (the app learns from the change)
+    var lblEditor = (state.labels||[]).map(function(l){
+      var on = (m.labels||[]).indexOf(l.id) >= 0;
+      return '<button class="lbl '+(on?'on':'off')+'" style="--lc:'+l.color+'" data-act="fixlabel" data-id="'+m.id+'" data-label="'+l.id+'">'+(on?'':'+ ')+esc(l.name)+'</button>';
+    }).join('');
+    parts.push('<div class="panel"><p class="h">'+SPARK+' Labels · tap to fix</p><div class="lbledit">'+lblEditor
+      + '<button class="lbl new" data-act="newlabel" data-id="'+m.id+'">+ New</button></div>'
+      + '<div class="ai-note" style="margin-top:8px">I assign these automatically and learn from your corrections.</div></div>');
     if(m.extracted){
       var kv = Object.keys(m.extracted).map(function(k){
         return '<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--line);font-size:12.5px">'
@@ -164,10 +232,13 @@
       parts.push('<div class="panel"><p class="h">'+SPARK+' Extracted details</p>'+kv+'</div>');
     }
     if(m.tasks && m.tasks.length){
-      parts.push('<div class="panel"><p class="h">Extracted tasks</p>'+m.tasks.map(function(t){
-        return '<div class="task"><span class="box"></span><div>'+esc(t.text)+(t.due?'<br><span class="due">Due · '+esc(t.due)+'</span>':'')+'</div></div>';
+      parts.push('<div class="panel"><p class="h">Extracted tasks</p>'+m.tasks.map(function(t,ti){
+        var added = (state.tasks||[]).some(function(x){ return x.msgId===m.id && x.text===t.text; });
+        return '<div class="task"><span class="box"></span><div style="flex:1">'+esc(t.text)+(t.due?'<br><span class="due">Due · '+esc(t.due)+'</span>':'')+'</div>'
+          + '<button class="miniadd'+(added?' done':'')+'" data-act="addtask" data-id="'+m.id+'" data-ti="'+ti+'"'+(added?' disabled':'')+'>'+(added?'✓ Added':'+ Task')+'</button></div>';
       }).join('')+'</div>');
     }
+    parts.push('<button class="btn wide" data-act="newtask" data-id="'+m.id+'" style="border-style:dashed;color:var(--accent-ink)">+ Create task from this email</button>');
     if(m.reply){
       parts.push('<div class="panel"><p class="h">Suggested reply · professional</p><div class="reply-body">'+esc(m.reply)+'</div>'
         + '<div class="btnrow"><button class="btn pri" data-act="send" data-id="'+m.id+'">Send</button>'
@@ -213,6 +284,10 @@
         + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addacct">+ Add a mail account</button>'
         + '<div class="seghead">Cockpit categories · toggle to show/hide</div>'+rows
         + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addcat">+ Add a category</button>'
+        + '<div class="seghead">Labels · AI-assigned, you correct</div>'
+        + (state.labels||[]).map(function(l){ return '<div class="catrow"><span class="grip">#</span><span class="cdot" style="background:'+l.color+'"></span><span><span class="cnm">'+esc(l.name)+'</span><br><span class="ccount">'+labelCount(l.id)+' mails</span></span></div>'; }).join('')
+        + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="newlabeldef">+ Add a label</button>'
+        + ((state.labelRules&&state.labelRules.length) ? '<div class="seghead">Learned from your fixes</div>'+state.labelRules.map(function(r){ var l=labelById(r.labelId); return '<div class="rule">Mail from <b>'+esc(r.sender)+'</b> '+(r.action==='add'?'→ tag':'✗ not')+' <b style="color:'+(l?l.color:'#888')+'">'+(l?esc(l.name):esc(r.labelId))+'</b></div>'; }).join('') : '')
         + '<div class="seghead">Rules</div>'
         + '<div class="rule"><b>Emails from my boss</b> are always <b style="color:var(--c-urgent)">Urgent</b></div>'
         + '<div class="rule"><b>Anything from klm.com</b> → <b style="color:var(--c-ticket)">Tickets</b></div>'
@@ -225,15 +300,23 @@
   }
 
   // ---------- screen: tasks ----------
+  function taskRow(t){
+    var m = msgById(t.msgId);
+    return '<div class="tkrow'+(t.done?' done':'')+'">'
+      + '<button class="tkbox'+(t.done?' on':'')+'" data-act="taskdone" data-id="'+t.id+'" aria-label="toggle done">'+(t.done?svg('<path d="M4 12l6 6L20 6"/>',13):'')+'</button>'
+      + '<div class="tkbody"><div class="tktext">'+esc(t.text)+'</div>'
+      + (t.due?'<div class="due">Due · '+esc(t.due)+'</div>':'')
+      + (m?'<button class="tklink" data-nav="#/m/'+m.id+'">'+svg('<path d="M14 4h6v6M20 4l-9 9M20 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5"/>',11)+' '+esc(m.from)+' — '+esc(m.subject)+'</button>':'')
+      + '</div></div>';
+  }
   function viewTasks(){
-    var items = [];
-    state.messages.forEach(function(m){ if(!m.archived && m.tasks) m.tasks.forEach(function(t){ items.push({t:t, m:m}); }); });
-    var body = items.length ? '<div class="list">'+items.map(function(it){
-      return '<div class="wcard"><div class="task"><span class="box"></span><div>'+esc(it.t.text)
-        + (it.t.due?'<br><span class="due">Due · '+esc(it.t.due)+'</span>':'')
-        + '<br><span class="ccount" style="font-size:11px;color:var(--ink-3)">from “'+esc(it.m.subject)+'”</span></div></div></div>';
-    }).join('')+'</div>' : '<div class="empty">No open tasks. Nice.</div>';
-    return { top:'<div class="brand"><span class="dot"></span> MailAI · Tasks</div><h1>Tasks</h1><div class="sub">'+items.length+' extracted from your mail</div>', body:body, nav:'tasks' };
+    var open = (state.tasks||[]).filter(function(t){ return !t.done; });
+    var done = (state.tasks||[]).filter(function(t){ return t.done; });
+    var body = '<div class="list">'
+      + (open.length ? open.map(taskRow).join('') : '<div class="empty">No open tasks. Add one from any email.</div>')
+      + (done.length ? '<div class="seghead">Done</div>'+done.map(taskRow).join('') : '')
+      + '</div>';
+    return { top:'<div class="brand"><span class="dot"></span> MailAI · Tasks</div><h1>Tasks</h1><div class="sub">'+open.length+' open · each linked to its mail</div>', body:body, nav:'tasks' };
   }
 
   // ---------- render ----------
@@ -250,12 +333,17 @@
     var h = location.hash || '#/';
     var v;
     if(h.indexOf('#/c/')===0) v = viewCategory(h.slice(4));
+    else if(h.indexOf('#/label/')===0) v = viewLabel(h.slice(8));
     else if(h.indexOf('#/m/')===0) v = viewDetail(h.slice(4));
     else if(h==='#/settings') v = viewSettings();
     else if(h==='#/tasks') v = viewTasks();
     else v = viewCockpit();
     if(!v) return; // a redirect happened
-    var html = '<div class="topbar'+(v.withBack?' with-back':'')+'">'+v.top+'</div>'
+    var actions = '<div class="topbar-actions">'
+      + '<button class="iconbtn'+(v.nav==='tasks'?' on':'')+'" data-nav="#/tasks" aria-label="Tasks">'+svg('<path d="M9 11l3 3L22 4"/><path d="M21 12v7a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h11"/>',19)+'</button>'
+      + '<button class="iconbtn'+(v.nav==='settings'?' on':'')+'" data-nav="#/settings" aria-label="Settings">'+svg('<circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.6-2-3.4-2.4 1a7 7 0 0 0-1.7-1L14.5 3h-5l-.3 2.3a7 7 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7 7 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.3 2.3h5l.3-2.3a7 7 0 0 0 1.7-1l2.4 1 2-3.4-2-1.6a7 7 0 0 0 .1-1z"/>',19)+'</button>'
+      + '</div>';
+    var html = '<div class="topbar'+(v.withBack?' with-back':'')+'">'+v.top+actions+'</div>'
       + (v.tabs||'')
       + (v.bare ? v.body : '<div class="view">'+v.body+'</div>')
       + tabbar(v.nav);
@@ -327,6 +415,35 @@
         }
         render(); break;
       }
+      case 'fixlabel': { fixLabel(id, el.getAttribute('data-label')); render(); break; }
+      case 'newlabel': {
+        var lnm = window.prompt('New label (e.g. Project X, Customer Acme, tax-2026):');
+        if(lnm && lnm.trim()){
+          var lid = slug(lnm)+'-'+(Date.now()%1000);
+          state.labels.push({ id:lid, name:lnm.trim(), color:CUSTOM_COLORS[state.labels.length % CUSTOM_COLORS.length] });
+          fixLabel(id, lid);
+        }
+        render(); break;
+      }
+      case 'newlabeldef': {
+        var dnm = window.prompt('New label name:');
+        if(dnm && dnm.trim()){ state.labels.push({ id:slug(dnm)+'-'+(Date.now()%1000), name:dnm.trim(), color:CUSTOM_COLORS[state.labels.length % CUSTOM_COLORS.length] }); toast('Label “'+dnm.trim()+'” created'); }
+        render(); break;
+      }
+      case 'addtask': {
+        var mm = msgById(id), ti = parseInt(el.getAttribute('data-ti'),10), tt = mm.tasks[ti];
+        if(!(state.tasks||[]).some(function(x){ return x.msgId===id && x.text===tt.text; })){
+          state.tasks.push({ id:id+'-t'+ti, text:tt.text, due:tt.due, done:false, msgId:id });
+          toast('Added to Tasks · linked to this mail');
+        }
+        render(); break;
+      }
+      case 'newtask': {
+        var ntx = window.prompt('New task from this email:');
+        if(ntx && ntx.trim()){ state.tasks.push({ id:'t'+Date.now(), text:ntx.trim(), due:'', done:false, msgId:id }); toast('Task created · linked to this mail'); }
+        render(); break;
+      }
+      case 'taskdone': { var tk=(state.tasks||[]).filter(function(x){ return x.id===id; })[0]; if(tk){ tk.done=!tk.done; } render(); break; }
     }
   }
   function back(){
@@ -351,7 +468,17 @@
       headers:{ 'Content-Type':'application/json' }, body: body ? JSON.stringify(body) : null }).catch(function(){});
   }
   function boot(data){
-    state = JSON.parse(JSON.stringify({ accounts:data.accounts, categories:data.categories, messages:data.messages }));
+    state = JSON.parse(JSON.stringify({ accounts:data.accounts, categories:data.categories, labels:data.labels||[], messages:data.messages }));
+    state.messages.forEach(function(m){ if(!m.labels) m.labels = []; });
+    // a couple of example tasks so the screen isn't empty; each linked to its mail.
+    // (extracted tasks on the detail screen stay actionable via "+ Task".)
+    state.tasks = [
+      { id:'seed1', text:'Send the revised Q3 revenue slide', due:'Today · 12:00', done:false, msgId:'m1' },
+      { id:'seed2', text:'Approve the vendor invoice before month-end', due:'', done:false, msgId:'m20' }
+    ];
+    // learned label rules survive reloads (localStorage) and re-apply on load
+    state.labelRules = loadLearned();
+    applyLearnedToAll();
     render();
   }
   function load(){

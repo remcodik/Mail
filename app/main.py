@@ -77,6 +77,24 @@ def set_visibility(request: Request, category_id: str, visible: bool = Body(embe
     return {"ok": True}
 
 
+@app.post("/api/messages/{message_id}/labels")
+def fix_label(request: Request, message_id: str, label_id: str = Body(embed=True)) -> dict:
+    """Add/remove a label on a message and learn from it (applies to same-sender mail)."""
+    uid = _uid(request)
+    return store.fix_label(uid, message_id, label_id)
+
+
+@app.post("/api/labels")
+def add_label(request: Request, name: str = Body(embed=True)) -> dict:
+    uid = _uid(request)
+    import re
+    lid = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:24] or f"lbl{len(store.labels(uid))}"
+    palette = ["#7C3AED", "#0891B2", "#059669", "#EA580C", "#D6336C"]
+    label = {"id": lid, "name": name, "color": palette[len(store.labels(uid)) % len(palette)]}
+    store.add_label_def(uid, label)
+    return {"ok": True, "label": label}
+
+
 @app.post("/api/accounts/connect")
 def connect_account(request: Request, name: str = Body(""), email: str = Body("")) -> dict:
     """Demo: add a fake account instantly. Live: return a Google OAuth URL (#29)."""

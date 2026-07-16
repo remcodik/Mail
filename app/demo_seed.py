@@ -131,9 +131,26 @@ def _messages():
     }
     for msg in m:
         msg["account"] = _ACCT.get(msg["id"], "private")
+        msg["labels"] = list(_LABELS.get(msg["id"], []))
         if msg["id"] in extracted:
             msg["extracted"] = extracted[msg["id"]]
     return m
+
+
+def _labels():
+    return [
+        {"id": "apollo", "name": "Project Apollo", "color": "#7C3AED"},
+        {"id": "acme", "name": "Acme Corp", "color": "#0891B2"},
+        {"id": "invoices", "name": "Invoices", "color": "#059669"},
+        {"id": "nyc", "name": "NYC Trip", "color": "#EA580C"},
+    ]
+
+
+_LABELS = {
+    "m1": ["apollo"], "m5": ["apollo"], "m6": ["acme"], "m4": ["acme"],
+    "m10": ["invoices"], "m11": ["invoices"], "m20": ["acme", "invoices"],
+    "m13": ["nyc"], "m19": ["nyc"],
+}
 
 
 def default_categories() -> list[dict]:
@@ -146,5 +163,6 @@ def fresh_inbox() -> dict:
     return copy.deepcopy({
         "accounts": _accounts(),
         "categories": _categories(),
+        "labels": _labels(),
         "messages": _messages(),
     })

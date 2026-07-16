@@ -49,7 +49,8 @@ def process_account(user_id: str, account_id: str, max_results: int = 25) -> int
         if cat not in valid:
             cat = "fyi"
         msg = {**email, "cat": cat, "chip": _cat_name(user_id, cat),
-               "summary": intelligence.summarize_thread([email])}
+               "summary": intelligence.summarize_thread([email]),
+               "labels": intelligence.suggest_labels(email, store.labels(user_id), store.label_corrections(user_id))}
         if cat in ("urgent", "reply"):
             msg["needsAction"] = True
             msg["reply"] = intelligence.draft_reply(email)

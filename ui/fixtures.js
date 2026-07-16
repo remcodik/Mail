@@ -168,5 +168,21 @@
   };
   messages.forEach(function (m) { if (EXTRACTED[m.id]) m.extracted = EXTRACTED[m.id]; });
 
-  window.MAILAI_FIXTURES = { accounts, categories, messages };
+  // Labels: cross-cutting tags the AI assigns (many per email). Users correct
+  // them and the app learns. `suggested: true` marks an AI guess not yet confirmed.
+  const labels = [
+    { id: 'apollo',   name: 'Project Apollo', color: '#7C3AED' },
+    { id: 'acme',     name: 'Acme Corp',      color: '#0891B2' },
+    { id: 'invoices', name: 'Invoices',       color: '#059669' },
+    { id: 'nyc',      name: 'NYC Trip',       color: '#EA580C' }
+  ];
+  // AI-assigned labels per message (m4's "acme" is a deliberate wrong guess to correct)
+  const LABELS = {
+    m1: ['apollo'], m5: ['apollo'], m6: ['acme'], m4: ['acme'],
+    m10: ['invoices'], m11: ['invoices'], m20: ['acme', 'invoices'],
+    m13: ['nyc'], m19: ['nyc']
+  };
+  messages.forEach(function (m) { m.labels = (LABELS[m.id] || []).slice(); });
+
+  window.MAILAI_FIXTURES = { accounts, categories, labels, messages };
 })();
