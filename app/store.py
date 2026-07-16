@@ -20,8 +20,13 @@ class Store:
         with self._lock:
             if user_id in self._users:
                 return
-            bucket = demo_seed.fresh_inbox() if seed else {"accounts": [], "categories": [], "messages": []}
+            if seed:
+                bucket = demo_seed.fresh_inbox()
+            else:
+                # Live user: real category taxonomy, but no accounts/mail until they connect one.
+                bucket = {"accounts": [], "categories": demo_seed.default_categories(), "messages": []}
             bucket["profile"] = {"id": user_id, "email": email or (user_id + "@example.com"), "name": "Remco"}
+            bucket["tokens"] = {}  # {account_id: oauth token dict}
             self._users[user_id] = bucket
 
     def _bucket(self, user_id: str) -> dict:
@@ -63,7 +68,31 @@ class Store:
     # ---- writes (scoped to the user) ----
     def add_account(self, user_id: str, account: dict) -> None:
         with self._lock:
-            self._bucket(user_id)["accounts"].append(account)
+            accts = self._bucket(user_id)["accounts"]
+            if any(a["id"] == account["id"] for a in accts):
+                return
+            accts.append(account)
+
+    # ---- OAuth tokens, stored per (user, account) ----
+    def set_token(self, user_id: str, account_id: str, token: dict) -> None:
+        with self._lock:
+            self._bucket(user_id)["tokens"][account_id] = token
+
+    def get_token(self, user_id: str, account_id: str) -> dict | None:
+        return self._bucket(user_id)["tokens"].get(account_id)
+
+    # ---- message upsert (idempotent by id, e.g. Gmail message id) ----
+    def upsert_message(self, user_id: str, msg: dict) -> None:
+        with self._lock:
+            msgs = self._bucket(user_id)["messages"]
+            for i, m in enumerate(msgs):
+                if m["id"] == msg["id"]:
+                    msgs[i] = {**m, **msg}
+                    return
+            msgs.append(msg)
+
+    def has_message(self, user_id: str, message_id: str) -> bool:
+        return any(m["id"] == message_id for m in self._bucket(user_id)["messages"])
 
     def archive_message(self, user_id: str, message_id: str) -> bool:
         with self._lock:

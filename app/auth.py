@@ -53,13 +53,17 @@ GMAIL_SCOPES = [
 ]
 
 
+def _redirect_uri() -> str:
+    return f"{settings.oauth_redirect_base}/api/accounts/callback"
+
+
 def authorize_url(state: str) -> str:
     if not settings.is_live or not settings.google_client_id:
         raise RuntimeError("Google OAuth not configured (set GOOGLE_CLIENT_ID/SECRET, MAILAI_MODE=live).")
     from urllib.parse import urlencode
     params = {
         "client_id": settings.google_client_id,
-        "redirect_uri": f"{settings.oauth_redirect_base}/api/accounts/callback",
+        "redirect_uri": _redirect_uri(),
         "response_type": "code",
         "scope": " ".join(GMAIL_SCOPES),
         "access_type": "offline",
@@ -67,3 +71,39 @@ def authorize_url(state: str) -> str:
         "state": state,
     }
     return "https://accounts.google.com/o/oauth2/v2/auth?" + urlencode(params)
+
+
+def exchange_code(code: str) -> dict:
+    """Exchange an OAuth code for a token dict usable by google Credentials."""
+    import json
+    from urllib.parse import urlencode
+    from urllib.request import urlopen, Request
+    data = urlencode({
+        "code": code,
+        "client_id": settings.google_client_id,
+        "client_secret": settings.google_client_secret,
+        "redirect_uri": _redirect_uri(),
+        "grant_type": "authorization_code",
+    }).encode()
+    req = Request("https://oauth2.googleapis.com/token", data=data,
+                  headers={"Content-Type": "application/x-www-form-urlencoded"})
+    with urlopen(req, timeout=20) as r:
+        tok = json.loads(r.read())
+    return {
+        "token": tok.get("access_token"),
+        "refresh_token": tok.get("refresh_token"),
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "client_id": settings.google_client_id,
+        "client_secret": settings.google_client_secret,
+        "scopes": GMAIL_SCOPES,
+    }
+
+
+def fetch_email(access_token: str) -> str:
+    """Look up the connected account's email address."""
+    import json
+    from urllib.request import urlopen, Request
+    req = Request("https://www.googleapis.com/oauth2/v2/userinfo",
+                  headers={"Authorization": f"Bearer {access_token}"})
+    with urlopen(req, timeout=20) as r:
+        return json.loads(r.read()).get("email", "")

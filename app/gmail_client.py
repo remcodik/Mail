@@ -27,16 +27,87 @@ class GmailClient:
         creds = Credentials(**self._token)
         return build("gmail", "v1", credentials=creds, cache_discovery=False)
 
-    # --- read (TODO Sprint 2b: implement against self._service()) ---
-    def list_messages(self, query: str = "", max_results: int = 25) -> list[dict]:
-        raise NotConfigured("list_messages not implemented yet (#29)")
+    # --- read ---
+    def list_message_ids(self, query: str = "in:inbox", max_results: int = 25) -> list[str]:
+        svc = self._service()
+        res = svc.users().messages().list(userId="me", q=query, maxResults=max_results).execute()
+        return [m["id"] for m in res.get("messages", [])]
 
     def get_message(self, message_id: str) -> dict:
-        raise NotConfigured("get_message not implemented yet (#29)")
+        """Return a normalized email dict for the sync pipeline."""
+        svc = self._service()
+        raw = svc.users().messages().get(userId="me", id=message_id, format="full").execute()
+        headers = {h["name"].lower(): h["value"] for h in raw.get("payload", {}).get("headers", [])}
+        sender = headers.get("from", "")
+        name = _display_name(sender)
+        return {
+            "id": message_id,
+            "account": self.account_id,
+            "from": name,
+            "initials": _initials(name),
+            "av": _color_for(name),
+            "subject": headers.get("subject", "(no subject)"),
+            "snippet": raw.get("snippet", ""),
+            "body": _extract_body(raw.get("payload", {})),
+            "time": _short_time(headers.get("date", "")),
+            "gmail_labels": raw.get("labelIds", []),
+        }
 
-    # --- actions (suggestion-only until confirmed by the user) ---
+    # --- actions (suggestion-only; called after explicit user confirmation) ---
     def archive(self, message_id: str) -> None:
-        raise NotConfigured("archive not implemented yet (#29)")
+        self._service().users().messages().modify(
+            userId="me", id=message_id, body={"removeLabelIds": ["INBOX"]}).execute()
 
-    def apply_label(self, message_id: str, label: str) -> None:
-        raise NotConfigured("apply_label not implemented yet (#29)")
+    def apply_label(self, message_id: str, label_id: str) -> None:
+        self._service().users().messages().modify(
+            userId="me", id=message_id, body={"addLabelIds": [label_id]}).execute()
+
+
+# ---- parsing helpers ----
+def _display_name(sender: str) -> str:
+    # "Jane Doe <jane@x.com>" -> "Jane Doe"; "jane@x.com" -> "jane"
+    sender = (sender or "").strip()
+    if "<" in sender:
+        return sender.split("<", 1)[0].strip().strip('"') or sender
+    if "@" in sender:
+        return sender.split("@", 1)[0]
+    return sender or "Unknown"
+
+
+def _initials(name: str) -> str:
+    parts = [p for p in name.replace(".", " ").split() if p]
+    if not parts:
+        return "?"
+    if len(parts) == 1:
+        return parts[0][:2].upper()
+    return (parts[0][0] + parts[1][0]).upper()
+
+
+def _color_for(name: str) -> str:
+    palette = ["#E5484D", "#E8912B", "#3E7BF0", "#8257E6", "#0E7C86",
+               "#D6336C", "#2E9E5B", "#0EA5E9", "#B45309", "#5B34C9"]
+    h = 0
+    for ch in name:
+        h = (h * 31 + ord(ch)) & 0xFFFFFFFF
+    return palette[h % len(palette)]
+
+
+def _extract_body(payload: dict) -> str:
+    import base64
+    def walk(part):
+        if part.get("mimeType") == "text/plain" and part.get("body", {}).get("data"):
+            return base64.urlsafe_b64decode(part["body"]["data"]).decode("utf-8", "replace")
+        for p in part.get("parts", []) or []:
+            t = walk(p)
+            if t:
+                return t
+        return ""
+    return walk(payload)[:4000]
+
+
+def _short_time(date_header: str) -> str:
+    from email.utils import parsedate_to_datetime
+    try:
+        return parsedate_to_datetime(date_header).strftime("%H:%M")
+    except Exception:
+        return ""

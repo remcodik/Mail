@@ -288,12 +288,25 @@
       }
       case 'setacct': { sel = id; render(); break; }
       case 'addacct': {
+        if(API_OK){
+          // Backend flow: demo adds instantly; live returns a Google OAuth URL.
+          fetch('/api/accounts/connect', { method:'POST', credentials:'same-origin',
+            headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({}) })
+            .then(function(r){ return r.json(); })
+            .then(function(d){
+              if(d && d.authorize_url){ window.location.href = d.authorize_url; return; }
+              toast('Mail account connected · kept separate'); load();
+            })
+            .catch(function(){ toast('Could not connect account'); });
+          break;
+        }
+        // Offline/static fallback: add a local demo account.
         var email = window.prompt('Connect a mail account — enter its address (e.g. you@work.com):');
         if(email && email.trim()){
           var pal = ['#3E7BF0','#0FA398','#8257E6','#EA580C','#D6336C'];
-          var nm = window.prompt('Label this account (e.g. Work, Private, Side project):') || email.split('@')[0];
-          state.accounts.push({ id:'acct'+Date.now(), name:nm.trim(), email:email.trim(), color:pal[state.accounts.length % pal.length] });
-          toast('Connected “'+nm.trim()+'” · kept separate');
+          var nm = (window.prompt('Label this account (e.g. Work, Private):') || email.split('@')[0]).trim();
+          state.accounts.push({ id:'acct'+Date.now(), name:nm, email:email.trim(), color:pal[state.accounts.length % pal.length] });
+          toast('Connected “'+nm+'” · kept separate');
         }
         render(); break;
       }

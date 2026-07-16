@@ -58,25 +58,58 @@ MAILAI_MODEL_CLASSIFY=claude-haiku-4-5-20251001   # fast/cheap for triage
 MAILAI_MODEL_REASON=claude-sonnet-5               # stronger for summaries/drafts
 ```
 
-## Deploy with Docker
+## Deploy to Fly.io (recommended)
+
+`fly.toml` is included. One-time:
+
+```bash
+# 1. install flyctl + log in
+curl -L https://fly.io/install.sh | sh && fly auth login
+
+# 2. pick a globally-unique app name; edit `app` and the two URLs in fly.toml
+fly apps create your-mailai-name
+
+# 3. set secrets (not committed)
+fly secrets set \
+  MAILAI_SESSION_SECRET="$(openssl rand -hex 32)" \
+  ANTHROPIC_API_KEY="sk-ant-..." \
+  GOOGLE_CLIENT_ID="...apps.googleusercontent.com" \
+  GOOGLE_CLIENT_SECRET="..."
+
+# 4. deploy
+fly deploy
+```
+
+Then, in **Google Cloud → Credentials → your OAuth client**, add the authorized
+redirect URI: `https://your-mailai-name.fly.dev/api/accounts/callback` (must match
+`MAILAI_OAUTH_REDIRECT_BASE`). Open the app, go to **Settings → Mail accounts →
+Add a mail account** to connect Gmail; each connected account syncs and stays
+separated.
+
+> ⚠️ The in-memory store resets when the machine restarts. Before real use, wire a
+> database + encrypted token storage (#30) — the `Store` interface is drop-in.
+
+## Deploy with plain Docker (any host)
 
 ```bash
 docker build -t mailai .
 docker run -p 8000:8000 --env-file .env mailai
 ```
 
-The image honours the platform's `$PORT`. Point your host at it and set the env
-vars above. (Vercel wasn't usable here — the connected account can't create
-projects — so the Dockerfile targets any container host.)
+The image honours the platform's `$PORT`. (Vercel wasn't usable here — the
+connected account can't create projects — so we target any container host.)
 
 ## What's implemented vs. pending (Sprint 2)
 
-- ✅ **Sprint 2a (this step):** FastAPI backend, multi-user tenancy + isolation,
-  per-account data separation, demo provider, `GET /api/inbox`, UI wired to the
-  API with fixtures fallback, Docker + this guide.
-- ⏳ **Sprint 2b (#29):** real multi-account Gmail OAuth + sync (`app/gmail_client.py`,
-  `app/auth.py` `/api/accounts/callback`).
-- ⏳ **Sprint 2c (#5, #6):** wire `app/intelligence.py` (Claude) into a sync
-  pipeline so classification/summaries run on real mail.
+- ✅ **2a:** FastAPI backend, multi-user tenancy + isolation, per-account
+  separation, demo provider, `GET /api/inbox`, UI wired to the API.
+- ✅ **2b (#29):** multi-account Gmail OAuth (`/api/accounts/connect` →
+  `/api/accounts/callback`), token per `(user, account)`, real `gmail_client.py`
+  read/archive. **Untested until your Google creds are set.**
+- ✅ **2c (#5, #6):** `orchestrator.process_account()` classifies + summarizes new
+  mail via `intelligence.py` (Claude); idempotent by Gmail id. **Untested until
+  your Anthropic key is set.**
 - ⏳ **Persistence (#30):** swap the in-memory `Store` for a database + encrypted
-  token storage.
+  token storage before production.
+- ⏳ **Next:** first real end-to-end sync (needs creds + host), then richer
+  detectors (delivery/purchase/travel/tickets — Sprint 4).

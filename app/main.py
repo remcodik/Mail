@@ -16,8 +16,10 @@ from .config import settings
 from .store import store
 from . import auth
 
-app = FastAPI(title="MailAI", version="0.2.0")
+app = FastAPI(title="MailAI", version="0.3.0")
 UI_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "ui")
+_OAUTH_STATES: dict[str, str] = {}  # state -> user_id (dev store; use a real cache in prod)
+_ACCT_PALETTE = ["#3E7BF0", "#0FA398", "#8257E6", "#EA580C", "#D6336C", "#0891B2"]
 
 
 @app.on_event("startup")
@@ -80,14 +82,45 @@ def connect_account(request: Request, name: str = Body(""), email: str = Body(""
     """Demo: add a fake account instantly. Live: return a Google OAuth URL (#29)."""
     uid = _uid(request)
     if settings.is_live:
-        state = secrets.token_urlsafe(16)  # TODO persist state->uid (#29)
+        state = secrets.token_urlsafe(16)
+        _OAUTH_STATES[state] = uid
         return {"authorize_url": auth.authorize_url(state)}
-    palette = ["#8257E6", "#EA580C", "#D6336C", "#0891B2", "#059669"]
     n = len(store.accounts(uid))
     acct = {"id": f"acct{n}", "name": name or (email.split('@')[0] if email else f"Account {n+1}"),
-            "email": email or f"account{n+1}@example.com", "color": palette[n % len(palette)]}
+            "email": email or f"account{n+1}@example.com", "color": _ACCT_PALETTE[n % len(_ACCT_PALETTE)]}
     store.add_account(uid, acct)
     return {"ok": True, "account": acct}
+
+
+@app.get("/api/accounts/callback")
+def accounts_callback(state: str = "", code: str = ""):
+    """Google OAuth redirect target: connect the account and sync it (#29)."""
+    uid = _OAUTH_STATES.pop(state, None)
+    if not uid or not code:
+        raise HTTPException(status_code=400, detail="invalid oauth state")
+    token = auth.exchange_code(code)
+    email = auth.fetch_email(token["token"]) or "account@gmail.com"
+    account_id = email  # stable per-account id
+    n = len(store.accounts(uid))
+    store.add_account(uid, {"id": account_id, "name": email.split("@")[0].title(),
+                            "email": email, "color": _ACCT_PALETTE[n % len(_ACCT_PALETTE)]})
+    store.set_token(uid, account_id, token)
+    try:
+        from .orchestrator import process_account
+        process_account(uid, account_id)
+    except Exception:  # sync failures shouldn't block the redirect back to the app
+        pass
+    return RedirectResponse("/")
+
+
+@app.post("/api/accounts/{account_id}/sync")
+def sync_account(request: Request, account_id: str) -> dict:
+    """Re-run classify/summarize for one account (live mode)."""
+    uid = _uid(request)
+    if not settings.is_live:
+        return {"ok": True, "processed": 0, "note": "demo mode — nothing to sync"}
+    from .orchestrator import process_account
+    return {"ok": True, "processed": process_account(uid, account_id)}
 
 
 # ---------------- static SPA (mounted last so /api wins) ----------------

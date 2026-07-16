@@ -126,8 +126,13 @@ def _messages():
     return m
 
 
+def default_categories() -> list[dict]:
+    """The category taxonomy (app config, not demo data) — every user gets this."""
+    return copy.deepcopy(_categories())
+
+
 def fresh_inbox() -> dict:
-    """A deep, independent copy for a user's tenant bucket."""
+    """A deep, independent copy for a demo user's tenant bucket."""
     return copy.deepcopy({
         "accounts": _accounts(),
         "categories": _categories(),
