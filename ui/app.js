@@ -82,14 +82,28 @@
     return n;
   }
   function applyLearnedToAll(){ (state.labelRules||[]).forEach(function(r){ applyRule(r.sender, r.labelId, r.action); }); }
+  var pendingProposal = null;   // {sender,labelId,action,others,labelName,msgId} awaiting approval
   function fixLabel(msgId, labelId){
     var m = msgById(msgId); if(!m) return;
-    var adding = (m.labels||[]).indexOf(labelId) < 0;
-    learnRule(m.from, labelId, adding ? 'add' : 'remove');   // remember the correction
-    var n = applyRule(m.from, labelId, adding ? 'add' : 'remove'); // apply to same-sender mail
-    apiPost('/api/messages/'+msgId+'/labels', { label_id: labelId }); // persist server-side when live
+    if(!m.labels) m.labels = [];
+    var i = m.labels.indexOf(labelId);
+    var adding = i < 0;
+    if(adding) m.labels.push(labelId); else m.labels.splice(i, 1);  // this email only
     var l = labelById(labelId);
-    toast((adding ? 'Labelled “' : 'Removed “') + (l?l.name:labelId) + '” — learned from ' + m.from + (n>1 ? (' · '+n+' mails') : ''));
+    toast((adding ? 'Labelled “' : 'Removed “') + (l?l.name:labelId) + '” on this email');
+    // propose generalising to all mail from this sender — you approve or decline
+    var others = state.messages.filter(function(x){ return x.from===m.from && x.id!==m.id && !x.archived; }).length;
+    pendingProposal = { sender:m.from, labelId:labelId, action:(adding?'add':'remove'), others:others, labelName:(l?l.name:labelId), msgId:msgId };
+  }
+  function proposalBar(){
+    if(!pendingProposal) return '';
+    var p = pendingProposal;
+    var verb = p.action==='add' ? 'tag' : 'stop tagging';
+    var scope = p.others>0 ? (' — updates '+p.others+' other mail'+(p.others===1?'':'s')) : '';
+    return '<div class="proposal"><div class="ptext">'+SPARK+' Make this a rule? '
+      + '<b>Always '+verb+' mail from '+esc(p.sender)+' as “'+esc(p.labelName)+'”</b>'+scope+'.</div>'
+      + '<div class="pacts"><button class="btn pri" data-act="applyrule">Apply rule</button>'
+      + '<button class="btn" data-act="dismissrule">Just this one</button></div></div>';
   }
 
   function labelsRow(){
@@ -131,8 +145,12 @@
     return {
       top: '<div class="brand"><span class="dot"></span> MailAI · Cockpit</div>'
          + '<h1>Good morning, Remco</h1><div class="sub">Tue 15 Jul · '+esc(selLabel())+' · '+active.length+' active</div>',
-      body: acctSwitcher() + labelsRow() + '<div class="hero"><div class="hstat"><div class="big">'+needYou+'</div><div class="hl">need you today</div></div>'
-          + '<div class="hstat"><div class="big">'+autoHandled+'</div><div class="hl">auto-handled</div></div></div>'
+      body: acctSwitcher() + labelsRow()
+          + '<div class="hero">'
+          + '<button class="hstat" data-nav="#/focus/need"><div class="big">'+needYou+'</div><div class="hl">need you today ›</div></button>'
+          + '<button class="hstat soft" data-nav="#/focus/auto"><div class="big">'+autoHandled+'</div><div class="hl">auto-handled ›</div></button>'
+          + '</div>'
+          + '<div class="herohint">Tap a number to see those emails. <b>Need you</b> = waiting on your action (urgent, replies, overdue). <b>Auto-handled</b> = MailAI already sorted it (newsletters, receipts, deliveries…).</div>'
           + '<div class="tilegrid">'+tiles
           + '<button class="tile add" style="grid-column:1/-1" data-act="addcat">'+svg('<path d="M12 5v14M5 12h14"/>',15)+' Add a category tile</button></div>',
       nav: 'cockpit'
@@ -185,6 +203,22 @@
       tabs: acctSwitcher() + '<div class="tabs">'+tabs+'</div>',
       body: body,
       nav: 'cockpit'
+    };
+  }
+
+  // ---------- screen: focus (need-you / auto-handled) ----------
+  function isNeedYou(m){ return m.needsAction || m.cat==='reply' || (m.cat==='waiting' && m.overdue); }
+  function viewFocus(kind){
+    var ms = state.messages.filter(function(m){ if(m.archived || !inSel(m)) return false; return kind==='need' ? isNeedYou(m) : !isNeedYou(m); });
+    var title = kind==='need' ? 'Need you today' : 'Auto-handled';
+    var desc = kind==='need'
+      ? 'Emails waiting on <b>your action</b> — urgent items, replies to send, and overdue follow-ups.'
+      : 'MailAI <b>already sorted these</b> — newsletters, receipts, deliveries and FYIs you don’t need to act on.';
+    var body = '<div class="focusdesc">'+desc+'</div>'
+      + (ms.length ? '<div class="list">'+ms.map(cardHTML).join('')+'</div>' : '<div class="empty">Nothing here right now.</div>');
+    return {
+      top: '<button class="back" data-nav="#/">'+svg('<path d="M15 18l-6-6 6-6"/>',16)+' Cockpit</button><h1>'+title+'</h1>',
+      withBack: true, tabs: acctSwitcher(), body: body, nav: 'cockpit'
     };
   }
 
@@ -333,19 +367,17 @@
     var h = location.hash || '#/';
     var v;
     if(h.indexOf('#/c/')===0) v = viewCategory(h.slice(4));
+    else if(h.indexOf('#/focus/')===0) v = viewFocus(h.slice(8));
     else if(h.indexOf('#/label/')===0) v = viewLabel(h.slice(8));
     else if(h.indexOf('#/m/')===0) v = viewDetail(h.slice(4));
     else if(h==='#/settings') v = viewSettings();
     else if(h==='#/tasks') v = viewTasks();
     else v = viewCockpit();
     if(!v) return; // a redirect happened
-    var actions = '<div class="topbar-actions">'
-      + '<button class="iconbtn'+(v.nav==='tasks'?' on':'')+'" data-nav="#/tasks" aria-label="Tasks">'+svg('<path d="M9 11l3 3L22 4"/><path d="M21 12v7a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h11"/>',19)+'</button>'
-      + '<button class="iconbtn'+(v.nav==='settings'?' on':'')+'" data-nav="#/settings" aria-label="Settings">'+svg('<circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.6-2-3.4-2.4 1a7 7 0 0 0-1.7-1L14.5 3h-5l-.3 2.3a7 7 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7 7 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.3 2.3h5l.3-2.3a7 7 0 0 0 1.7-1l2.4 1 2-3.4-2-1.6a7 7 0 0 0 .1-1z"/>',19)+'</button>'
-      + '</div>';
-    var html = '<div class="topbar'+(v.withBack?' with-back':'')+'">'+v.top+actions+'</div>'
+    var html = '<div class="topbar'+(v.withBack?' with-back':'')+'">'+v.top+'</div>'
       + (v.tabs||'')
       + (v.bare ? v.body : '<div class="view">'+v.body+'</div>')
+      + proposalBar()
       + tabbar(v.nav);
     root.innerHTML = html;
     // scroll view to top on nav
@@ -416,6 +448,17 @@
         render(); break;
       }
       case 'fixlabel': { fixLabel(id, el.getAttribute('data-label')); render(); break; }
+      case 'applyrule': {
+        if(pendingProposal){ var p=pendingProposal;
+          learnRule(p.sender, p.labelId, p.action);
+          var n = applyRule(p.sender, p.labelId, p.action);
+          apiPost('/api/messages/'+p.msgId+'/labels', { label_id: p.labelId }); // learns server-side when live
+          toast('Rule saved · applied to '+n+' mail'+(n===1?'':'s')+' from '+p.sender);
+          pendingProposal = null;
+        }
+        render(); break;
+      }
+      case 'dismissrule': { pendingProposal = null; toast('Kept it to just this email'); render(); break; }
       case 'newlabel': {
         var lnm = window.prompt('New label (e.g. Project X, Customer Acme, tax-2026):');
         if(lnm && lnm.trim()){
