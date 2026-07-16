@@ -1,0 +1,15 @@
+# Secrets & auth — never commit (Sprint 2+)
+.env
+credentials.json
+token.json
+*.pem
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# OS / editor
+.DS_Store
+*.swp

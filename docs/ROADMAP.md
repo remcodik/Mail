@@ -1,8 +1,9 @@
 # MailAI — Evaluation, Plan & Roadmap
 
-> Status: Planning / pre-implementation. The repository currently contains only
-> the project spec (`CLAUDE.md`). This document evaluates that spec, records
-> open questions, and lays out a phased delivery plan tracked in GitHub Issues.
+> Status: **Building — Sprint 1 done.** The interactive frontend (`ui/`) is
+> live on mock data; see [`SPRINTS.md`](./SPRINTS.md) for sprint progress. This
+> document evaluates the spec, records open questions, and lays out the phased
+> plan tracked in GitHub Issues.
 
 Last reviewed: 2026-07-14
 
