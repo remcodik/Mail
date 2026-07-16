@@ -1,0 +1,748 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#0FA398">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>MailAI</title>
+<style>
+/* MailAI — mobile web app styles (Sprint 1)
+   Design tokens shared with docs/mockup.html. Theme-aware. */
+:root {
+  --paper:#EEF2F6; --surface:#FFFFFF; --surface-2:#F5F7FA;
+  --ink:#15202B; --ink-2:#4A5A6A; --ink-3:#7C8B9A; --line:#E2E8EF;
+  --accent:#0FA398; --accent-ink:#0A6E67;
+  --c-urgent:#E5484D; --c-reply:#E8912B; --c-news:#3E7BF0; --c-junk:#8A94A6;
+  --c-ticket:#8257E6; --c-wait:#0FA398; --c-delivery:#2E9E5B; --c-purchase:#D6336C;
+  --c-travel:#0EA5E9; --c-fyi:#64748B;
+  --shadow:0 6px 20px -8px rgba(21,32,43,.18);
+}
+@media (prefers-color-scheme:dark){
+  :root{--paper:#0B1016;--surface:#141D28;--surface-2:#101821;--ink:#EAF0F5;
+    --ink-2:#A7B4C0;--ink-3:#6F7E8C;--line:#223040;--accent:#23C4B6;--accent-ink:#7EE9DF;
+    --shadow:0 6px 20px -8px rgba(0,0,0,.5);}
+}
+:root[data-theme="light"]{--paper:#EEF2F6;--surface:#FFFFFF;--surface-2:#F5F7FA;--ink:#15202B;--ink-2:#4A5A6A;--ink-3:#7C8B9A;--line:#E2E8EF;--accent:#0FA398;--accent-ink:#0A6E67;--shadow:0 6px 20px -8px rgba(21,32,43,.18);}
+:root[data-theme="dark"]{--paper:#0B1016;--surface:#141D28;--surface-2:#101821;--ink:#EAF0F5;--ink-2:#A7B4C0;--ink-3:#6F7E8C;--line:#223040;--accent:#23C4B6;--accent-ink:#7EE9DF;--shadow:0 6px 20px -8px rgba(0,0,0,.5);}
+
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--paper);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;line-height:1.5;overscroll-behavior:none;}
+button{font:inherit;cursor:pointer}
+a{color:inherit}
+
+/* app shell */
+.shell{max-width:460px;margin:0 auto;height:100dvh;background:var(--surface-2);
+  display:flex;flex-direction:column;position:relative;overflow:hidden}
+@media(min-width:480px){.shell{border-left:1px solid var(--line);border-right:1px solid var(--line);box-shadow:0 0 60px -20px rgba(0,0,0,.25)}}
+
+.topbar{padding:calc(env(safe-area-inset-top) + 12px) 18px 10px;background:var(--surface-2);position:relative;z-index:5}
+.topbar .brand{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--ink-3);font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.topbar .brand .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+.topbar h1{margin:6px 0 2px;font-size:1.5rem;letter-spacing:-.02em}
+.topbar .sub{font-size:12.5px;color:var(--ink-2)}
+.topbar.with-back h1{font-size:1.12rem;line-height:1.25;margin-top:2px}
+.back{display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--accent);font-weight:600;background:none;border:0;padding:0 0 2px}
+
+.view{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:2px 0 14px}
+.view.pad{padding:6px 14px 16px}
+
+/* bottom nav */
+.tabbar{display:flex;justify-content:space-around;align-items:center;background:var(--surface);
+  border-top:1px solid var(--line);padding:9px 8px calc(env(safe-area-inset-bottom) + 9px)}
+.tabbar button{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;
+  color:var(--ink-3);font-weight:600;background:none;border:0}
+.tabbar button.on{color:var(--accent)}
+.tabbar svg{display:block}
+
+/* ---- cockpit ---- */
+.hero{display:flex;border-radius:18px;overflow:hidden;color:#fff;margin:4px 14px 12px;
+  background:linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent) 45%,#123b5e))}
+.hero .hstat{flex:1;padding:12px 15px}
+.hero .hstat+.hstat{border-left:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.14)}
+.hero .big{font-size:32px;font-weight:800;line-height:.95;letter-spacing:-.03em;font-family:ui-monospace,"SF Mono",Menlo,monospace}
+.hero .hl{font-size:11.5px;font-weight:600;opacity:.92;margin-top:2px}
+
+.tilegrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:0 14px}
+.tile{position:relative;text-align:left;overflow:hidden;border:1px solid var(--line);
+  background:var(--surface);border-radius:16px;padding:11px 11px 11px 14px;min-height:74px;
+  display:flex;flex-direction:column;transition:transform .14s,box-shadow .14s}
+.tile:active{transform:scale(.97)}
+.tile::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--tc,var(--ink-3))}
+.tile .ticon{width:27px;height:27px;border-radius:8px;display:grid;place-items:center;
+  background:color-mix(in srgb,var(--tc) 15%,transparent);color:var(--tc)}
+.tile .tcount{position:absolute;top:9px;right:13px;font-size:26px;font-weight:800;line-height:1;
+  letter-spacing:-.02em;color:var(--ink);font-family:ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.tile .tname{font-size:13.5px;font-weight:700;margin-top:9px;letter-spacing:-.01em}
+.tile .tsub{font-size:11px;color:var(--ink-2);margin-top:1px}
+.tile .tsub b{color:var(--tc)}
+.tile.add{align-items:center;justify-content:center;min-height:74px;border-style:dashed;
+  color:var(--accent-ink);font-weight:700;font-size:12.5px;gap:6px;flex-direction:row}
+.tile.add::before{display:none}
+.tile:focus-visible,.card:focus-visible,.tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---- account switcher (multi-account separation) ---- */
+.acctbar{display:flex;gap:6px;padding:8px 14px 2px;overflow-x:auto;scrollbar-width:none}
+.acctbar::-webkit-scrollbar{display:none}
+.acctseg{flex:none;display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);
+  color:var(--ink-2);font-size:12px;font-weight:600;padding:6px 12px;border-radius:999px;white-space:nowrap}
+.acctseg .adot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.acctseg.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.acctag{display:inline-flex;align-items:center;gap:4px;font-size:9.5px;font-weight:700;letter-spacing:.04em;
+  text-transform:uppercase;padding:2px 7px;border-radius:5px;color:var(--ac,var(--ink-2));
+  background:color-mix(in srgb,var(--ac,var(--ink-3)) 15%,transparent)}
+.acctag::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--ac,var(--ink-3))}
+
+/* ---- category tabs ---- */
+.tabs{display:flex;gap:7px;overflow-x:auto;padding:8px 14px 6px;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:none;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);
+  font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:999px;white-space:nowrap;
+  display:flex;align-items:center;gap:6px}
+.tab .badge{background:var(--line);color:var(--ink-2);border-radius:999px;font-size:10.5px;padding:1px 6px;font-family:ui-monospace,monospace}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.tab[aria-selected="true"] .badge{background:color-mix(in srgb,var(--surface) 25%,transparent);color:var(--surface)}
+
+/* ---- email cards ---- */
+.list{display:flex;flex-direction:column;gap:9px;padding:8px 14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:12px 13px;
+  display:grid;grid-template-columns:34px 1fr;gap:11px;text-align:left;width:100%;border-color:var(--line)}
+.card .av{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:13px;color:#fff}
+.card .top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.card .from{font-weight:650;font-size:13.5px;letter-spacing:-.01em}
+.card .time{font-size:11px;color:var(--ink-3);font-family:ui-monospace,monospace;flex:none}
+.card .subj{font-size:12.5px;margin:1px 0 4px;font-weight:550}
+.card .snip{font-size:12px;color:var(--ink-2);line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card .chip{margin-top:7px}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;letter-spacing:.04em;
+  text-transform:uppercase;padding:3px 8px;border-radius:6px;color:var(--cc,var(--ink-2));
+  background:color-mix(in srgb,var(--cc,var(--ink-3)) 14%,transparent)}
+.chip::before{content:"";width:6px;height:6px;border-radius:2px;background:var(--cc,var(--ink-3))}
+.ai-note{font-size:11.5px;color:var(--accent-ink);display:flex;gap:6px;margin-top:6px;align-items:flex-start}
+.ai-note svg{flex:none;margin-top:1px}
+.empty{padding:48px 24px;text-align:center;color:var(--ink-3);font-size:13px}
+
+/* ---- detail ---- */
+.detail{display:flex;flex-direction:column;gap:11px;padding:12px 14px 20px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:13px}
+.panel .h{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);font-weight:700;margin:0 0 7px;display:flex;align-items:center;gap:6px}
+.panel.ai{border-color:color-mix(in srgb,var(--accent) 40%,var(--line));background:color-mix(in srgb,var(--accent) 7%,var(--surface))}
+.panel.ai .h{color:var(--accent-ink)}
+.panel p{margin:0;font-size:12.5px;line-height:1.5}
+.task{display:flex;gap:9px;align-items:flex-start;font-size:12.5px;padding:6px 0;border-bottom:1px solid var(--line)}
+.task:last-child{border-bottom:0}
+.task .box{width:16px;height:16px;border-radius:5px;border:1.5px solid var(--ink-3);flex:none;margin-top:1px}
+.task .due{color:var(--c-reply);font-size:11px;font-weight:600;font-family:ui-monospace,monospace}
+.reply-body{font-size:12.5px;color:var(--ink-2);line-height:1.5;background:var(--surface-2);border-radius:10px;padding:10px;border:1px solid var(--line)}
+.btnrow{display:flex;gap:7px;margin-top:10px}
+.btn{flex:1;text-align:center;font-size:12.5px;font-weight:650;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.ghost{background:transparent}
+.btn.danger{color:var(--c-urgent);border-color:color-mix(in srgb,var(--c-urgent) 40%,var(--line))}
+.btn.wide{width:100%;flex:none}
+
+/* newsletter rows */
+.nrow{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:11px 12px}
+.nrow .nm{font-size:12.5px;font-weight:600}
+.nrow .fr{font-size:11px;color:var(--ink-3)}
+.nrow .acts{display:flex;gap:6px}
+.pill{font-size:10.5px;font-weight:700;padding:6px 9px;border-radius:8px;border:1px solid var(--line);color:var(--ink-2);background:var(--surface-2)}
+.pill.unsub{color:var(--c-urgent);border-color:color-mix(in srgb,var(--c-urgent) 35%,var(--line))}
+
+/* waiting */
+.wcard{background:var(--surface);border:1px solid var(--line);border-radius:15px;padding:12px}
+.wcard.over{border-color:color-mix(in srgb,var(--c-urgent) 45%,var(--line))}
+.wcard .top{display:flex;justify-content:space-between;gap:8px}
+.wcard .to{font-size:13px;font-weight:650}
+.wcard .days{font-size:11px;font-weight:700;font-family:ui-monospace,monospace;color:var(--ink-3)}
+.wcard .days.hot{color:var(--c-urgent)}
+.wcard .sj{font-size:12px;color:var(--ink-2);margin:3px 0 9px}
+
+/* tickets */
+.ticket{border-radius:16px;padding:14px;color:#fff;overflow:hidden}
+.ticket.evt{background:linear-gradient(135deg,#8257E6,#5b34c9)}
+.ticket.board{background:linear-gradient(135deg,#1E7FD6,#0E5AA7)}
+.ticket.rcpt{background:linear-gradient(135deg,#2B3542,#1a222c)}
+.ticket .tt{font-size:10px;letter-spacing:.14em;text-transform:uppercase;opacity:.8;font-weight:700}
+.ticket .ev{font-size:16px;font-weight:700;margin:3px 0 8px;letter-spacing:-.01em}
+.ticket .grid{display:flex;gap:16px;font-size:11px}
+.ticket .grid .k{opacity:.7;text-transform:uppercase;letter-spacing:.06em;font-size:9px}
+.ticket .grid .v{font-weight:700;font-size:13px;font-family:ui-monospace,monospace}
+.ticket .code{margin-top:10px;height:30px;border-radius:5px;opacity:.92;background:repeating-linear-gradient(90deg,#fff 0 2px,transparent 2px 4px,#fff 4px 5px,transparent 5px 9px)}
+.wallet-btn{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:9px;background:#000;color:#fff;border-radius:9px;padding:10px;font-size:12px;font-weight:600;width:100%;border:0}
+
+/* settings */
+.seghead{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);font-weight:700;margin:14px 2px 8px}
+.catrow{display:grid;grid-template-columns:16px 27px 1fr auto;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:9px 11px;margin-bottom:8px}
+.catrow .grip{color:var(--ink-3);font-size:14px;line-height:1}
+.catrow .cdot{width:27px;height:27px;border-radius:8px;display:grid;place-items:center;color:#fff}
+.catrow .cnm{font-size:12.5px;font-weight:650}
+.catrow .ccount{font-size:11px;color:var(--ink-3);font-family:ui-monospace,monospace}
+.toggle{width:38px;height:22px;border-radius:999px;background:var(--accent);position:relative;border:0;flex:none}
+.toggle.off{background:var(--line)}
+.toggle::after{content:"";position:absolute;top:2px;left:18px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.toggle.off::after{left:2px}
+.rule{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:11px 12px;font-size:12.5px;margin-bottom:8px}
+
+/* toast */
+.toast{position:fixed;left:50%;bottom:88px;transform:translateX(-50%) translateY(16px);
+  background:var(--ink);color:var(--surface);font-size:12.5px;font-weight:600;padding:10px 16px;
+  border-radius:999px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50;max-width:88%;text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+
+</style>
+</head>
+<body>
+<div class="shell"><div id="root"></div></div>
+<script>
+/* MailAI — mock data for the Sprint 1 frontend.
+   This shape is the contract the Sprint 2 backend (/api/inbox) will serve. */
+(function () {
+  // icon = inner SVG markup, drawn in a 24x24 stroke svg
+  const I = {
+    urgent: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
+    reply: '<path d="M9 17l-5-5 5-5"/><path d="M4 12h11a5 5 0 0 1 5 5v1"/>',
+    delivery: '<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/>',
+    purchase: '<path d="M6 7h12l-1 13H7z"/><path d="M9 7a3 3 0 0 1 6 0"/>',
+    travel: '<path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/>',
+    news: '<rect x="3" y="4" width="13" height="16" rx="1"/><path d="M16 8h5v10a2 2 0 0 1-2 2H6"/><path d="M6 8h6M6 12h6M6 16h4"/>',
+    ticket: '<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M9 6v12"/>',
+    wait: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    junk: '<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>',
+    fyi: '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/>',
+    finance: '<path d="M12 1v22M5 8h9a3 3 0 0 1 0 6H7"/>'
+  };
+
+  // Connected mail accounts for the signed-in user, clearly separated.
+  const accounts = [
+    { id: 'work',    name: 'Work',    email: 'remco@northwind.co',  color: '#3E7BF0' },
+    { id: 'private', name: 'Private', email: 'dik.remco@gmail.com', color: '#0FA398' }
+  ];
+
+  const categories = [
+    { id: 'urgent',    name: 'Urgent',     color: 'var(--c-urgent)',   icon: I.urgent,   hint: 'need action', visible: true, builtin: true },
+    { id: 'reply',     name: 'Reply',      color: 'var(--c-reply)',    icon: I.reply,    hint: 'drafts ready', visible: true, builtin: true },
+    { id: 'delivery',  name: 'Deliveries', color: 'var(--c-delivery)', icon: I.delivery, hint: 'in transit',  visible: true, builtin: true },
+    { id: 'purchase',  name: 'Purchases',  color: 'var(--c-purchase)', icon: I.purchase, hint: 'this week',   visible: true, builtin: true },
+    { id: 'travel',    name: 'Travel',     color: 'var(--c-travel)',   icon: I.travel,   hint: 'upcoming',    visible: true, builtin: true },
+    { id: 'newsletter',name: 'Newsletter', color: 'var(--c-news)',     icon: I.news,     hint: 'unread',      visible: true, builtin: true },
+    { id: 'ticket',    name: 'Tickets',    color: 'var(--c-ticket)',   icon: I.ticket,   hint: 'for Wallet',  visible: true, builtin: true },
+    { id: 'waiting',   name: 'Waiting',    color: 'var(--c-wait)',     icon: I.wait,     hint: 'overdue',     visible: true, builtin: true },
+    { id: 'junk',      name: 'Junk',       color: 'var(--c-junk)',     icon: I.junk,     hint: 'auto-archived', visible: false, builtin: true },
+    { id: 'fyi',       name: 'FYI',        color: 'var(--c-fyi)',      icon: I.fyi,      hint: 'read & filed', visible: false, builtin: true }
+  ];
+
+  const messages = [
+    // ---- urgent ----
+    { id: 'm1', cat: 'urgent', from: 'Sarah Bennett', initials: 'SB', av: '#E5484D', time: '08:12',
+      subject: 'Re: Q3 board deck — need numbers by noon',
+      snippet: 'Can you get me the revised revenue slide before the 12:00 review? The chair specifically asked for it.',
+      chip: 'Urgent', ai: 'Deadline today 12:00 · 1 task extracted', needsAction: true,
+      summary: 'Sarah needs the revised Q3 revenue slide before the 12:00 board review — the chair asked for it specifically. She assembles the rest once your numbers land.',
+      tasks: [{ text: 'Send revised Q3 revenue slide to Sarah', due: 'Today · 12:00' }, { text: 'Confirm final figures with Finance', due: 'Today · 11:00' }],
+      reply: 'Hi Sarah — sending the revised revenue slide by 11:30, ahead of the review. Confirming the figures with Finance first thing. Shout if the chair wants anything else on it.' },
+    { id: 'm2', cat: 'urgent', from: "Dr. Reyes' office", initials: 'DR', av: '#B54708', time: '07:40',
+      subject: 'Appointment reminder — tomorrow 09:30',
+      snippet: 'This is a reminder for your appointment. Reply C to confirm or R to reschedule.',
+      chip: 'Urgent', ai: 'Wants a reply · confirm suggested', needsAction: true,
+      summary: 'Reminder for your appointment tomorrow at 09:30. Reply to confirm or reschedule.',
+      reply: 'C — confirmed, see you at 09:30 tomorrow. Thank you.' },
+    { id: 'm3', cat: 'urgent', from: 'AWS Billing', initials: 'AW', av: '#C11574', time: '06:03',
+      subject: 'Budget alert: 90% of monthly limit reached',
+      snippet: 'Your account has reached 90% of the $500 budget you configured for July.',
+      chip: 'Urgent',
+      summary: 'Your AWS account hit 90% of the $500 July budget. Review usage to avoid overage.' },
+
+    // ---- reply ----
+    { id: 'm4', cat: 'reply', from: 'Jordan Lee', initials: 'JL', av: '#E8912B', time: 'Yest',
+      subject: 'Coffee next week?', snippet: 'Would love to catch up — are you around Tue or Wed afternoon?',
+      chip: 'Reply needed', ai: 'Draft reply ready · proposes Tue 15:00',
+      summary: 'Jordan wants to catch up over coffee next week, Tuesday or Wednesday afternoon.',
+      reply: 'Tuesday at 15:00 works great for me — shall we say the usual place near your office? Looking forward to catching up.' },
+    { id: 'm5', cat: 'reply', from: 'Maya Patel', initials: 'MP', av: '#0E7C86', time: 'Yest',
+      subject: 'Feedback on the onboarding copy', snippet: 'Left a few comments in the doc — mainly the welcome screen. Thoughts by Friday?',
+      chip: 'Reply needed',
+      summary: 'Maya left comments on the onboarding copy (mainly the welcome screen) and wants your thoughts by Friday.',
+      reply: 'Thanks Maya — went through your comments, the welcome-screen changes make sense. I’ll push an updated draft by Thursday so we’re clear before Friday.' },
+    { id: 'm6', cat: 'reply', from: 'Tomás Krause', initials: 'TK', av: '#5B34C9', time: 'Mon',
+      subject: 'Contract redlines attached', snippet: 'Please review section 4 and let me know if the payment terms work for you.',
+      chip: 'Reply needed',
+      summary: 'Tomás sent contract redlines; he needs you to review section 4 (payment terms) and confirm.' },
+
+    // ---- delivery ----
+    { id: 'm7', cat: 'delivery', from: 'PostNL', initials: 'PN', av: '#EA580C', time: '08:55',
+      subject: 'Out for delivery — arrives 13:00–15:00',
+      snippet: 'Parcel 3SABC1234567890 is on the van today. Track it live or leave delivery instructions.',
+      chip: 'Delivery', ai: 'Arrives today 13:00–15:00 · track live' },
+    { id: 'm8', cat: 'delivery', from: 'DHL Parcel', initials: 'DH', av: '#1E7FD6', time: 'Yest',
+      subject: 'Ready for pickup — locker until 18 Jul',
+      snippet: 'Collect at Albert Heijn, Overtoom 116 · locker 12. Bring ID and code 8842.',
+      chip: 'Pickup ready', ai: 'Pickup by 18 Jul · code 8842', pickup: true },
+    { id: 'm9', cat: 'delivery', from: 'Amazon', initials: 'AZ', av: '#0E7C86', time: '07:20',
+      subject: 'Arriving today: USB-C cable + 2 items',
+      snippet: 'Your order is arriving today by 9pm. No signature required.', chip: 'Delivery' },
+
+    // ---- purchase ----
+    { id: 'm10', cat: 'purchase', from: 'Apple', initials: 'AP', av: '#15202B', time: '06:40',
+      subject: 'Your receipt from Apple · €12.99',
+      snippet: 'Order W1234567 — iCloud+ 200GB monthly. Billed to Visa ···4471.',
+      chip: 'Purchase', ai: 'Total €12.99 · order W1234567', total: 12.99 },
+    { id: 'm11', cat: 'purchase', from: 'Zalando', initials: 'ZL', av: '#D6336C', time: 'Yest',
+      subject: 'Order confirmed — €89,95',
+      snippet: '2 items · running shoes + socks. Estimated delivery 17 Jul.',
+      chip: 'Order confirmed', ai: 'Links to Deliveries when it ships', total: 89.95 },
+    { id: 'm12', cat: 'purchase', from: 'Uber Receipts', initials: 'UB', av: '#276EF1', time: 'Mon',
+      subject: 'Your Monday trip · €18,40',
+      snippet: 'Centraal Station → Zuidas · 22 min. Receipt attached.', chip: 'Receipt', total: 18.40 },
+
+    // ---- travel ----
+    { id: 'm13', cat: 'travel', from: 'KLM', initials: 'KL', av: '#0EA5E9', time: 'Mon',
+      subject: 'Your trip to New York — 22 Jul',
+      snippet: 'Booking confirmed. AMS→JFK 10:05, returning 26 Jul. Online check-in opens 23 Jul.',
+      chip: 'Travel · Itinerary', ai: 'Trip grouped · flight + hotel + car in 8 days', daysUntil: 8 },
+    { id: 'm14', cat: 'travel', from: 'Booking.com', initials: 'BK', av: '#1E7FD6', time: 'Sun',
+      subject: 'Hotel Pulitzer, Amsterdam — 2 nights',
+      snippet: 'Check-in 22 Jul, check-out 24 Jul. Confirmation 4471. Free cancellation until 20 Jul.',
+      chip: 'Travel · Stay', daysUntil: 8 },
+
+    // ---- newsletter ----
+    { id: 'm15', cat: 'newsletter', from: 'Stratechery', initials: 'ST', av: '#3E7BF0', time: '06:00',
+      subject: 'The AI hardware question', snippet: 'Why the constraint has quietly moved from models to power, and what that means…',
+      chip: 'Newsletter', ai: 'One-tap unsubscribe available', freq: 'Daily', unread: 22 },
+    { id: 'm16', cat: 'newsletter', from: 'Morning Brew', initials: 'MB', av: '#B45309', time: '05:30',
+      subject: 'Weekend edition · 5 stories', snippet: 'Your curated selection for the week is ready to read.',
+      chip: 'Newsletter', freq: 'Daily', unread: 61 },
+    { id: 'm17', cat: 'newsletter', from: 'The Long Read', initials: 'TL', av: '#2B7A3B', time: 'Fri',
+      subject: 'This week’s deep dive', snippet: 'A curated long read for the weekend.', chip: 'Newsletter', freq: 'Weekly', unread: 3 },
+
+    // ---- ticket ----
+    { id: 'm18', cat: 'ticket', from: 'Ticketmaster', initials: 'TM', av: '#8257E6', time: 'Wed',
+      subject: 'Your tickets: Radiohead — O2 Arena', snippet: '18 Jul, 19:30. Seat B14. Add to Wallet from the app.',
+      chip: 'Event ticket',
+      ticket: { style: 'evt', tt: 'Event ticket · Ticketmaster', ev: 'Radiohead — O2 Arena', grid: [['Date','18 Jul'],['Time','19:30'],['Seat','B14']], code: true } },
+    { id: 'm19', cat: 'ticket', from: 'KLM', initials: 'KL', av: '#1E7FD6', time: 'Mon',
+      subject: 'Boarding pass — AMS → JFK', snippet: 'KL641 · Gate D7 · boards 10:05 · seat 7A.',
+      chip: 'Boarding pass',
+      ticket: { style: 'board', tt: 'Boarding pass · KLM', ev: 'AMS → JFK · KL641', grid: [['Gate','D7'],['Boards','10:05'],['Seat','7A']], code: true } },
+
+    // ---- waiting (sent, no reply) ----
+    { id: 'm20', cat: 'waiting', from: 'Finance team', initials: 'FI', av: '#0FA398', time: '5d ago',
+      subject: 'Approval on the vendor invoice?', snippet: 'Following up — still need sign-off to release payment before month end.',
+      chip: 'Awaiting reply', to: 'Finance team', days: 5, overdue: true,
+      reply: 'Hi — gentle nudge on this one. We need sign-off to release the vendor payment before month-end. Anything you need from me to move it along?' },
+    { id: 'm21', cat: 'waiting', from: 'Alex (recruiter)', initials: 'AR', av: '#0E7C86', time: '2d ago',
+      subject: 'Availability for next round', snippet: 'Sent my availability — let me know which slot works on your end.',
+      chip: 'Awaiting reply', to: 'Alex (recruiter)', days: 2, overdue: false,
+      reply: 'Hi Alex — just checking which of the slots I sent works best on your side, so I can hold the time. Thanks!' },
+
+    // ---- junk (hidden category) ----
+    { id: 'm22', cat: 'junk', from: 'Prize Draw', initials: 'PD', av: '#8A94A6', time: 'Yest',
+      subject: 'You have been selected!', snippet: 'Claim your reward now — limited time only.', chip: 'Junk' }
+  ];
+
+  // Which mail account each message belongs to (Work vs Private).
+  const ACCT = {
+    m1:'work', m2:'private', m3:'work',
+    m4:'private', m5:'work', m6:'work',
+    m7:'private', m8:'private', m9:'private',
+    m10:'private', m11:'private', m12:'work',
+    m13:'work', m14:'work',
+    m15:'private', m16:'private', m17:'private',
+    m18:'private', m19:'work',
+    m20:'work', m21:'private',
+    m22:'private'
+  };
+  messages.forEach(function (m) { m.account = ACCT[m.id] || 'private'; });
+
+  // structured data the detectors (Sprint 4) extract, shown on the detail screen
+  const EXTRACTED = {
+    m7:  { Carrier: 'PostNL', Tracking: '3SABC1234567890', Status: 'Out for delivery', ETA: 'Today 13:00–15:00' },
+    m8:  { Carrier: 'DHL', Status: 'Ready for pickup', Location: 'Albert Heijn, Overtoom 116 · locker 12', Code: '8842', 'Collect by': '18 Jul' },
+    m10: { Merchant: 'Apple', 'Order #': 'W1234567', Total: '€12.99', Item: 'iCloud+ 200GB (monthly)' },
+    m11: { Merchant: 'Zalando', Total: '€89,95', Items: '2 · shoes, socks', 'Est. delivery': '17 Jul' },
+    m13: { Trip: 'Amsterdam → New York', Depart: '22 Jul · 10:05', Return: '26 Jul', 'Check-in opens': '23 Jul' },
+    m14: { Stay: 'Hotel Pulitzer, Amsterdam', 'Check-in': '22 Jul', 'Check-out': '24 Jul', Confirmation: '4471' }
+  };
+  messages.forEach(function (m) { if (EXTRACTED[m.id]) m.extracted = EXTRACTED[m.id]; });
+
+  window.MAILAI_FIXTURES = { accounts, categories, messages };
+})();
+
+</script>
+<script>
+/* MailAI — Sprint 1 frontend app (vanilla JS, mock data).
+   Cockpit → category → detail, plus settings. State is in-memory (fixtures).
+   Sprint 2 will swap the fixture load for GET /api/inbox (same shape). */
+(function () {
+  'use strict';
+  var state = null;      // populated by boot(); from the API when available, else fixtures
+  var sel = 'all';       // selected mail account: 'all' | account id — keeps Work/Private separated
+  var API_OK = false;    // true when data was loaded from the backend
+  var CUSTOM_COLORS = ['#0891B2', '#7C3AED', '#DB2777', '#059669', '#D97706'];
+  var GENERIC_ICON = '<path d="M20.6 13.4 12 22l-9-9V4a1 1 0 0 1 1-1h8z"/><circle cx="7.5" cy="7.5" r="1.3"/>';
+  // category icons live in the frontend (presentation), keyed by category id
+  var ICONS = {
+    urgent: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
+    reply: '<path d="M9 17l-5-5 5-5"/><path d="M4 12h11a5 5 0 0 1 5 5v1"/>',
+    delivery: '<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/>',
+    purchase: '<path d="M6 7h12l-1 13H7z"/><path d="M9 7a3 3 0 0 1 6 0"/>',
+    travel: '<path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/>',
+    newsletter: '<rect x="3" y="4" width="13" height="16" rx="1"/><path d="M16 8h5v10a2 2 0 0 1-2 2H6"/><path d="M6 8h6M6 12h6M6 16h4"/>',
+    ticket: '<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M9 6v12"/>',
+    waiting: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    junk: '<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>',
+    fyi: '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/>'
+  };
+  function iconFor(c){ return ICONS[c.id] || c.icon || GENERIC_ICON; }
+  var root = document.getElementById('root');
+
+  // ---------- helpers ----------
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); }
+  function svg(inner, size){ size = size || 20; return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'+inner+'</svg>'; }
+  var SPARK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>';
+  function catById(id){ return state.categories.filter(function(c){ return c.id===id; })[0]; }
+  function acctById(id){ return state.accounts.filter(function(a){ return a.id===id; })[0]; }
+  function visibleCats(){ return state.categories.filter(function(c){ return c.visible; }); }
+  function inSel(m){ return sel==='all' || m.account===sel; }
+  function msgsIn(id){ return state.messages.filter(function(m){ return m.cat===id && !m.archived && inSel(m); }); }
+  function msgById(id){ return state.messages.filter(function(m){ return m.id===id; })[0]; }
+
+  // account switcher (segmented) — shown on cockpit + category views
+  function acctSwitcher(){
+    var opts = [{ id:'all', name:'All mail', color:null }].concat(state.accounts);
+    return '<div class="acctbar">' + opts.map(function(a){
+      return '<button class="acctseg'+(sel===a.id?' on':'')+'" data-act="setacct" data-id="'+a.id+'">'
+        + (a.color?'<span class="adot" style="background:'+a.color+'"></span>':'')
+        + esc(a.name)+'</button>';
+    }).join('') + '</div>';
+  }
+  function acctTag(m){
+    var a = acctById(m.account); if(!a) return '';
+    return '<span class="acctag" style="--ac:'+a.color+'">'+esc(a.name)+'</span>';
+  }
+  function selLabel(){
+    if(sel==='all') return state.accounts.map(function(a){ return a.name; }).join(' + ');
+    var a = acctById(sel); return a ? a.name+' · '+a.email : 'All mail';
+  }
+
+  function hintFor(cat){
+    var ms = msgsIn(cat.id), n = ms.length, a;
+    switch(cat.id){
+      case 'urgent': a = ms.filter(function(m){return m.needsAction;}).length; return '<b>'+a+'</b> need action';
+      case 'reply': return '<b>'+n+'</b> drafts ready';
+      case 'delivery': a = ms.filter(function(m){return m.pickup;}).length; return a ? '<b>'+a+'</b> ready for pickup' : n+' in transit';
+      case 'purchase': a = ms.reduce(function(s,m){return s+(m.total||0);},0); return '€'+a.toFixed(0)+' this week';
+      case 'travel': a = Math.min.apply(null, ms.map(function(m){return m.daysUntil==null?999:m.daysUntil;})); return (a<999) ? 'Trip in <b>'+a+' days</b>' : 'no trips';
+      case 'newsletter': a = ms.reduce(function(s,m){return s+(m.unread||0);},0); return a+' unread';
+      case 'ticket': return '<b>'+n+'</b> for Wallet';
+      case 'waiting': a = ms.filter(function(m){return m.overdue;}).length; return a ? '<b>'+a+'</b> overdue' : n+' waiting';
+      default: return n+' mail'+(n===1?'':'s');
+    }
+  }
+
+  // ---------- screen: cockpit ----------
+  function viewCockpit(){
+    var active = state.messages.filter(function(m){ return !m.archived && inSel(m); });
+    var needYou = active.filter(function(m){ return m.needsAction || m.cat==='reply' || (m.cat==='waiting'&&m.overdue); }).length;
+    var autoHandled = active.length - needYou;
+    var tiles = visibleCats().map(function(c){
+      var n = msgsIn(c.id).length;
+      return '<button class="tile" style="--tc:'+c.color+'" data-nav="#/c/'+c.id+'">'
+        + '<span class="ticon">'+svg(iconFor(c),15)+'</span>'
+        + '<span class="tcount">'+n+'</span>'
+        + '<span class="tname">'+esc(c.name)+'</span>'
+        + '<span class="tsub">'+hintFor(c)+'</span></button>';
+    }).join('');
+    return {
+      top: '<div class="brand"><span class="dot"></span> MailAI · Cockpit</div>'
+         + '<h1>Good morning, Remco</h1><div class="sub">Tue 15 Jul · '+esc(selLabel())+' · '+active.length+' active</div>',
+      body: acctSwitcher() + '<div class="hero"><div class="hstat"><div class="big">'+needYou+'</div><div class="hl">need you today</div></div>'
+          + '<div class="hstat"><div class="big">'+autoHandled+'</div><div class="hl">auto-handled</div></div></div>'
+          + '<div class="tilegrid">'+tiles
+          + '<button class="tile add" style="grid-column:1/-1" data-act="addcat">'+svg('<path d="M12 5v14M5 12h14"/>',15)+' Add a category tile</button></div>',
+      nav: 'cockpit'
+    };
+  }
+
+  // ---------- screen: category list ----------
+  function cardHTML(m){
+    return '<button class="card" data-nav="#/m/'+m.id+'"><span class="av" style="background:'+m.av+'">'+esc(m.initials)+'</span>'
+      + '<span><span class="top"><span class="from">'+esc(m.from)+'</span><span class="time">'+esc(m.time)+'</span></span>'
+      + '<span class="subj">'+esc(m.subject)+'</span><span class="snip">'+esc(m.snippet)+'</span>'
+      + (m.ai ? '<span class="ai-note">'+SPARK+esc(m.ai)+'</span>' : '')
+      + '<span class="chip-wrap" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:7px"><span class="chip" style="--cc:'+catById(m.cat).color+'">'+esc(m.chip||catById(m.cat).name)+'</span>'+acctTag(m)+'</span></span></button>';
+  }
+  function newsletterHTML(m){
+    return '<div class="nrow"><div><div class="nm">'+esc(m.from)+' '+acctTag(m)+'</div><div class="fr">'+esc(m.freq||'')+' · '+(m.unread||0)+' unread</div></div>'
+      + '<div class="acts"><button class="pill unsub" data-act="unsub" data-id="'+m.id+'">Unsubscribe</button>'
+      + '<button class="pill" data-act="archive" data-id="'+m.id+'">Archive</button></div></div>';
+  }
+  function waitingHTML(m){
+    return '<div class="wcard'+(m.overdue?' over':'')+'"><div class="top"><span class="to">'+esc(m.to||m.from)+' '+acctTag(m)+'</span>'
+      + '<span class="days'+(m.overdue?' hot':'')+'">'+m.days+' day'+(m.days===1?'':'s')+(m.overdue?' · overdue':'')+'</span></div>'
+      + '<div class="sj">'+esc(m.subject)+'</div>'
+      + '<div class="btnrow"><button class="btn pri" data-nav="#/m/'+m.id+'">Follow up</button>'
+      + '<button class="btn" data-act="done" data-id="'+m.id+'">Done</button></div></div>';
+  }
+  function ticketCardHTML(m){
+    var t = m.ticket;
+    var grid = t.grid.map(function(kv){ return '<div><div class="k">'+esc(kv[0])+'</div><div class="v">'+esc(kv[1])+'</div></div>'; }).join('');
+    return '<button class="ticket '+t.style+'" data-nav="#/m/'+m.id+'" style="border:0;text-align:left;width:100%">'
+      + '<div class="tt">'+esc(t.tt)+' · '+esc(acctById(m.account).name)+'</div><div class="ev">'+esc(t.ev)+'</div><div class="grid">'+grid+'</div>'
+      + (t.code?'<div class="code"></div>':'')+'</button>';
+  }
+  function viewCategory(id){
+    var cat = catById(id); if(!cat){ location.hash='#/'; return null; }
+    var ms = msgsIn(id);
+    var tabs = visibleCats().map(function(c){
+      return '<button class="tab" data-nav="#/c/'+c.id+'" aria-selected="'+(c.id===id)+'">'+esc(c.name)+' <span class="badge">'+msgsIn(c.id).length+'</span></button>';
+    }).join('');
+    var body;
+    if(!ms.length){ body = '<div class="empty">Nothing here right now — all clear.</div>'; }
+    else if(id==='newsletter'){ body = '<div class="list">'+ms.map(newsletterHTML).join('')+'<button class="btn pri wide" style="margin-top:4px" data-act="archiveall" data-cat="newsletter">Archive all read</button></div>'; }
+    else if(id==='waiting'){ body = '<div class="list">'+ms.map(waitingHTML).join('')+'</div>'; }
+    else if(id==='ticket'){ body = '<div class="list">'+ms.map(ticketCardHTML).join('')+'</div>'; }
+    else { body = '<div class="list">'+ms.map(cardHTML).join('')+'</div>'; }
+    return {
+      top: '<button class="back" data-nav="#/">'+svg('<path d="M15 18l-6-6 6-6"/>',16)+' Cockpit</button>'
+         + '<h1>'+esc(cat.name)+'</h1>',
+      withBack: true,
+      tabs: acctSwitcher() + '<div class="tabs">'+tabs+'</div>',
+      body: body,
+      nav: 'cockpit'
+    };
+  }
+
+  // ---------- screen: detail ----------
+  function viewDetail(id){
+    var m = msgById(id); if(!m || m.archived){ location.hash='#/'; return null; }
+    var cat = catById(m.cat);
+    var parts = [];
+    if(m.ticket){
+      var t=m.ticket, grid=t.grid.map(function(kv){return '<div><div class="k">'+esc(kv[0])+'</div><div class="v">'+esc(kv[1])+'</div></div>';}).join('');
+      parts.push('<div class="ticket '+t.style+'"><div class="tt">'+esc(t.tt)+'</div><div class="ev">'+esc(t.ev)+'</div><div class="grid">'+grid+'</div>'+(t.code?'<div class="code"></div>':'')+'</div>');
+      parts.push('<button class="wallet-btn" data-act="wallet" data-id="'+m.id+'">'+svg('<path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3H4z"/><path d="M4 11h16v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/>',14)+' Add to Apple Wallet</button>');
+    }
+    if(m.summary){
+      parts.push('<div class="panel ai"><p class="h">'+SPARK+' AI summary</p><p>'+esc(m.summary)+'</p></div>');
+    } else {
+      parts.push('<div class="panel"><p class="h">Message</p><p>'+esc(m.snippet)+'</p></div>');
+    }
+    if(m.extracted){
+      var kv = Object.keys(m.extracted).map(function(k){
+        return '<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--line);font-size:12.5px">'
+          + '<span style="color:var(--ink-2)">'+esc(k)+'</span><span style="font-weight:600;text-align:right">'+esc(m.extracted[k])+'</span></div>';
+      }).join('');
+      parts.push('<div class="panel"><p class="h">'+SPARK+' Extracted details</p>'+kv+'</div>');
+    }
+    if(m.tasks && m.tasks.length){
+      parts.push('<div class="panel"><p class="h">Extracted tasks</p>'+m.tasks.map(function(t){
+        return '<div class="task"><span class="box"></span><div>'+esc(t.text)+(t.due?'<br><span class="due">Due · '+esc(t.due)+'</span>':'')+'</div></div>';
+      }).join('')+'</div>');
+    }
+    if(m.reply){
+      parts.push('<div class="panel"><p class="h">Suggested reply · professional</p><div class="reply-body">'+esc(m.reply)+'</div>'
+        + '<div class="btnrow"><button class="btn pri" data-act="send" data-id="'+m.id+'">Send</button>'
+        + '<button class="btn" data-act="edit">Edit</button><button class="btn ghost" data-act="discard">Discard</button></div></div>');
+    }
+    if(m.cat==='newsletter'){
+      parts.push('<div class="btnrow"><button class="btn danger wide" data-act="unsub" data-id="'+m.id+'">Unsubscribe</button></div>');
+    }
+    parts.push('<div class="btnrow"><button class="btn" data-act="archive" data-id="'+m.id+'">Archive</button>'
+      + '<button class="btn danger" data-act="delete" data-id="'+m.id+'">Delete</button></div>');
+    return {
+      top: '<button class="back" data-nav="#/c/'+m.cat+'">'+svg('<path d="M15 18l-6-6 6-6"/>',16)+' '+esc(cat.name)+'</button>'
+         + '<h1>'+esc(m.subject)+'</h1><div class="sub"><b>'+esc(m.from)+'</b> · '+esc(m.time)+' '+acctTag(m)+'</div>',
+      withBack: true,
+      body: '<div class="detail">'+parts.join('')+'</div>',
+      nav: 'cockpit'
+    };
+  }
+
+  // ---------- screen: settings ----------
+  function acctRows(){
+    return state.accounts.map(function(a){
+      var n = state.messages.filter(function(m){ return m.account===a.id && !m.archived; }).length;
+      return '<div class="catrow"><span class="grip">'+svg('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',14)+'</span>'
+        + '<span class="cdot" style="background:'+a.color+'"></span>'
+        + '<span><span class="cnm">'+esc(a.name)+'</span><br><span class="ccount">'+esc(a.email)+'</span></span>'
+        + '<span class="ccount">'+n+' mails</span></div>';
+    }).join('');
+  }
+  function viewSettings(){
+    var rows = state.categories.map(function(c){
+      return '<div class="catrow"><span class="grip">⠿</span>'
+        + '<span class="cdot" style="background:'+c.color+'">'+svg(iconFor(c),13)+'</span>'
+        + '<span><span class="cnm">'+esc(c.name)+'</span>'+(c.builtin?'':' <span class="ccount">· custom</span>')+'<br>'
+        + '<span class="ccount">'+msgsIn(c.id).length+' mails'+(c.visible?'':' · hidden')+'</span></span>'
+        + '<button class="toggle'+(c.visible?'':' off')+'" data-act="togglecat" data-id="'+c.id+'" aria-label="toggle '+esc(c.name)+'"></button></div>';
+    }).join('');
+    return {
+      top: '<button class="back" data-nav="#/">'+svg('<path d="M15 18l-6-6 6-6"/>',16)+' Cockpit</button><h1>Categories &amp; rules</h1>',
+      withBack: true,
+      body: '<div class="view pad" style="padding-top:2px">'
+        + '<div class="seghead">Mail accounts · kept separate</div>' + acctRows()
+        + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addacct">+ Add a mail account</button>'
+        + '<div class="seghead">Cockpit categories · toggle to show/hide</div>'+rows
+        + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addcat">+ Add a category</button>'
+        + '<div class="seghead">Rules</div>'
+        + '<div class="rule"><b>Emails from my boss</b> are always <b style="color:var(--c-urgent)">Urgent</b></div>'
+        + '<div class="rule"><b>Anything from klm.com</b> → <b style="color:var(--c-ticket)">Tickets</b></div>'
+        + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addrule">+ Add a rule</button>'
+        + '<div class="ai-note" style="padding:8px 2px">'+SPARK+'Your last 10 “wrong category” corrections guide every new classification.</div>'
+        + '</div>',
+      bare: true,
+      nav: 'settings'
+    };
+  }
+
+  // ---------- screen: tasks ----------
+  function viewTasks(){
+    var items = [];
+    state.messages.forEach(function(m){ if(!m.archived && m.tasks) m.tasks.forEach(function(t){ items.push({t:t, m:m}); }); });
+    var body = items.length ? '<div class="list">'+items.map(function(it){
+      return '<div class="wcard"><div class="task"><span class="box"></span><div>'+esc(it.t.text)
+        + (it.t.due?'<br><span class="due">Due · '+esc(it.t.due)+'</span>':'')
+        + '<br><span class="ccount" style="font-size:11px;color:var(--ink-3)">from “'+esc(it.m.subject)+'”</span></div></div></div>';
+    }).join('')+'</div>' : '<div class="empty">No open tasks. Nice.</div>';
+    return { top:'<div class="brand"><span class="dot"></span> MailAI · Tasks</div><h1>Tasks</h1><div class="sub">'+items.length+' extracted from your mail</div>', body:body, nav:'tasks' };
+  }
+
+  // ---------- render ----------
+  function tabbar(active){
+    function b(id,nav,icon,label){ return '<button data-nav="'+nav+'" class="'+(active===id?'on':'')+'">'+svg(icon,20)+label+'</button>'; }
+    return '<nav class="tabbar">'
+      + b('cockpit','#/','<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>','Cockpit')
+      + b('tasks','#/tasks','<path d="M9 11l3 3L22 4"/><path d="M21 12v7a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h11"/>','Tasks')
+      + b('settings','#/settings','<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 0 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H1a2 2 0 0 1 0-4h.1A1.6 1.6 0 0 0 2.6 7a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H7a1.6 1.6 0 0 0 1-1.5V1a2 2 0 0 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V7a1.6 1.6 0 0 0 1.5 1H23a2 2 0 0 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>','Settings')
+      + '</nav>';
+  }
+
+  function render(){
+    var h = location.hash || '#/';
+    var v;
+    if(h.indexOf('#/c/')===0) v = viewCategory(h.slice(4));
+    else if(h.indexOf('#/m/')===0) v = viewDetail(h.slice(4));
+    else if(h==='#/settings') v = viewSettings();
+    else if(h==='#/tasks') v = viewTasks();
+    else v = viewCockpit();
+    if(!v) return; // a redirect happened
+    var html = '<div class="topbar'+(v.withBack?' with-back':'')+'">'+v.top+'</div>'
+      + (v.tabs||'')
+      + (v.bare ? v.body : '<div class="view">'+v.body+'</div>')
+      + tabbar(v.nav);
+    root.innerHTML = html;
+    // scroll view to top on nav
+    var view = root.querySelector('.view'); if(view) view.scrollTop = 0;
+  }
+
+  // ---------- toast ----------
+  var toastEl;
+  function toast(msg){
+    if(!toastEl){ toastEl = document.createElement('div'); toastEl.className='toast'; document.body.appendChild(toastEl); }
+    toastEl.textContent = msg; toastEl.classList.add('show');
+    clearTimeout(toast._t); toast._t = setTimeout(function(){ toastEl.classList.remove('show'); }, 1800);
+  }
+
+  // ---------- actions ----------
+  function archive(id, word){ var m=msgById(id); if(m){ m.archived=true; apiPost('/api/messages/'+id+'/archive'); toast((word||'Archived')+' · '+m.from); } }
+  function slug(s){ return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,24) || ('cat'+Date.now()); }
+
+  function handleAct(act, el){
+    var id = el.getAttribute('data-id');
+    switch(act){
+      case 'archive': archive(id); back(); break;
+      case 'delete': archive(id,'Deleted'); back(); break;
+      case 'done': archive(id,'Marked done'); render(); break;
+      case 'unsub': archive(id,'Unsubscribed'); back(); break;
+      case 'send': archive(id,'Reply sent'); back(); break;
+      case 'wallet': toast('Added to Apple Wallet (demo)'); break;
+      case 'edit': toast('Editing (demo)'); break;
+      case 'discard': toast('Draft discarded'); break;
+      case 'addrule': toast('Rule editor coming in a later sprint'); break;
+      case 'archiveall': {
+        var c = el.getAttribute('data-cat');
+        msgsIn(c).forEach(function(m){ m.archived=true; });
+        toast('Archived all'); render(); break;
+      }
+      case 'setacct': { sel = id; render(); break; }
+      case 'addacct': {
+        if(API_OK){
+          // Backend flow: demo adds instantly; live returns a Google OAuth URL.
+          fetch('/api/accounts/connect', { method:'POST', credentials:'same-origin',
+            headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({}) })
+            .then(function(r){ return r.json(); })
+            .then(function(d){
+              if(d && d.authorize_url){ window.location.href = d.authorize_url; return; }
+              toast('Mail account connected · kept separate'); load();
+            })
+            .catch(function(){ toast('Could not connect account'); });
+          break;
+        }
+        // Offline/static fallback: add a local demo account.
+        var email = window.prompt('Connect a mail account — enter its address (e.g. you@work.com):');
+        if(email && email.trim()){
+          var pal = ['#3E7BF0','#0FA398','#8257E6','#EA580C','#D6336C'];
+          var nm = (window.prompt('Label this account (e.g. Work, Private):') || email.split('@')[0]).trim();
+          state.accounts.push({ id:'acct'+Date.now(), name:nm, email:email.trim(), color:pal[state.accounts.length % pal.length] });
+          toast('Connected “'+nm+'” · kept separate');
+        }
+        render(); break;
+      }
+      case 'togglecat': { var cat=catById(id); if(cat){ cat.visible=!cat.visible; apiPost('/api/categories/'+id+'/visibility',{visible:cat.visible}); } render(); break; }
+      case 'addcat': {
+        var name = window.prompt('New category name (e.g. Finance & bills):');
+        if(name && name.trim()){
+          var color = CUSTOM_COLORS[state.categories.filter(function(c){return !c.builtin;}).length % CUSTOM_COLORS.length];
+          state.categories.push({ id: slug(name)+'-'+(Date.now()%1000), name: name.trim(), color: color, icon: GENERIC_ICON, hint: 'mails', visible: true, builtin: false });
+          toast('Added “'+name.trim()+'” · define its rule in Settings');
+        }
+        render(); break;
+      }
+    }
+  }
+  function back(){
+    // go to the category of the last message acted on, else cockpit
+    if(location.hash.indexOf('#/m/')===0){ var m=msgById(location.hash.slice(4)); location.hash = m ? '#/c/'+m.cat : '#/'; }
+    else render();
+  }
+
+  // ---------- events ----------
+  document.addEventListener('click', function(e){
+    var navEl = e.target.closest('[data-nav]');
+    var actEl = e.target.closest('[data-act]');
+    if(actEl){ e.preventDefault(); handleAct(actEl.getAttribute('data-act'), actEl); return; }
+    if(navEl){ e.preventDefault(); var to = navEl.getAttribute('data-nav'); if(location.hash===to) render(); else location.hash = to; }
+  });
+  window.addEventListener('hashchange', render);
+
+  // ---------- data bootstrap (API with fixtures fallback) ----------
+  function apiPost(path, body){
+    if(!API_OK) return;
+    fetch(path, { method:'POST', credentials:'same-origin',
+      headers:{ 'Content-Type':'application/json' }, body: body ? JSON.stringify(body) : null }).catch(function(){});
+  }
+  function boot(data){
+    state = JSON.parse(JSON.stringify({ accounts:data.accounts, categories:data.categories, messages:data.messages }));
+    render();
+  }
+  function load(){
+    var http = location.protocol === 'http:' || location.protocol === 'https:';
+    if(!http || !window.fetch){ boot(window.MAILAI_FIXTURES); return; }
+    fetch('/api/inbox', { credentials:'same-origin' })
+      .then(function(r){ if(!r.ok) throw 0; return r.json(); })
+      .then(function(d){ API_OK = true; boot(d); })
+      .catch(function(){ boot(window.MAILAI_FIXTURES); });
+  }
+  load();
+})();
+
+</script>
+</body>
+</html>
