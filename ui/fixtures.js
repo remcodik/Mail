@@ -157,5 +157,16 @@
   };
   messages.forEach(function (m) { m.account = ACCT[m.id] || 'private'; });
 
+  // structured data the detectors (Sprint 4) extract, shown on the detail screen
+  const EXTRACTED = {
+    m7:  { Carrier: 'PostNL', Tracking: '3SABC1234567890', Status: 'Out for delivery', ETA: 'Today 13:00–15:00' },
+    m8:  { Carrier: 'DHL', Status: 'Ready for pickup', Location: 'Albert Heijn, Overtoom 116 · locker 12', Code: '8842', 'Collect by': '18 Jul' },
+    m10: { Merchant: 'Apple', 'Order #': 'W1234567', Total: '€12.99', Item: 'iCloud+ 200GB (monthly)' },
+    m11: { Merchant: 'Zalando', Total: '€89,95', Items: '2 · shoes, socks', 'Est. delivery': '17 Jul' },
+    m13: { Trip: 'Amsterdam → New York', Depart: '22 Jul · 10:05', Return: '26 Jul', 'Check-in opens': '23 Jul' },
+    m14: { Stay: 'Hotel Pulitzer, Amsterdam', 'Check-in': '22 Jul', 'Check-out': '24 Jul', Confirmation: '4471' }
+  };
+  messages.forEach(function (m) { if (EXTRACTED[m.id]) m.extracted = EXTRACTED[m.id]; });
+
   window.MAILAI_FIXTURES = { accounts, categories, messages };
 })();

@@ -11,9 +11,14 @@ from . import demo_seed
 
 
 class Store:
-    def __init__(self) -> None:
-        self._users: dict[str, dict] = {}
+    def __init__(self, persistence=None) -> None:
+        self._persistence = persistence
+        self._users: dict[str, dict] = persistence.load_all() if persistence else {}
         self._lock = RLock()
+
+    def _persist(self, user_id: str) -> None:
+        if self._persistence and user_id in self._users:
+            self._persistence.save_user(user_id, self._users[user_id])
 
     # ---- tenant lifecycle ----
     def ensure_user(self, user_id: str, email: str | None = None, seed: bool = True) -> None:
@@ -28,6 +33,7 @@ class Store:
             bucket["profile"] = {"id": user_id, "email": email or (user_id + "@example.com"), "name": "Remco"}
             bucket["tokens"] = {}  # {account_id: oauth token dict}
             self._users[user_id] = bucket
+            self._persist(user_id)
 
     def _bucket(self, user_id: str) -> dict:
         # Isolation: never fall back to another user's data.
@@ -72,11 +78,13 @@ class Store:
             if any(a["id"] == account["id"] for a in accts):
                 return
             accts.append(account)
+            self._persist(user_id)
 
     # ---- OAuth tokens, stored per (user, account) ----
     def set_token(self, user_id: str, account_id: str, token: dict) -> None:
         with self._lock:
             self._bucket(user_id)["tokens"][account_id] = token
+            self._persist(user_id)
 
     def get_token(self, user_id: str, account_id: str) -> dict | None:
         return self._bucket(user_id)["tokens"].get(account_id)
@@ -88,8 +96,10 @@ class Store:
             for i, m in enumerate(msgs):
                 if m["id"] == msg["id"]:
                     msgs[i] = {**m, **msg}
+                    self._persist(user_id)
                     return
             msgs.append(msg)
+            self._persist(user_id)
 
     def has_message(self, user_id: str, message_id: str) -> bool:
         return any(m["id"] == message_id for m in self._bucket(user_id)["messages"])
@@ -99,6 +109,7 @@ class Store:
             for m in self._bucket(user_id)["messages"]:
                 if m["id"] == message_id:
                     m["archived"] = True
+                    self._persist(user_id)
                     return True
         return False
 
@@ -107,8 +118,20 @@ class Store:
             for c in self._bucket(user_id)["categories"]:
                 if c["id"] == category_id:
                     c["visible"] = visible
+                    self._persist(user_id)
                     return True
         return False
 
 
-store = Store()
+def make_store() -> "Store":
+    """In-memory by default; durable SQLite when MAILAI_DB is set."""
+    import os
+    path = os.getenv("MAILAI_DB")
+    if not path:
+        return Store()
+    from .config import settings
+    from .persistence import SqlitePersistence
+    return Store(persistence=SqlitePersistence(path, settings.session_secret))
+
+
+store = make_store()

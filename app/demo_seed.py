@@ -121,8 +121,18 @@ def _messages():
         {"id": "m22", "cat": "junk", "from": "Prize Draw", "initials": "PD", "av": "#8A94A6", "time": "Yest",
          "subject": "You have been selected!", "snippet": "Claim your reward now — limited time only.", "chip": "Junk"},
     ]
+    extracted = {
+        "m7": {"Carrier": "PostNL", "Tracking": "3SABC1234567890", "Status": "Out for delivery", "ETA": "Today 13:00–15:00"},
+        "m8": {"Carrier": "DHL", "Status": "Ready for pickup", "Location": "Albert Heijn, Overtoom 116 · locker 12", "Code": "8842", "Collect by": "18 Jul"},
+        "m10": {"Merchant": "Apple", "Order #": "W1234567", "Total": "€12.99", "Item": "iCloud+ 200GB (monthly)"},
+        "m11": {"Merchant": "Zalando", "Total": "€89,95", "Items": "2 · shoes, socks", "Est. delivery": "17 Jul"},
+        "m13": {"Trip": "Amsterdam → New York", "Depart": "22 Jul · 10:05", "Return": "26 Jul", "Check-in opens": "23 Jul"},
+        "m14": {"Stay": "Hotel Pulitzer, Amsterdam", "Check-in": "22 Jul", "Check-out": "24 Jul", "Confirmation": "4471"},
+    }
     for msg in m:
         msg["account"] = _ACCT.get(msg["id"], "private")
+        if msg["id"] in extracted:
+            msg["extracted"] = extracted[msg["id"]]
     return m
 
 

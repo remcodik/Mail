@@ -1,6 +1,7 @@
 # --- core backend (needed for demo + live) ---
 fastapi>=0.115
 uvicorn[standard]>=0.30
+cryptography>=42.0          # encrypt OAuth tokens at rest (SQLite persistence)
 
 # --- live mode only (real Gmail + Claude); demo mode works without these ---
 anthropic>=0.40

@@ -117,15 +117,26 @@ Relates to issues: #1, #2, #3, #4, #5, #6, #7, #8, #29, #30.
 **Blockers for going live (only you can provide):** a Google Cloud OAuth client,
 an Anthropic API key, and a host — see `docs/SETUP.md`.
 
-## Sprint 3 — Act on mail: replies, tasks, newsletters, junk, waiting
+## Sprint 3 — Persistence (durable, encrypted) · **DONE ✅**
 
-Draft replies (suggestion-only), extract tasks, List-Unsubscribe handling,
-junk auto-archive, sent-mail follow-ups. Relates to: #10–#15.
+- SQLite-backed store (`app/persistence.py`), enabled by `MAILAI_DB`; same `Store`
+  interface (drop-in), write-through on every mutation.
+- **OAuth tokens encrypted at rest** (Fernet, key derived from the session secret).
+- Verified: data survives a process restart; tokens are not stored in plaintext;
+  a wrong secret decrypts nothing.
 
-## Sprint 4 — Rich detection: delivery, purchase, travel, tickets + Wallet
+Covers #30. (Other Sprint-3 acts — reply send, unsubscribe, junk timers — are
+already stubbed suggestion-only in the UI; live wiring rides with 2b/2c.)
 
-`detect_delivery` / `detect_purchase` / `detect_travel` / `detect_ticket`,
-Wallet pass (prototype path first). Relates to: #17, #18, #23, #24, #26.
+## Sprint 4 — Rich detection: delivery, purchase, travel, tickets · **CODE DONE ✅**
+
+- `detect_delivery` / `detect_purchase` / `detect_travel` / `detect_ticket` +
+  `detect_scheduling_intent` in `app/intelligence.py` (Claude JSON extraction in
+  live mode); wired into `orchestrator.process_account` to attach `extracted` data.
+- UI shows an **Extracted details** panel on the detail screen; demo data enriched
+  for delivery/purchase/travel so it's visible now.
+- Wallet pass generation (#18) still pending (needs the Apple Pass Type ID cert).
+- Relates to: #17, #23, #24, #26 (detectors done); #18 (Wallet — pending cert).
 
 ## Sprint 5 — Customization & hardening
 
@@ -143,3 +154,4 @@ privacy disclosure. Relates to: #19, #20, #21, #27.
 | 2026-07-15 | 1.1 | **Multi-user/multi-account decision.** Frontend now separates Work vs Private: account switcher, per-email account tags, Settings → Mail accounts. Assumptions updated (multi-tenant, multi-account). Boundary check-in agreed: pause before Sprint 2. |
 | 2026-07-15 | 2a | **Backend started + shipped 2a.** FastAPI backend (`app/`) with multi-user tenancy, per-account separation, demo API; UI now loads from `/api/inbox` (fixtures fallback). Docker + `docs/SETUP.md`. Verified locally. Live Gmail/Claude (2b/2c) pending your Google + Anthropic creds + a host. |
 | 2026-07-15 | 2b/2c | **Wrote live code.** Multi-account Gmail OAuth (connect → callback, token per user+account), real `gmail_client.py`, and `orchestrator.py` classify+summarize via Claude (idempotent). Added `fly.toml` + Fly.io deploy steps. Demo mode re-verified; OAuth URL builder validated. Untested end-to-end until your Google + Anthropic creds + host. |
+| 2026-07-15 | 3 + 4 | **Persistence + detectors.** SQLite store with encrypted tokens (`MAILAI_DB`) — verified durable across restart, tokens not plaintext, wrong key = no access (#30). Detectors (delivery/purchase/travel/ticket) in `intelligence.py` + orchestrator; UI shows an Extracted-details panel; demo enriched. Next: your creds/host for first live sync. |

@@ -16,6 +16,14 @@ _MAP = {
 }
 
 
+_DETECTORS = {
+    "delivery": intelligence.detect_delivery,
+    "purchase": intelligence.detect_purchase,
+    "travel": intelligence.detect_travel,
+    "ticket": intelligence.detect_ticket,
+}
+
+
 def _cat_name(user_id: str, cat_id: str) -> str:
     for c in store.categories(user_id):
         if c["id"] == cat_id:
@@ -45,6 +53,11 @@ def process_account(user_id: str, account_id: str, max_results: int = 25) -> int
         if cat in ("urgent", "reply"):
             msg["needsAction"] = True
             msg["reply"] = intelligence.draft_reply(email)
+        detector = _DETECTORS.get(cat)
+        if detector:
+            extracted = detector(email)
+            if extracted:
+                msg["extracted"] = extracted
         store.upsert_message(user_id, msg)
         processed += 1
     return processed

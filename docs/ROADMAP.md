@@ -1,10 +1,11 @@
 # MailAI — Evaluation, Plan & Roadmap
 
-> Status: **Building — Sprint 2a done.** Frontend (`ui/`) + a FastAPI backend
-> (`app/`, multi-user, multi-account) run in demo mode; the UI loads from the
-> API. See [`SPRINTS.md`](./SPRINTS.md) for progress and [`SETUP.md`](./SETUP.md)
-> to run/deploy. This document evaluates the spec, records open questions, and
-> lays out the phased plan tracked in GitHub Issues.
+> Status: **Building — through Sprint 4 (code).** Frontend (`ui/`) + FastAPI
+> backend (`app/`, multi-user, multi-account) with durable encrypted persistence
+> and structured detectors. Demo mode is fully testable; live Gmail/Claude code is
+> written and awaits credentials + a host. See [`SPRINTS.md`](./SPRINTS.md) and
+> [`SETUP.md`](./SETUP.md). This document evaluates the spec, records open
+> questions, and lays out the phased plan tracked in GitHub Issues.
 
 Last reviewed: 2026-07-14
 

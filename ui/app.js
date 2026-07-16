@@ -156,6 +156,13 @@
     } else {
       parts.push('<div class="panel"><p class="h">Message</p><p>'+esc(m.snippet)+'</p></div>');
     }
+    if(m.extracted){
+      var kv = Object.keys(m.extracted).map(function(k){
+        return '<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--line);font-size:12.5px">'
+          + '<span style="color:var(--ink-2)">'+esc(k)+'</span><span style="font-weight:600;text-align:right">'+esc(m.extracted[k])+'</span></div>';
+      }).join('');
+      parts.push('<div class="panel"><p class="h">'+SPARK+' Extracted details</p>'+kv+'</div>');
+    }
     if(m.tasks && m.tasks.length){
       parts.push('<div class="panel"><p class="h">Extracted tasks</p>'+m.tasks.map(function(t){
         return '<div class="task"><span class="box"></span><div>'+esc(t.text)+(t.due?'<br><span class="due">Due · '+esc(t.due)+'</span>':'')+'</div></div>';
