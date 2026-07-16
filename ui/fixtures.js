@@ -16,6 +16,12 @@
     finance: '<path d="M12 1v22M5 8h9a3 3 0 0 1 0 6H7"/>'
   };
 
+  // Connected mail accounts for the signed-in user, clearly separated.
+  const accounts = [
+    { id: 'work',    name: 'Work',    email: 'remco@northwind.co',  color: '#3E7BF0' },
+    { id: 'private', name: 'Private', email: 'dik.remco@gmail.com', color: '#0FA398' }
+  ];
+
   const categories = [
     { id: 'urgent',    name: 'Urgent',     color: 'var(--c-urgent)',   icon: I.urgent,   hint: 'need action', visible: true, builtin: true },
     { id: 'reply',     name: 'Reply',      color: 'var(--c-reply)',    icon: I.reply,    hint: 'drafts ready', visible: true, builtin: true },
@@ -137,5 +143,19 @@
       subject: 'You have been selected!', snippet: 'Claim your reward now — limited time only.', chip: 'Junk' }
   ];
 
-  window.MAILAI_FIXTURES = { categories, messages };
+  // Which mail account each message belongs to (Work vs Private).
+  const ACCT = {
+    m1:'work', m2:'private', m3:'work',
+    m4:'private', m5:'work', m6:'work',
+    m7:'private', m8:'private', m9:'private',
+    m10:'private', m11:'private', m12:'work',
+    m13:'work', m14:'work',
+    m15:'private', m16:'private', m17:'private',
+    m18:'private', m19:'work',
+    m20:'work', m21:'private',
+    m22:'private'
+  };
+  messages.forEach(function (m) { m.account = ACCT[m.id] || 'private'; });
+
+  window.MAILAI_FIXTURES = { accounts, categories, messages };
 })();

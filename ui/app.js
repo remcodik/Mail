@@ -4,8 +4,9 @@
 (function () {
   'use strict';
   var F = window.MAILAI_FIXTURES;
-  // deep clone so we can mutate freely (archive, toggle, add category)
-  var state = JSON.parse(JSON.stringify({ categories: F.categories, messages: F.messages }));
+  // deep clone so we can mutate freely (archive, toggle, add category/account)
+  var state = JSON.parse(JSON.stringify({ accounts: F.accounts, categories: F.categories, messages: F.messages }));
+  var sel = 'all'; // selected mail account: 'all' | account id — keeps Work/Private separated
   var CUSTOM_COLORS = ['#0891B2', '#7C3AED', '#DB2777', '#059669', '#D97706'];
   var GENERIC_ICON = '<path d="M20.6 13.4 12 22l-9-9V4a1 1 0 0 1 1-1h8z"/><circle cx="7.5" cy="7.5" r="1.3"/>';
   var root = document.getElementById('root');
@@ -15,9 +16,29 @@
   function svg(inner, size){ size = size || 20; return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'+inner+'</svg>'; }
   var SPARK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>';
   function catById(id){ return state.categories.filter(function(c){ return c.id===id; })[0]; }
+  function acctById(id){ return state.accounts.filter(function(a){ return a.id===id; })[0]; }
   function visibleCats(){ return state.categories.filter(function(c){ return c.visible; }); }
-  function msgsIn(id){ return state.messages.filter(function(m){ return m.cat===id && !m.archived; }); }
+  function inSel(m){ return sel==='all' || m.account===sel; }
+  function msgsIn(id){ return state.messages.filter(function(m){ return m.cat===id && !m.archived && inSel(m); }); }
   function msgById(id){ return state.messages.filter(function(m){ return m.id===id; })[0]; }
+
+  // account switcher (segmented) — shown on cockpit + category views
+  function acctSwitcher(){
+    var opts = [{ id:'all', name:'All mail', color:null }].concat(state.accounts);
+    return '<div class="acctbar">' + opts.map(function(a){
+      return '<button class="acctseg'+(sel===a.id?' on':'')+'" data-act="setacct" data-id="'+a.id+'">'
+        + (a.color?'<span class="adot" style="background:'+a.color+'"></span>':'')
+        + esc(a.name)+'</button>';
+    }).join('') + '</div>';
+  }
+  function acctTag(m){
+    var a = acctById(m.account); if(!a) return '';
+    return '<span class="acctag" style="--ac:'+a.color+'">'+esc(a.name)+'</span>';
+  }
+  function selLabel(){
+    if(sel==='all') return state.accounts.map(function(a){ return a.name; }).join(' + ');
+    var a = acctById(sel); return a ? a.name+' · '+a.email : 'All mail';
+  }
 
   function hintFor(cat){
     var ms = msgsIn(cat.id), n = ms.length, a;
@@ -36,7 +57,7 @@
 
   // ---------- screen: cockpit ----------
   function viewCockpit(){
-    var active = state.messages.filter(function(m){ return !m.archived; });
+    var active = state.messages.filter(function(m){ return !m.archived && inSel(m); });
     var needYou = active.filter(function(m){ return m.needsAction || m.cat==='reply' || (m.cat==='waiting'&&m.overdue); }).length;
     var autoHandled = active.length - needYou;
     var tiles = visibleCats().map(function(c){
@@ -49,8 +70,8 @@
     }).join('');
     return {
       top: '<div class="brand"><span class="dot"></span> MailAI · Cockpit</div>'
-         + '<h1>Good morning, Remco</h1><div class="sub">Tue 15 Jul · '+active.length+' active · Claude triaged overnight</div>',
-      body: '<div class="hero"><div class="hstat"><div class="big">'+needYou+'</div><div class="hl">need you today</div></div>'
+         + '<h1>Good morning, Remco</h1><div class="sub">Tue 15 Jul · '+esc(selLabel())+' · '+active.length+' active</div>',
+      body: acctSwitcher() + '<div class="hero"><div class="hstat"><div class="big">'+needYou+'</div><div class="hl">need you today</div></div>'
           + '<div class="hstat"><div class="big">'+autoHandled+'</div><div class="hl">auto-handled</div></div></div>'
           + '<div class="tilegrid">'+tiles
           + '<button class="tile add" style="grid-column:1/-1" data-act="addcat">'+svg('<path d="M12 5v14M5 12h14"/>',15)+' Add a category tile</button></div>',
@@ -64,15 +85,15 @@
       + '<span><span class="top"><span class="from">'+esc(m.from)+'</span><span class="time">'+esc(m.time)+'</span></span>'
       + '<span class="subj">'+esc(m.subject)+'</span><span class="snip">'+esc(m.snippet)+'</span>'
       + (m.ai ? '<span class="ai-note">'+SPARK+esc(m.ai)+'</span>' : '')
-      + '<span class="chip-wrap" style="display:block;margin-top:7px"><span class="chip" style="--cc:'+catById(m.cat).color+'">'+esc(m.chip||catById(m.cat).name)+'</span></span></span></button>';
+      + '<span class="chip-wrap" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:7px"><span class="chip" style="--cc:'+catById(m.cat).color+'">'+esc(m.chip||catById(m.cat).name)+'</span>'+acctTag(m)+'</span></span></button>';
   }
   function newsletterHTML(m){
-    return '<div class="nrow"><div><div class="nm">'+esc(m.from)+'</div><div class="fr">'+esc(m.freq||'')+' · '+(m.unread||0)+' unread</div></div>'
+    return '<div class="nrow"><div><div class="nm">'+esc(m.from)+' '+acctTag(m)+'</div><div class="fr">'+esc(m.freq||'')+' · '+(m.unread||0)+' unread</div></div>'
       + '<div class="acts"><button class="pill unsub" data-act="unsub" data-id="'+m.id+'">Unsubscribe</button>'
       + '<button class="pill" data-act="archive" data-id="'+m.id+'">Archive</button></div></div>';
   }
   function waitingHTML(m){
-    return '<div class="wcard'+(m.overdue?' over':'')+'"><div class="top"><span class="to">'+esc(m.to||m.from)+'</span>'
+    return '<div class="wcard'+(m.overdue?' over':'')+'"><div class="top"><span class="to">'+esc(m.to||m.from)+' '+acctTag(m)+'</span>'
       + '<span class="days'+(m.overdue?' hot':'')+'">'+m.days+' day'+(m.days===1?'':'s')+(m.overdue?' · overdue':'')+'</span></div>'
       + '<div class="sj">'+esc(m.subject)+'</div>'
       + '<div class="btnrow"><button class="btn pri" data-nav="#/m/'+m.id+'">Follow up</button>'
@@ -82,7 +103,7 @@
     var t = m.ticket;
     var grid = t.grid.map(function(kv){ return '<div><div class="k">'+esc(kv[0])+'</div><div class="v">'+esc(kv[1])+'</div></div>'; }).join('');
     return '<button class="ticket '+t.style+'" data-nav="#/m/'+m.id+'" style="border:0;text-align:left;width:100%">'
-      + '<div class="tt">'+esc(t.tt)+'</div><div class="ev">'+esc(t.ev)+'</div><div class="grid">'+grid+'</div>'
+      + '<div class="tt">'+esc(t.tt)+' · '+esc(acctById(m.account).name)+'</div><div class="ev">'+esc(t.ev)+'</div><div class="grid">'+grid+'</div>'
       + (t.code?'<div class="code"></div>':'')+'</button>';
   }
   function viewCategory(id){
@@ -101,7 +122,7 @@
       top: '<button class="back" data-nav="#/">'+svg('<path d="M15 18l-6-6 6-6"/>',16)+' Cockpit</button>'
          + '<h1>'+esc(cat.name)+'</h1>',
       withBack: true,
-      tabs: '<div class="tabs">'+tabs+'</div>',
+      tabs: acctSwitcher() + '<div class="tabs">'+tabs+'</div>',
       body: body,
       nav: 'cockpit'
     };
@@ -139,7 +160,7 @@
       + '<button class="btn danger" data-act="delete" data-id="'+m.id+'">Delete</button></div>');
     return {
       top: '<button class="back" data-nav="#/c/'+m.cat+'">'+svg('<path d="M15 18l-6-6 6-6"/>',16)+' '+esc(cat.name)+'</button>'
-         + '<h1>'+esc(m.subject)+'</h1><div class="sub"><b>'+esc(m.from)+'</b> · '+esc(m.time)+'</div>',
+         + '<h1>'+esc(m.subject)+'</h1><div class="sub"><b>'+esc(m.from)+'</b> · '+esc(m.time)+' '+acctTag(m)+'</div>',
       withBack: true,
       body: '<div class="detail">'+parts.join('')+'</div>',
       nav: 'cockpit'
@@ -147,6 +168,15 @@
   }
 
   // ---------- screen: settings ----------
+  function acctRows(){
+    return state.accounts.map(function(a){
+      var n = state.messages.filter(function(m){ return m.account===a.id && !m.archived; }).length;
+      return '<div class="catrow"><span class="grip">'+svg('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',14)+'</span>'
+        + '<span class="cdot" style="background:'+a.color+'"></span>'
+        + '<span><span class="cnm">'+esc(a.name)+'</span><br><span class="ccount">'+esc(a.email)+'</span></span>'
+        + '<span class="ccount">'+n+' mails</span></div>';
+    }).join('');
+  }
   function viewSettings(){
     var rows = state.categories.map(function(c){
       return '<div class="catrow"><span class="grip">⠿</span>'
@@ -159,6 +189,8 @@
       top: '<button class="back" data-nav="#/">'+svg('<path d="M15 18l-6-6 6-6"/>',16)+' Cockpit</button><h1>Categories &amp; rules</h1>',
       withBack: true,
       body: '<div class="view pad" style="padding-top:2px">'
+        + '<div class="seghead">Mail accounts · kept separate</div>' + acctRows()
+        + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addacct">+ Add a mail account</button>'
         + '<div class="seghead">Cockpit categories · toggle to show/hide</div>'+rows
         + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addcat">+ Add a category</button>'
         + '<div class="seghead">Rules</div>'
@@ -240,6 +272,17 @@
         var c = el.getAttribute('data-cat');
         msgsIn(c).forEach(function(m){ m.archived=true; });
         toast('Archived all'); render(); break;
+      }
+      case 'setacct': { sel = id; render(); break; }
+      case 'addacct': {
+        var email = window.prompt('Connect a mail account — enter its address (e.g. you@work.com):');
+        if(email && email.trim()){
+          var pal = ['#3E7BF0','#0FA398','#8257E6','#EA580C','#D6336C'];
+          var nm = window.prompt('Label this account (e.g. Work, Private, Side project):') || email.split('@')[0];
+          state.accounts.push({ id:'acct'+Date.now(), name:nm.trim(), email:email.trim(), color:pal[state.accounts.length % pal.length] });
+          toast('Connected “'+nm.trim()+'” · kept separate');
+        }
+        render(); break;
       }
       case 'togglecat': { var cat=catById(id); if(cat){ cat.visible=!cat.visible; } render(); break; }
       case 'addcat': {

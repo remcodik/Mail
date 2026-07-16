@@ -66,7 +66,7 @@ higher-complexity integrations (Apple Wallet, scheduling).
 These are surfaced as questions in the tracking issue; a few are worth deciding
 early because they shape the data model:
 
-1. **Single-user prototype or multi-user hosted?** (Drives auth, storage, secrets.)
+1. ~~Single-user prototype or multi-user hosted?~~ **Decided: multi-user (multi-tenant), with multiple mail accounts per user (Work/Private), clearly separated.** See CLAUDE.md → *Multi-user & multi-account* and `SPRINTS.md`. This resolves G2/G3 toward per-`(user, account)` tokens and per-`user_id` storage.
 2. **Is Gmail the source of truth** (via labels) or a local DB? (Drives sync model.)
 3. **How autonomous?** Should the app ever send/archive/delete without explicit
    tap, or is everything a suggestion until confirmed? (Recommend suggestion-only

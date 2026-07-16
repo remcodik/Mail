@@ -10,6 +10,8 @@ Last updated: 2026-07-15 · Branch: `claude/review-eval-documentation-ip029b`
 
 ## Working agreements
 
+- **Check in at every sprint boundary.** Do NOT start the next sprint
+  autonomously — finish a sprint, demo it, then pause for approval before the next.
 - **Testable every sprint.** Each sprint ends with something you can open and click.
 - **Frontend first, mock data first.** The UI ships against fixtures so it's
   deployable as a static site (public githack link) with no secrets. The fixture
@@ -19,10 +21,15 @@ Last updated: 2026-07-15 · Branch: `claude/review-eval-documentation-ip029b`
 - **Nothing irreversible without a tap.** Send/archive/delete/unsubscribe always
   need explicit confirmation (carried into the real backend later).
 
-## Assumptions (defaults chosen to keep momentum — revisit anytime)
+## Decisions (confirmed with the user)
 
-- **Single-user prototype** for now (one Gmail account, local token). Multi-user is later.
-- **Gmail labels = source of truth**, cached locally.
+- **Multi-user (multi-tenant).** Each user authenticates and sees only their own
+  data; all storage keyed by `user_id`; no cross-user access.
+- **Multiple mail accounts per user, clearly separated** (e.g. Work, Private).
+  Each account has its own OAuth token. UI has an account switcher (All / per
+  account); every email is tagged with its account; data model is
+  `user_id → accounts[] → messages(account_id)`.
+- **Gmail labels = source of truth** per account, cached locally.
 - **Suggestion-only** for irreversible actions in early sprints.
 - Model id pinned in config, verified against the current model list at Sprint 2.
 
@@ -56,23 +63,40 @@ add a custom category tile.
 
 Relates to issues: #9 (category view), #25 (cockpit), #16 (settings), #27 (custom categories).
 
+## Sprint 1.1 — Multi-account separation (frontend) · **DONE ✅**
+
+Added on top of Sprint 1 per the multi-user/multi-account decision:
+- Account switcher (**All mail · Work · Private**) on cockpit + category views;
+  filters tiles, counts, and lists to the selection.
+- Every email tagged with its account (Work/Private) so lists stay clearly
+  separated even under "All".
+- Settings → **Mail accounts**: connected accounts with colour + address, and
+  **+ Add a mail account**.
+- Data shape now carries `accounts[]` and `message.account` (contract for the
+  per-account backend).
+
+Relates to issues: #28 (multi-account UI), #29 (per-account OAuth), #30 (multi-user tenancy).
+
 ---
 
-## Sprint 2 — Backend read path: Gmail + classify + summarize
+## Sprint 2 — Multi-user auth + multi-account Gmail read + classify/summarize
 
-**SMART goal:** A local backend that authenticates to Gmail, classifies and
-summarizes real inbox mail, and serves it as JSON matching the Sprint 1 fixture
-shape; the UI flips from fixtures to the live API with one flag.
+**SMART goal:** A backend where a user signs in, connects one or more Gmail
+accounts (Work/Private), and sees each account's inbox classified + summarized,
+served as JSON matching the Sprint 1 shape; the UI flips from fixtures to the
+live API with one flag, keeping accounts separated.
 
-- **Specific:** `auth.py` (OAuth2), `gmail_client.py` (read/list/labels),
-  `intelligence.classify_email` + `summarize_thread` (Claude), `orchestrator.process_inbox()`,
-  `server.py` (HTTP/JSON + serve `ui/`).
-- **Measurable:** `GET /api/inbox` returns categorized, summarized real emails;
-  the UI renders them unchanged; running twice creates no duplicates (idempotent).
-- **Relevant:** first real value — your actual inbox, triaged.
-- **Time-boxed:** next sprint. **Test:** runs locally (`python server.py`), not githack (needs a server + secrets).
+- **Specific:** user auth + tenancy (`user_id` isolation); `auth.py` multi-account
+  OAuth (token per (user, account)); `gmail_client.py` per-account read/labels;
+  `intelligence.classify_email` + `summarize_thread` (Claude); `orchestrator.process_inbox(account)`;
+  `server.py` (`GET /api/inbox?account=`), serve `ui/`.
+- **Measurable:** signing in and connecting a Gmail account returns that account's
+  categorized, summarized mail; the switcher filters by account; no cross-user or
+  cross-account leakage; re-running creates no duplicates (idempotent).
+- **Relevant:** first real value — your actual inboxes, triaged and separated.
+- **Time-boxed:** next sprint. **Test:** runs locally (`python server.py`) — needs secrets + a server, so not githack-deployable like Sprint 1.
 
-Relates to issues: #1, #2, #3, #4, #5, #6, #7, #8.
+Relates to issues: #1, #2, #3, #4, #5, #6, #7, #8, #29, #30.
 
 ## Sprint 3 — Act on mail: replies, tasks, newsletters, junk, waiting
 
@@ -96,4 +120,5 @@ privacy disclosure. Relates to: #19, #20, #21, #27.
 | Date | Sprint | Update |
 |------|--------|--------|
 | 2026-07-15 | 1 | Sprint plan created; Sprint 1 started. |
-| 2026-07-15 | 1 | Sprint 1 **done**: `ui/` SPA shipped (cockpit → category → detail, settings, tasks) on mock data; navigation + archive/delete/toggle/add-category working; verified in Chromium; deployed via githack. Next: Sprint 2 backend read path. |
+| 2026-07-15 | 1 | Sprint 1 **done**: `ui/` SPA shipped (cockpit → category → detail, settings, tasks) on mock data; navigation + archive/delete/toggle/add-category working; verified in Chromium; deployed via githack. |
+| 2026-07-15 | 1.1 | **Multi-user/multi-account decision.** Frontend now separates Work vs Private: account switcher, per-email account tags, Settings → Mail accounts. Assumptions updated (multi-tenant, multi-account). Boundary check-in agreed: pause before Sprint 2. |

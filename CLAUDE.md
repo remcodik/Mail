@@ -74,6 +74,7 @@ suggest_followup_date(email) -> date
 ## iPhone UI screens
 
 ### Cockpit — Start screen (default)
+- **Account switcher** at the top (All mail · Work · Private · …) — filters the whole cockpit; every tile count respects it
 - Total-overview dashboard: a grid of **tiles**, one per category
 - Each tile shows the category name, a live **count** of mails/actions, and a short action hint (e.g. "2 need action", "1 ready for pickup", "1 overdue")
 - Tap a tile → drills into that category's list (the Category view below)
@@ -151,6 +152,22 @@ list_sent(max_results)
 4. `python auth.py` → OAuth2 consent → saves `token.json`
 5. `python server.py` → starts MCP server
 6. Open `ui/index.html` on iPhone via local network
+
+## Multi-user & multi-account
+
+- **Multi-user (multi-tenant):** each user authenticates and sees only their own
+  data. All storage is keyed by `user_id`; never allow cross-user access.
+- **Multiple mail accounts per user:** a user can connect several Gmail accounts
+  (e.g. **Work**, **Private**), each with its own OAuth token. Accounts are
+  **clearly separated** everywhere:
+  - Cockpit has an account switcher — **All mail · Work · Private · …** — that
+    filters every tile count and list to the selection.
+  - Every email carries an account tag; categories, tasks, and waiting respect
+    the active account.
+  - Settings → **Mail accounts**: connect / label / colour / remove accounts.
+- **Data model:** `user_id → accounts[] → messages` (each message tagged with
+  `account_id`). OAuth tokens stored per `(user_id, account_id)`. Only mix
+  accounts when "All mail" is selected.
 
 ## Key behaviours to implement carefully
 
