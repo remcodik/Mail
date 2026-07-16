@@ -98,6 +98,21 @@ live API with one flag, keeping accounts separated.
 
 Relates to issues: #1, #2, #3, #4, #5, #6, #7, #8, #29, #30.
 
+**Progress:**
+- ✅ **2a — backend skeleton + demo API (done).** FastAPI app (`app/`): multi-user
+  tenancy with per-`user_id` isolation, per-account separation, demo provider,
+  `GET /api/inbox` (+ archive / visibility / connect), UI wired to the API with
+  fixtures fallback, `Dockerfile` + `.env.example` + `docs/SETUP.md`. Verified
+  locally (API + browser). See #4/#7/#8/#30 partials.
+- ⏳ **2b — real Gmail OAuth per account (#29):** `app/gmail_client.py`,
+  `/api/accounts/callback`. Needs your Google OAuth client.
+- ⏳ **2c — Claude pipeline (#5, #6):** run `app/intelligence.py` over synced mail.
+  Needs your Anthropic key.
+- ⏳ **Persistence (#30):** swap in-memory store → database + encrypted tokens.
+
+**Blockers for going live (only you can provide):** a Google Cloud OAuth client,
+an Anthropic API key, and a host — see `docs/SETUP.md`.
+
 ## Sprint 3 — Act on mail: replies, tasks, newsletters, junk, waiting
 
 Draft replies (suggestion-only), extract tasks, List-Unsubscribe handling,
@@ -122,3 +137,4 @@ privacy disclosure. Relates to: #19, #20, #21, #27.
 | 2026-07-15 | 1 | Sprint plan created; Sprint 1 started. |
 | 2026-07-15 | 1 | Sprint 1 **done**: `ui/` SPA shipped (cockpit → category → detail, settings, tasks) on mock data; navigation + archive/delete/toggle/add-category working; verified in Chromium; deployed via githack. |
 | 2026-07-15 | 1.1 | **Multi-user/multi-account decision.** Frontend now separates Work vs Private: account switcher, per-email account tags, Settings → Mail accounts. Assumptions updated (multi-tenant, multi-account). Boundary check-in agreed: pause before Sprint 2. |
+| 2026-07-15 | 2a | **Backend started + shipped 2a.** FastAPI backend (`app/`) with multi-user tenancy, per-account separation, demo API; UI now loads from `/api/inbox` (fixtures fallback). Docker + `docs/SETUP.md`. Verified locally. Live Gmail/Claude (2b/2c) pending your Google + Anthropic creds + a host. |

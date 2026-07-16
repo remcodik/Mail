@@ -3,12 +3,25 @@
    Sprint 2 will swap the fixture load for GET /api/inbox (same shape). */
 (function () {
   'use strict';
-  var F = window.MAILAI_FIXTURES;
-  // deep clone so we can mutate freely (archive, toggle, add category/account)
-  var state = JSON.parse(JSON.stringify({ accounts: F.accounts, categories: F.categories, messages: F.messages }));
-  var sel = 'all'; // selected mail account: 'all' | account id — keeps Work/Private separated
+  var state = null;      // populated by boot(); from the API when available, else fixtures
+  var sel = 'all';       // selected mail account: 'all' | account id — keeps Work/Private separated
+  var API_OK = false;    // true when data was loaded from the backend
   var CUSTOM_COLORS = ['#0891B2', '#7C3AED', '#DB2777', '#059669', '#D97706'];
   var GENERIC_ICON = '<path d="M20.6 13.4 12 22l-9-9V4a1 1 0 0 1 1-1h8z"/><circle cx="7.5" cy="7.5" r="1.3"/>';
+  // category icons live in the frontend (presentation), keyed by category id
+  var ICONS = {
+    urgent: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
+    reply: '<path d="M9 17l-5-5 5-5"/><path d="M4 12h11a5 5 0 0 1 5 5v1"/>',
+    delivery: '<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/>',
+    purchase: '<path d="M6 7h12l-1 13H7z"/><path d="M9 7a3 3 0 0 1 6 0"/>',
+    travel: '<path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/>',
+    newsletter: '<rect x="3" y="4" width="13" height="16" rx="1"/><path d="M16 8h5v10a2 2 0 0 1-2 2H6"/><path d="M6 8h6M6 12h6M6 16h4"/>',
+    ticket: '<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M9 6v12"/>',
+    waiting: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    junk: '<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>',
+    fyi: '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/>'
+  };
+  function iconFor(c){ return ICONS[c.id] || c.icon || GENERIC_ICON; }
   var root = document.getElementById('root');
 
   // ---------- helpers ----------
@@ -63,7 +76,7 @@
     var tiles = visibleCats().map(function(c){
       var n = msgsIn(c.id).length;
       return '<button class="tile" style="--tc:'+c.color+'" data-nav="#/c/'+c.id+'">'
-        + '<span class="ticon">'+svg(c.icon,15)+'</span>'
+        + '<span class="ticon">'+svg(iconFor(c),15)+'</span>'
         + '<span class="tcount">'+n+'</span>'
         + '<span class="tname">'+esc(c.name)+'</span>'
         + '<span class="tsub">'+hintFor(c)+'</span></button>';
@@ -180,7 +193,7 @@
   function viewSettings(){
     var rows = state.categories.map(function(c){
       return '<div class="catrow"><span class="grip">⠿</span>'
-        + '<span class="cdot" style="background:'+c.color+'">'+svg(c.icon,13)+'</span>'
+        + '<span class="cdot" style="background:'+c.color+'">'+svg(iconFor(c),13)+'</span>'
         + '<span><span class="cnm">'+esc(c.name)+'</span>'+(c.builtin?'':' <span class="ccount">· custom</span>')+'<br>'
         + '<span class="ccount">'+msgsIn(c.id).length+' mails'+(c.visible?'':' · hidden')+'</span></span>'
         + '<button class="toggle'+(c.visible?'':' off')+'" data-act="togglecat" data-id="'+c.id+'" aria-label="toggle '+esc(c.name)+'"></button></div>';
@@ -253,7 +266,7 @@
   }
 
   // ---------- actions ----------
-  function archive(id, word){ var m=msgById(id); if(m){ m.archived=true; toast((word||'Archived')+' · '+m.from); } }
+  function archive(id, word){ var m=msgById(id); if(m){ m.archived=true; apiPost('/api/messages/'+id+'/archive'); toast((word||'Archived')+' · '+m.from); } }
   function slug(s){ return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,24) || ('cat'+Date.now()); }
 
   function handleAct(act, el){
@@ -284,7 +297,7 @@
         }
         render(); break;
       }
-      case 'togglecat': { var cat=catById(id); if(cat){ cat.visible=!cat.visible; } render(); break; }
+      case 'togglecat': { var cat=catById(id); if(cat){ cat.visible=!cat.visible; apiPost('/api/categories/'+id+'/visibility',{visible:cat.visible}); } render(); break; }
       case 'addcat': {
         var name = window.prompt('New category name (e.g. Finance & bills):');
         if(name && name.trim()){
@@ -310,5 +323,24 @@
     if(navEl){ e.preventDefault(); var to = navEl.getAttribute('data-nav'); if(location.hash===to) render(); else location.hash = to; }
   });
   window.addEventListener('hashchange', render);
-  render();
+
+  // ---------- data bootstrap (API with fixtures fallback) ----------
+  function apiPost(path, body){
+    if(!API_OK) return;
+    fetch(path, { method:'POST', credentials:'same-origin',
+      headers:{ 'Content-Type':'application/json' }, body: body ? JSON.stringify(body) : null }).catch(function(){});
+  }
+  function boot(data){
+    state = JSON.parse(JSON.stringify({ accounts:data.accounts, categories:data.categories, messages:data.messages }));
+    render();
+  }
+  function load(){
+    var http = location.protocol === 'http:' || location.protocol === 'https:';
+    if(!http || !window.fetch){ boot(window.MAILAI_FIXTURES); return; }
+    fetch('/api/inbox', { credentials:'same-origin' })
+      .then(function(r){ if(!r.ok) throw 0; return r.json(); })
+      .then(function(d){ API_OK = true; boot(d); })
+      .catch(function(){ boot(window.MAILAI_FIXTURES); });
+  }
+  load();
 })();

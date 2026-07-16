@@ -1,9 +1,10 @@
 # MailAI — Evaluation, Plan & Roadmap
 
-> Status: **Building — Sprint 1 done.** The interactive frontend (`ui/`) is
-> live on mock data; see [`SPRINTS.md`](./SPRINTS.md) for sprint progress. This
-> document evaluates the spec, records open questions, and lays out the phased
-> plan tracked in GitHub Issues.
+> Status: **Building — Sprint 2a done.** Frontend (`ui/`) + a FastAPI backend
+> (`app/`, multi-user, multi-account) run in demo mode; the UI loads from the
+> API. See [`SPRINTS.md`](./SPRINTS.md) for progress and [`SETUP.md`](./SETUP.md)
+> to run/deploy. This document evaluates the spec, records open questions, and
+> lays out the phased plan tracked in GitHub Issues.
 
 Last reviewed: 2026-07-14
 

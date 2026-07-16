@@ -36,6 +36,12 @@ An AI-powered mail app for iPhone that connects to Gmail. It:
     └── app.js             ← frontend logic
 ```
 
+> **Backend evolution (Sprint 2):** the deployed app is multi-user, so the
+> backend now lives in an `app/` FastAPI package (`app/main.py` API + serves
+> `ui/`; `app/config.py`, `app/store.py` tenancy, `app/auth.py`, `app/gmail_client.py`,
+> `app/intelligence.py`, `app/demo_seed.py`). `python server.py` runs it; `demo`
+> mode needs no secrets. MCP tools can be layered on later. See `docs/SETUP.md`.
+
 ## Email categories
 
 Claude classifies every email into one of:
