@@ -77,6 +77,15 @@ Claude classifies every email into one of:
   **Needs attention · To reply · Waiting · Just info**, plus that label's open
   tasks and a "top of the pile" preview; each bucket drills into a filtered list.
 
+## Archive vs delete
+
+- **Archive ("file it")** removes a mail from the cockpit (tiles, counts, category
+  lists) but **keeps it under its labels** — it moves to that label's **Filed**
+  bucket in the per-label cockpit, with labels intact. Restorable to the inbox.
+- **Delete** removes the mail everywhere (including from labels).
+- **Snooze** (swipe right) temporarily hides a mail from everywhere until it's due.
+- Swipe left = archive, swipe right = snooze.
+
 ## Tasks
 
 Extracted from emails; each task **keeps a link to its source mail** (tap a task

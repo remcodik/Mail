@@ -77,7 +77,9 @@ class Store:
             "accounts": b["accounts"],
             "categories": b["categories"],
             "labels": b.get("labels", []),
-            "messages": self.messages(user_id, account=account),
+            # include archived ("filed") mail so the UI can keep it under its labels
+            # while hiding it from the cockpit; the client decides what's active.
+            "messages": self.messages(user_id, account=account, include_archived=True),
         }
 
     # ---- writes (scoped to the user) ----

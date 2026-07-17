@@ -32,7 +32,8 @@
   function acctById(id){ return state.accounts.filter(function(a){ return a.id===id; })[0]; }
   function visibleCats(){ return state.categories.filter(function(c){ return c.visible; }); }
   function inSel(m){ return sel==='all' || m.account===sel; }
-  function msgsIn(id){ return state.messages.filter(function(m){ return m.cat===id && !m.archived && inSel(m); }); }
+  function isActive(m){ return !m.archived && !m.snoozed; }   // shown in the cockpit
+  function msgsIn(id){ return state.messages.filter(function(m){ return m.cat===id && isActive(m) && inSel(m); }); }
   function msgById(id){ return state.messages.filter(function(m){ return m.id===id; })[0]; }
 
   // account switcher (segmented) — shown on cockpit + category views
@@ -59,7 +60,7 @@
     if(!m.labels || !m.labels.length) return '';
     return m.labels.map(function(id){ var l=labelById(id); return l ? '<span class="lbl mini" style="--lc:'+l.color+'">'+esc(l.name)+'</span>' : ''; }).join('');
   }
-  function labelCount(id){ return state.messages.filter(function(m){ return !m.archived && inSel(m) && (m.labels||[]).indexOf(id)>=0; }).length; }
+  function labelCount(id){ return state.messages.filter(function(m){ return isActive(m) && inSel(m) && (m.labels||[]).indexOf(id)>=0; }).length; }
 
   var LEARN_KEY = 'mailai-learn-v2';
   function loadLearned(){
@@ -139,7 +140,7 @@
 
   // ---------- screen: cockpit ----------
   function viewCockpit(){
-    var active = state.messages.filter(function(m){ return !m.archived && inSel(m); });
+    var active = state.messages.filter(function(m){ return isActive(m) && inSel(m); });
     var needYou = active.filter(function(m){ return m.needsAction || m.cat==='reply' || (m.cat==='waiting'&&m.overdue); }).length;
     var autoHandled = active.length - needYou;
     var tiles = visibleCats().map(function(c){
@@ -230,7 +231,8 @@
   }
 
   // ---------- screen: label cockpit (a mini-cockpit per customer/project) ----------
-  function labelMsgs(id){ return state.messages.filter(function(m){ return !m.archived && inSel(m) && (m.labels||[]).indexOf(id)>=0; }); }
+  function labelActive(id){ return state.messages.filter(function(m){ return isActive(m) && inSel(m) && (m.labels||[]).indexOf(id)>=0; }); }
+  function labelFiled(id){ return state.messages.filter(function(m){ return m.archived && !m.snoozed && inSel(m) && (m.labels||[]).indexOf(id)>=0; }); }
   function bucketOf(m){
     if(m.cat==='urgent' || (m.cat==='waiting' && m.overdue)) return 'attention';
     if(m.cat==='reply') return 'reply';
@@ -245,14 +247,15 @@
     { key:'waiting',   name:'Waiting',         sub:'awaiting others',  color:'var(--c-wait)',   icon:ICONS.waiting },
     { key:'info',      name:'Just info',       sub:'no action needed', color:'var(--c-fyi)',    icon:ICONS.fyi }
   ];
-  var BUCKET_TITLE = { need:'Need you', attention:'Needs attention', reply:'To reply', waiting:'Waiting', info:'Just info' };
+  var BUCKET_TITLE = { need:'Need you', attention:'Needs attention', reply:'To reply', waiting:'Waiting', info:'Just info', filed:'Filed' };
 
   function viewLabel(spec){
     var parts = spec.split('/'), id = parts[0], bucket = parts[1];
     var l = labelById(id); if(!l){ location.hash='#/'; return null; }
     if(bucket) return viewLabelBucket(l, bucket);
 
-    var ms = labelMsgs(id);
+    var ms = labelActive(id);
+    var filed = labelFiled(id);
     var count = function(k){ return ms.filter(function(m){ return bucketMatch(m,k); }).length; };
     var needYou = count('need');
     var money = ms.reduce(function(s,m){ return s + (m.total||0); }, 0);
@@ -263,6 +266,9 @@
         + '<span class="ticon">'+svg(bk.icon,15)+'</span><span class="tcount">'+count(bk.key)+'</span>'
         + '<span class="tname">'+bk.name+'</span><span class="tsub">'+bk.sub+'</span></button>';
     }).join('');
+    tiles += '<button class="tile" style="--tc:var(--c-junk)" data-nav="#/label/'+id+'/filed">'
+      + '<span class="ticon">'+svg('<rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/>',15)+'</span>'
+      + '<span class="tcount">'+filed.length+'</span><span class="tname">Filed</span><span class="tsub">archived, kept here</span></button>';
 
     var attn = ms.filter(function(m){ return bucketOf(m)==='attention' || bucketOf(m)==='reply'; }).slice(0,3);
     var preview = attn.length ? '<div class="seghead" style="padding-left:14px">Top of the pile</div><div class="list" style="padding-top:0">'+attn.map(cardHTML).join('')+'</div>' : '';
@@ -284,7 +290,7 @@
     };
   }
   function viewLabelBucket(l, bucket){
-    var ms = labelMsgs(l.id).filter(function(m){ return bucketMatch(m, bucket); });
+    var ms = bucket==='filed' ? labelFiled(l.id) : labelActive(l.id).filter(function(m){ return bucketMatch(m, bucket); });
     var body = ms.length ? '<div class="list">'+ms.map(cardHTML).join('')+'</div>' : '<div class="empty">Nothing here in “'+esc(l.name)+'”.</div>';
     return {
       top: '<button class="back" data-nav="#/label/'+l.id+'">'+svg('<path d="M15 18l-6-6 6-6"/>',16)+' '+esc(l.name)+'</button>'
@@ -295,7 +301,7 @@
 
   // ---------- screen: detail ----------
   function viewDetail(id){
-    var m = msgById(id); if(!m || m.archived){ location.hash='#/'; return null; }
+    var m = msgById(id); if(!m){ location.hash='#/'; return null; }
     var cat = catById(m.cat);
     var parts = [];
     if(m.ticket){
@@ -339,8 +345,14 @@
     if(m.cat==='newsletter'){
       parts.push('<div class="btnrow"><button class="btn danger wide" data-act="unsub" data-id="'+m.id+'">Unsubscribe</button></div>');
     }
-    parts.push('<div class="btnrow"><button class="btn" data-act="archive" data-id="'+m.id+'">Archive</button>'
-      + '<button class="btn danger" data-act="delete" data-id="'+m.id+'">Delete</button></div>');
+    if(m.archived){
+      parts.push('<div class="ai-note" style="padding:2px 4px">'+SPARK+'Filed — hidden from the cockpit, still kept under its labels.</div>');
+      parts.push('<div class="btnrow"><button class="btn" data-act="restore" data-id="'+m.id+'">Restore to inbox</button>'
+        + '<button class="btn danger" data-act="delete" data-id="'+m.id+'">Delete</button></div>');
+    } else {
+      parts.push('<div class="btnrow"><button class="btn" data-act="archive" data-id="'+m.id+'">Archive (file it)</button>'
+        + '<button class="btn danger" data-act="delete" data-id="'+m.id+'">Delete</button></div>');
+    }
     return {
       top: '<button class="back" data-nav="#/c/'+m.cat+'">'+svg('<path d="M15 18l-6-6 6-6"/>',16)+' '+esc(cat.name)+'</button>'
          + '<h1>'+esc(m.subject)+'</h1><div class="sub"><b>'+esc(m.from)+'</b> · '+esc(m.time)+' '+acctTag(m)+'</div>',
@@ -453,14 +465,19 @@
   }
 
   // ---------- actions ----------
-  function archive(id, word){ var m=msgById(id); if(m){ m.archived=true; apiPost('/api/messages/'+id+'/archive'); toast((word||'Archived')+' · '+m.from); } }
+  function archive(id, word){ var m=msgById(id); if(m){ m.archived=true; m.snoozed=false; apiPost('/api/messages/'+id+'/archive'); toast((word||'Archived')+' · '+m.from); } }
+  function snoozeMsg(id){ var m=msgById(id); if(m){ m.snoozed=true; toast('Snoozed · '+m.from); } }
+  function removeMsg(id){ var m=msgById(id); for(var i=0;i<state.messages.length;i++){ if(state.messages[i].id===id){ state.messages.splice(i,1); break; } } if(m) toast('Deleted · '+m.from); }
+  function restoreMsg(id){ var m=msgById(id); if(m){ m.archived=false; m.snoozed=false; toast('Restored to inbox · '+m.from); } }
   function slug(s){ return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,24) || ('cat'+Date.now()); }
 
   function handleAct(act, el){
     var id = el.getAttribute('data-id');
     switch(act){
       case 'archive': archive(id); back(); break;
-      case 'delete': archive(id,'Deleted'); back(); break;
+      case 'delete': removeMsg(id); back(); break;
+      case 'restore': restoreMsg(id); back(); break;
+      case 'snooze': snoozeMsg(id); render(); break;
       case 'done': archive(id,'Marked done'); render(); break;
       case 'unsub': archive(id,'Unsubscribed'); back(); break;
       case 'send': archive(id,'Reply sent'); back(); break;
@@ -608,7 +625,7 @@
     if(!s.moved) return;
     suppressClick = true; setTimeout(function(){ suppressClick = false; }, 400);
     if(s.dx < -70){ archive(s.id, 'Archived'); render(); }
-    else if(s.dx > 70){ archive(s.id, 'Snoozed'); render(); }
+    else if(s.dx > 70){ snoozeMsg(s.id); render(); }
     else { s.c.style.transition = 'transform .2s, opacity .2s'; s.c.style.transform = ''; s.c.style.opacity = ''; }
   });
 
