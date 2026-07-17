@@ -72,8 +72,13 @@ a{color:inherit}
 .proposal{flex:none;margin:0 12px 10px;background:color-mix(in srgb,var(--accent) 9%,var(--surface));
   border:1px solid color-mix(in srgb,var(--accent) 35%,var(--line));border-radius:14px;padding:11px 12px}
 .proposal .ptext{font-size:12px;color:var(--ink);line-height:1.45;margin-bottom:9px}
+.proposal .pscope{display:flex;gap:6px;margin-bottom:9px}
+.proposal .pseg{flex:1;font-size:11px;font-weight:700;padding:7px 6px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.proposal .pseg.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .proposal .pacts{display:flex;gap:7px}
 .proposal .pacts .btn{padding:8px}
+/* swipe target */
+.card{touch-action:pan-y;will-change:transform}
 
 .tilegrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:0 14px}
 .tile{position:relative;text-align:left;overflow:hidden;border:1px solid var(--line);

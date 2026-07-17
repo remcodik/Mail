@@ -61,27 +61,33 @@
   }
   function labelCount(id){ return state.messages.filter(function(m){ return !m.archived && inSel(m) && (m.labels||[]).indexOf(id)>=0; }).length; }
 
-  var LEARN_KEY = 'mailai-learn-v1';
-  function loadLearned(){ try { return JSON.parse(localStorage.getItem(LEARN_KEY)) || []; } catch(e){ return []; } }
+  var LEARN_KEY = 'mailai-learn-v2';
+  function loadLearned(){
+    try {
+      var raw = JSON.parse(localStorage.getItem(LEARN_KEY)) || JSON.parse(localStorage.getItem('mailai-learn-v1')) || [];
+      return raw.map(function(x){ return x.scope ? x : { scope:'sender', value:x.sender, labelId:x.labelId, action:x.action }; });
+    } catch(e){ return []; }
+  }
   function saveLearned(){ try { localStorage.setItem(LEARN_KEY, JSON.stringify(state.labelRules||[])); } catch(e){} }
-  function learnRule(sender, labelId, action){
-    state.labelRules = (state.labelRules||[]).filter(function(r){ return !(r.sender===sender && r.labelId===labelId); });
-    state.labelRules.push({ sender: sender, labelId: labelId, action: action });
+  function ruleMatches(rule, m){ return rule.scope==='domain' ? m.domain===rule.value : m.from===rule.value; }
+  function learnRule(rule){
+    state.labelRules = (state.labelRules||[]).filter(function(r){ return !(r.scope===rule.scope && r.value===rule.value && r.labelId===rule.labelId); });
+    state.labelRules.push(rule);
     saveLearned();
   }
-  function applyRule(sender, labelId, action){
+  function applyRule(rule){
     var n = 0;
     state.messages.forEach(function(m){
-      if(m.from !== sender) return;
+      if(!ruleMatches(rule, m)) return;
       if(!m.labels) m.labels = [];
-      var i = m.labels.indexOf(labelId);
-      if(action==='add' && i<0){ m.labels.push(labelId); }
-      else if(action==='remove' && i>=0){ m.labels.splice(i,1); }
+      var i = m.labels.indexOf(rule.labelId);
+      if(rule.action==='add' && i<0){ m.labels.push(rule.labelId); }
+      else if(rule.action==='remove' && i>=0){ m.labels.splice(i,1); }
       n++;
     });
     return n;
   }
-  function applyLearnedToAll(){ (state.labelRules||[]).forEach(function(r){ applyRule(r.sender, r.labelId, r.action); }); }
+  function applyLearnedToAll(){ (state.labelRules||[]).forEach(applyRule); }
   var pendingProposal = null;   // {sender,labelId,action,others,labelName,msgId} awaiting approval
   function fixLabel(msgId, labelId){
     var m = msgById(msgId); if(!m) return;
@@ -91,17 +97,19 @@
     if(adding) m.labels.push(labelId); else m.labels.splice(i, 1);  // this email only
     var l = labelById(labelId);
     toast((adding ? 'Labelled “' : 'Removed “') + (l?l.name:labelId) + '” on this email');
-    // propose generalising to all mail from this sender — you approve or decline
-    var others = state.messages.filter(function(x){ return x.from===m.from && x.id!==m.id && !x.archived; }).length;
-    pendingProposal = { sender:m.from, labelId:labelId, action:(adding?'add':'remove'), others:others, labelName:(l?l.name:labelId), msgId:msgId };
+    // propose generalising it — you approve, adjust the scope, or decline
+    pendingProposal = { sender:m.from, domain:m.domain, labelId:labelId, action:(adding?'add':'remove'), labelName:(l?l.name:labelId), msgId:msgId, scope:'sender' };
   }
   function proposalBar(){
     if(!pendingProposal) return '';
     var p = pendingProposal;
     var verb = p.action==='add' ? 'tag' : 'stop tagging';
-    var scope = p.others>0 ? (' — updates '+p.others+' other mail'+(p.others===1?'':'s')) : '';
-    return '<div class="proposal"><div class="ptext">'+SPARK+' Make this a rule? '
-      + '<b>Always '+verb+' mail from '+esc(p.sender)+' as “'+esc(p.labelName)+'”</b>'+scope+'.</div>'
+    var target = p.scope==='domain' ? ('anyone @'+p.domain) : p.sender;
+    var affected = state.messages.filter(function(m){ return (p.scope==='domain' ? m.domain===p.domain : m.from===p.sender) && !m.archived; }).length;
+    return '<div class="proposal"><div class="ptext">'+SPARK+' Make it a rule? '
+      + '<b>Always '+verb+' mail from '+esc(target)+' as “'+esc(p.labelName)+'”</b> — '+affected+' mail'+(affected===1?'':'s')+'.</div>'
+      + '<div class="pscope"><button class="pseg'+(p.scope==='sender'?' on':'')+'" data-act="scope" data-v="sender">This sender</button>'
+      + '<button class="pseg'+(p.scope==='domain'?' on':'')+'" data-act="scope" data-v="domain">Anyone @'+esc(p.domain)+'</button></div>'
       + '<div class="pacts"><button class="btn pri" data-act="applyrule">Apply rule</button>'
       + '<button class="btn" data-act="dismissrule">Just this one</button></div></div>';
   }
@@ -371,7 +379,9 @@
         + '<div class="seghead">Labels · AI-assigned, you correct</div>'
         + (state.labels||[]).map(function(l){ return '<div class="catrow"><span class="grip">#</span><span class="cdot" style="background:'+l.color+'"></span><span><span class="cnm">'+esc(l.name)+'</span><br><span class="ccount">'+labelCount(l.id)+' mails</span></span></div>'; }).join('')
         + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="newlabeldef">+ Add a label</button>'
-        + ((state.labelRules&&state.labelRules.length) ? '<div class="seghead">Learned from your fixes</div>'+state.labelRules.map(function(r){ var l=labelById(r.labelId); return '<div class="rule">Mail from <b>'+esc(r.sender)+'</b> '+(r.action==='add'?'→ tag':'✗ not')+' <b style="color:'+(l?l.color:'#888')+'">'+(l?esc(l.name):esc(r.labelId))+'</b></div>'; }).join('') : '')
+        + '<div class="seghead">Label rules · learned + yours</div>'
+        + ((state.labelRules&&state.labelRules.length) ? state.labelRules.map(function(r){ var l=labelById(r.labelId); var who=r.scope==='domain'?('@'+r.value):r.value; return '<div class="rule">Mail from <b>'+esc(who)+'</b> '+(r.action==='add'?'→ tag':'✗ don’t tag')+' <b style="color:'+(l?l.color:'#888')+'">'+(l?esc(l.name):esc(r.labelId))+'</b></div>'; }).join('') : '<div class="rule" style="color:var(--ink-3)">No rules yet — fix a label on any email, or add one below.</div>')
+        + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addrulelabel">+ Add a label rule</button>'
         + '<div class="seghead">Rules</div>'
         + '<div class="rule"><b>Emails from my boss</b> are always <b style="color:var(--c-urgent)">Urgent</b></div>'
         + '<div class="rule"><b>Anything from klm.com</b> → <b style="color:var(--c-ticket)">Tickets</b></div>'
@@ -498,12 +508,14 @@
         render(); break;
       }
       case 'fixlabel': { fixLabel(id, el.getAttribute('data-label')); render(); break; }
+      case 'scope': { if(pendingProposal){ pendingProposal.scope = el.getAttribute('data-v'); } render(); break; }
       case 'applyrule': {
         if(pendingProposal){ var p=pendingProposal;
-          learnRule(p.sender, p.labelId, p.action);
-          var n = applyRule(p.sender, p.labelId, p.action);
+          var rule = { scope:p.scope, value:(p.scope==='domain'?p.domain:p.sender), labelId:p.labelId, action:p.action };
+          learnRule(rule);
+          var n = applyRule(rule);
           apiPost('/api/messages/'+p.msgId+'/labels', { label_id: p.labelId }); // learns server-side when live
-          toast('Rule saved · applied to '+n+' mail'+(n===1?'':'s')+' from '+p.sender);
+          toast('Rule saved · applied to '+n+' mail'+(n===1?'':'s')+(p.scope==='domain'?(' @'+p.domain):(' from '+p.sender)));
           pendingProposal = null;
         }
         render(); break;
@@ -537,6 +549,25 @@
         render(); break;
       }
       case 'taskdone': { var tk=(state.tasks||[]).filter(function(x){ return x.id===id; })[0]; if(tk){ tk.done=!tk.done; } render(); break; }
+      case 'addrulelabel': {
+        var who = window.prompt('Auto-label mail from — a sender name, or @domain (e.g. @acme.com):');
+        if(who && who.trim()){
+          who = who.trim();
+          var isDomain = who.charAt(0)==='@';
+          var scope = isDomain ? 'domain' : 'sender';
+          var value = isDomain ? who.slice(1) : who;
+          var lname = window.prompt('…with label:');
+          if(lname && lname.trim()){
+            var lab = (state.labels||[]).filter(function(x){ return x.name.toLowerCase()===lname.trim().toLowerCase(); })[0];
+            if(!lab){ lab = { id:slug(lname)+'-'+(Date.now()%1000), name:lname.trim(), color:CUSTOM_COLORS[state.labels.length % CUSTOM_COLORS.length] }; state.labels.push(lab); }
+            var rule = { scope:scope, value:value, labelId:lab.id, action:'add' };
+            learnRule(rule);
+            var n = applyRule(rule);
+            toast('Rule added · '+n+' mail'+(n===1?'':'s')+' tagged');
+          }
+        }
+        render(); break;
+      }
     }
   }
   function back(){
@@ -546,13 +577,40 @@
   }
 
   // ---------- events ----------
+  var suppressClick = false;
+  function cardIdOf(node){ var c = node.closest && node.closest('.card'); if(!c) return null; var nv=c.getAttribute('data-nav')||''; return nv.indexOf('#/m/')===0 ? nv.slice(4) : null; }
   document.addEventListener('click', function(e){
+    if(suppressClick){ suppressClick=false; e.preventDefault(); return; }  // ignore the click that ends a swipe
     var navEl = e.target.closest('[data-nav]');
     var actEl = e.target.closest('[data-act]');
     if(actEl){ e.preventDefault(); handleAct(actEl.getAttribute('data-act'), actEl); return; }
     if(navEl){ e.preventDefault(); var to = navEl.getAttribute('data-nav'); if(location.hash===to) render(); else location.hash = to; }
   });
   window.addEventListener('hashchange', render);
+
+  // swipe an email card: left = archive, right = snooze
+  var sw = null;
+  document.addEventListener('touchstart', function(e){
+    var c = e.target.closest('.card'); var id = c && cardIdOf(c);
+    sw = id ? { c:c, id:id, x:e.touches[0].clientX, y:e.touches[0].clientY, dx:0, moved:false } : null;
+  }, { passive:true });
+  document.addEventListener('touchmove', function(e){
+    if(!sw) return;
+    var dx = e.touches[0].clientX - sw.x, dy = e.touches[0].clientY - sw.y;
+    if(!sw.moved && Math.abs(dx) < Math.abs(dy)){ sw = null; return; }   // vertical scroll — bail
+    sw.moved = true; sw.dx = dx;
+    sw.c.style.transition = 'none';
+    sw.c.style.transform = 'translateX(' + dx + 'px)';
+    sw.c.style.opacity = String(Math.max(0.35, 1 - Math.abs(dx) / 240));
+  }, { passive:true });
+  document.addEventListener('touchend', function(){
+    if(!sw) return; var s = sw; sw = null;
+    if(!s.moved) return;
+    suppressClick = true; setTimeout(function(){ suppressClick = false; }, 400);
+    if(s.dx < -70){ archive(s.id, 'Archived'); render(); }
+    else if(s.dx > 70){ archive(s.id, 'Snoozed'); render(); }
+    else { s.c.style.transition = 'transform .2s, opacity .2s'; s.c.style.transform = ''; s.c.style.opacity = ''; }
+  });
 
   // ---------- data bootstrap (API with fixtures fallback) ----------
   function apiPost(path, body){

@@ -199,5 +199,16 @@
   };
   messages.forEach(function (m) { if (BODIES[m.id]) m.body = BODIES[m.id]; });
 
+  // sender domain (used when you scope a label rule to "anyone @domain")
+  const SENDER_DOMAIN = {
+    'Sarah Bennett': 'northwind.co', 'Maya Patel': 'northwind.co', 'Finance team': 'northwind.co',
+    'Tomás Krause': 'acme.com', 'Jordan Lee': 'gmail.com', 'KLM': 'klm.com', 'Booking.com': 'booking.com',
+    'Ticketmaster': 'ticketmaster.com', 'Apple': 'apple.com', 'Zalando': 'zalando.com', 'Uber Receipts': 'uber.com',
+    'PostNL': 'postnl.nl', 'DHL Parcel': 'dhl.com', 'Amazon': 'amazon.com', 'Stratechery': 'stratechery.com',
+    'Morning Brew': 'morningbrew.com', 'The Long Read': 'longread.com', "Dr. Reyes' office": 'reyesclinic.nl',
+    'AWS Billing': 'aws.amazon.com', 'Alex (recruiter)': 'talenthub.io', 'Prize Draw': 'promo-spam.co'
+  };
+  messages.forEach(function (m) { m.domain = SENDER_DOMAIN[m.from] || (m.from.toLowerCase().replace(/[^a-z0-9]+/g,'') + '.example'); });
+
   window.MAILAI_FIXTURES = { accounts, categories, labels, messages };
 })();

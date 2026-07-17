@@ -9,13 +9,13 @@ Last updated: 2026-07-16
 
 | # | Question | Context / options | Status |
 |---|----------|-------------------|--------|
-| Q1 | **Rule scope: sender vs domain** | When you fix a label, the proposed rule is keyed by **sender** ("mail from Tomás Krause"). Should we also offer **by domain** ("anyone @acme.com") or **by subject keyword**? | **Open** — user asked to keep for later |
+| Q1 | **Rule scope: sender vs domain** | ✅ Built (demo): the proposal now lets you pick **This sender** or **Anyone @domain**; plus an explicit "Add a label rule" in Settings. Backend still applies rules by sender — domain-scope server-side is a follow-up. Subject-keyword scope still open. | Done (demo); backend follow-up |
 | Q2 | **Auto-apply labels by fixed rule** | Besides learning from corrections, allow explicit user rules ("anything from @acme.com → Acme Corp") applied deterministically before the AI guess? | Open |
 | Q3 | **Rule management UI** | Where to view/edit/delete learned + manual rules (currently read-only list in Settings). Undo a learned rule? | Open |
 | Q4 | **How autonomous?** | Should MailAI ever send/archive/delete/unsubscribe without an explicit tap? Current default: suggestion-only. | Leaning suggestion-only; confirm |
 | Q5 | **Category vs label overlap for tickets/receipts** | Retail receipts → `purchase`; reservations/boarding → `ticket`; trips → `travel`. Confirm boundaries. | Proposed, needs sign-off (#24, #26) |
 | Q6 | **Custom-category limit** | Soft cap on number of active cockpit categories before classification gets ambiguous/costly? | Open (suggested ~5–6) |
-| Q7 | **Snooze / swipe actions** | Spec mentions swipe-to-Archive/Delete/Snooze; not built in the demo yet. Priority? | Deferred |
+| Q7 | **Snooze / swipe actions** | ✅ Built (demo): swipe a card **left = archive**, **right = snooze**. Snooze currently just hides it; real snooze-until-time is a follow-up. | Done (demo); timed snooze follow-up |
 | Q8 | **Label cockpit depth** | Per-label cockpit buckets = Needs attention / Reply / Waiting / Info (+ tasks). Are these the right buckets, or add e.g. Money (invoices/purchases) per customer? | **Being built** — feedback wanted |
 
 ## Technical decisions to make (before real use)

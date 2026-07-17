@@ -141,9 +141,18 @@ def _messages():
         "m13": "Your trip is confirmed.\n\nAMS → JFK · 22 Jul · departs 10:05\nReturn · 26 Jul\nOnline check-in opens 23 Jul.\n\nSee you on board,\nKLM",
         "m20": "Hi team,\n\nFollowing up on the vendor invoice approval — we still need sign-off to release payment before month-end. Let me know if anything is blocking it.\n\nThanks",
     }
+    domains = {
+        "Sarah Bennett": "northwind.co", "Maya Patel": "northwind.co", "Finance team": "northwind.co",
+        "Tomás Krause": "acme.com", "Jordan Lee": "gmail.com", "KLM": "klm.com", "Booking.com": "booking.com",
+        "Ticketmaster": "ticketmaster.com", "Apple": "apple.com", "Zalando": "zalando.com", "Uber Receipts": "uber.com",
+        "PostNL": "postnl.nl", "DHL Parcel": "dhl.com", "Amazon": "amazon.com", "Stratechery": "stratechery.com",
+        "Morning Brew": "morningbrew.com", "The Long Read": "longread.com", "Dr. Reyes' office": "reyesclinic.nl",
+        "AWS Billing": "aws.amazon.com", "Alex (recruiter)": "talenthub.io", "Prize Draw": "promo-spam.co",
+    }
     for msg in m:
         msg["account"] = _ACCT.get(msg["id"], "private")
         msg["labels"] = list(_LABELS.get(msg["id"], []))
+        msg["domain"] = domains.get(msg["from"], "")
         if msg["id"] in extracted:
             msg["extracted"] = extracted[msg["id"]]
         if msg["id"] in bodies:
