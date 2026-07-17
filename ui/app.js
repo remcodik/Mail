@@ -197,9 +197,8 @@
     else if(id==='ticket'){ body = '<div class="list">'+ms.map(ticketCardHTML).join('')+'</div>'; }
     else { body = '<div class="list">'+ms.map(cardHTML).join('')+'</div>'; }
     return {
-      top: '<button class="back" data-nav="#/">'+svg('<path d="M15 18l-6-6 6-6"/>',16)+' Cockpit</button>'
-         + '<h1>'+esc(cat.name)+'</h1>',
-      withBack: true,
+      top: '<h1>'+esc(cat.name)+'</h1>',
+      withBack: false,
       tabs: acctSwitcher() + '<div class="tabs">'+tabs+'</div>',
       body: body,
       nav: 'cockpit'
@@ -217,8 +216,8 @@
     var body = '<div class="focusdesc">'+desc+'</div>'
       + (ms.length ? '<div class="list">'+ms.map(cardHTML).join('')+'</div>' : '<div class="empty">Nothing here right now.</div>');
     return {
-      top: '<button class="back" data-nav="#/">'+svg('<path d="M15 18l-6-6 6-6"/>',16)+' Cockpit</button><h1>'+title+'</h1>',
-      withBack: true, tabs: acctSwitcher(), body: body, nav: 'cockpit'
+      top: '<h1>'+title+'</h1>',
+      withBack: false, tabs: acctSwitcher(), body: body, nav: 'cockpit'
     };
   }
 
@@ -262,10 +261,9 @@
     var taskBlock = tasks.length ? '<div class="seghead" style="padding-left:14px">Tasks · '+esc(l.name)+'</div><div class="list" style="padding-top:0">'+tasks.slice(0,4).map(taskRow).join('')+'</div>' : '';
 
     return {
-      top: '<button class="back" data-nav="#/">'+svg('<path d="M15 18l-6-6 6-6"/>',16)+' Cockpit</button>'
-         + '<h1><span class="lbl" style="--lc:'+l.color+';font-size:.82em;vertical-align:middle">'+esc(l.name)+'</span></h1>'
+      top: '<h1><span class="lbl" style="--lc:'+l.color+';font-size:.82em;vertical-align:middle">'+esc(l.name)+'</span></h1>'
          + '<div class="sub">'+ms.length+' mail'+(ms.length===1?'':'s')+(money?(' · €'+money.toFixed(0)):'')+(tasks.length?(' · '+tasks.length+' task'+(tasks.length===1?'':'s')):'')+'</div>',
-      withBack: true,
+      withBack: false,
       tabs: acctSwitcher(),
       body: '<div class="hero" style="background:linear-gradient(135deg,'+l.color+',color-mix(in srgb,'+l.color+' 50%,#0b1220))">'
           + '<button class="hstat" data-nav="#/label/'+id+'/need"><div class="big">'+needYou+'</div><div class="hl">need you ›</div></button>'
@@ -297,11 +295,11 @@
       parts.push('<div class="ticket '+t.style+'"><div class="tt">'+esc(t.tt)+'</div><div class="ev">'+esc(t.ev)+'</div><div class="grid">'+grid+'</div>'+(t.code?'<div class="code"></div>':'')+'</div>');
       parts.push('<button class="wallet-btn" data-act="wallet" data-id="'+m.id+'">'+svg('<path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3H4z"/><path d="M4 11h16v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/>',14)+' Add to Apple Wallet</button>');
     }
-    if(m.summary){
-      parts.push('<div class="panel ai"><p class="h">'+SPARK+' AI summary</p><p>'+esc(m.summary)+'</p></div>');
-    } else {
-      parts.push('<div class="panel"><p class="h">Message</p><p>'+esc(m.snippet)+'</p></div>');
-    }
+    // short AI summary (always) + the actual email text below it
+    parts.push('<div class="panel ai"><p class="h">'+SPARK+' AI summary</p><p>'+esc(m.summary || m.snippet)+'</p></div>');
+    var bodyText = m.body || m.snippet || '';
+    parts.push('<details class="panel mailpanel" open><summary class="h">Full email</summary>'
+      + '<div class="mailbody">'+esc(bodyText).replace(/\n/g,'<br>')+'</div></details>');
     // labels — AI-assigned, tap to fix (the app learns from the change)
     var lblEditor = (state.labels||[]).map(function(l){
       var on = (m.labels||[]).indexOf(l.id) >= 0;
@@ -363,8 +361,8 @@
         + '<button class="toggle'+(c.visible?'':' off')+'" data-act="togglecat" data-id="'+c.id+'" aria-label="toggle '+esc(c.name)+'"></button></div>';
     }).join('');
     return {
-      top: '<button class="back" data-nav="#/">'+svg('<path d="M15 18l-6-6 6-6"/>',16)+' Cockpit</button><h1>Categories &amp; rules</h1>',
-      withBack: true,
+      top: '<h1>Categories &amp; rules</h1>',
+      withBack: false,
       body: '<div class="view pad" style="padding-top:2px">'
         + '<div class="seghead">Mail accounts · kept separate</div>' + acctRows()
         + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addacct">+ Add a mail account</button>'

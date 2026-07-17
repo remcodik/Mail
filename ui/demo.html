@@ -212,6 +212,14 @@ a{color:inherit}
   border-radius:999px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50;max-width:88%;text-align:center}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
+/* full email body (collapsible) */
+.mailpanel{padding:13px}
+.mailpanel>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px}
+.mailpanel>summary::-webkit-details-marker{display:none}
+.mailpanel>summary::after{content:"▾";margin-left:auto;color:var(--ink-3);font-size:11px;transition:transform .15s}
+.mailpanel[open]>summary::after{transform:rotate(180deg)}
+.mailbody{font-size:12.5px;color:var(--ink);line-height:1.6;white-space:pre-wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+
 /* labels */
 .lbl{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;
   color:var(--lc,var(--ink-2));background:color-mix(in srgb,var(--lc,var(--ink-3)) 14%,transparent);border:1px solid transparent}
@@ -441,6 +449,21 @@ a{color:inherit}
   };
   messages.forEach(function (m) { m.labels = (LABELS[m.id] || []).slice(); });
 
+  // full email bodies (what you read when you open the mail); others fall back to snippet
+  const BODIES = {
+    m1: "Hi,\n\nThe board review is at 12:00 and the chair has specifically asked to see the revised Q3 revenue slide. Could you get me the updated numbers before then? I'll assemble the rest of the deck once yours land.\n\nThanks,\nSarah",
+    m2: "Dear patient,\n\nThis is a reminder of your appointment with Dr. Reyes tomorrow at 09:30. Please reply C to confirm or R to reschedule.\n\nKind regards,\nDr. Reyes' office",
+    m3: "Your AWS account has reached 90% of the $500 monthly budget you configured for July. Review your usage in the Billing console to avoid exceeding the limit.",
+    m4: "Hey!\n\nIt's been too long — would love to catch up over coffee next week. Are you around Tuesday or Wednesday afternoon? My treat.\n\nJordan",
+    m5: "Hi,\n\nI left a few comments in the onboarding doc — mostly on the welcome-screen wording. Could you take a look and share your thoughts by Friday?\n\nCheers,\nMaya",
+    m6: "Hi,\n\nPlease find the contract redlines attached. The main change is in section 4 (payment terms). Let me know if those terms work for you and I'll get it finalised.\n\nBest,\nTomás",
+    m7: "Your parcel 3SABC1234567890 is out for delivery and will arrive today between 13:00 and 15:00. Track it live or leave delivery instructions via the link in this email.",
+    m10: "Thank you for your purchase.\n\nOrder W1234567\niCloud+ 200GB (monthly) — €12.99\nBilled to Visa ···4471.\n\nApple",
+    m13: "Your trip is confirmed.\n\nAMS → JFK · 22 Jul · departs 10:05\nReturn · 26 Jul\nOnline check-in opens 23 Jul.\n\nSee you on board,\nKLM",
+    m20: "Hi team,\n\nFollowing up on the vendor invoice approval — we still need sign-off to release payment before month-end. Let me know if anything is blocking it.\n\nThanks"
+  };
+  messages.forEach(function (m) { if (BODIES[m.id]) m.body = BODIES[m.id]; });
+
   window.MAILAI_FIXTURES = { accounts, categories, labels, messages };
 })();
 
@@ -645,9 +668,8 @@ a{color:inherit}
     else if(id==='ticket'){ body = '<div class="list">'+ms.map(ticketCardHTML).join('')+'</div>'; }
     else { body = '<div class="list">'+ms.map(cardHTML).join('')+'</div>'; }
     return {
-      top: '<button class="back" data-nav="#/">'+svg('<path d="M15 18l-6-6 6-6"/>',16)+' Cockpit</button>'
-         + '<h1>'+esc(cat.name)+'</h1>',
-      withBack: true,
+      top: '<h1>'+esc(cat.name)+'</h1>',
+      withBack: false,
       tabs: acctSwitcher() + '<div class="tabs">'+tabs+'</div>',
       body: body,
       nav: 'cockpit'
@@ -665,8 +687,8 @@ a{color:inherit}
     var body = '<div class="focusdesc">'+desc+'</div>'
       + (ms.length ? '<div class="list">'+ms.map(cardHTML).join('')+'</div>' : '<div class="empty">Nothing here right now.</div>');
     return {
-      top: '<button class="back" data-nav="#/">'+svg('<path d="M15 18l-6-6 6-6"/>',16)+' Cockpit</button><h1>'+title+'</h1>',
-      withBack: true, tabs: acctSwitcher(), body: body, nav: 'cockpit'
+      top: '<h1>'+title+'</h1>',
+      withBack: false, tabs: acctSwitcher(), body: body, nav: 'cockpit'
     };
   }
 
@@ -710,10 +732,9 @@ a{color:inherit}
     var taskBlock = tasks.length ? '<div class="seghead" style="padding-left:14px">Tasks · '+esc(l.name)+'</div><div class="list" style="padding-top:0">'+tasks.slice(0,4).map(taskRow).join('')+'</div>' : '';
 
     return {
-      top: '<button class="back" data-nav="#/">'+svg('<path d="M15 18l-6-6 6-6"/>',16)+' Cockpit</button>'
-         + '<h1><span class="lbl" style="--lc:'+l.color+';font-size:.82em;vertical-align:middle">'+esc(l.name)+'</span></h1>'
+      top: '<h1><span class="lbl" style="--lc:'+l.color+';font-size:.82em;vertical-align:middle">'+esc(l.name)+'</span></h1>'
          + '<div class="sub">'+ms.length+' mail'+(ms.length===1?'':'s')+(money?(' · €'+money.toFixed(0)):'')+(tasks.length?(' · '+tasks.length+' task'+(tasks.length===1?'':'s')):'')+'</div>',
-      withBack: true,
+      withBack: false,
       tabs: acctSwitcher(),
       body: '<div class="hero" style="background:linear-gradient(135deg,'+l.color+',color-mix(in srgb,'+l.color+' 50%,#0b1220))">'
           + '<button class="hstat" data-nav="#/label/'+id+'/need"><div class="big">'+needYou+'</div><div class="hl">need you ›</div></button>'
@@ -745,11 +766,11 @@ a{color:inherit}
       parts.push('<div class="ticket '+t.style+'"><div class="tt">'+esc(t.tt)+'</div><div class="ev">'+esc(t.ev)+'</div><div class="grid">'+grid+'</div>'+(t.code?'<div class="code"></div>':'')+'</div>');
       parts.push('<button class="wallet-btn" data-act="wallet" data-id="'+m.id+'">'+svg('<path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3H4z"/><path d="M4 11h16v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/>',14)+' Add to Apple Wallet</button>');
     }
-    if(m.summary){
-      parts.push('<div class="panel ai"><p class="h">'+SPARK+' AI summary</p><p>'+esc(m.summary)+'</p></div>');
-    } else {
-      parts.push('<div class="panel"><p class="h">Message</p><p>'+esc(m.snippet)+'</p></div>');
-    }
+    // short AI summary (always) + the actual email text below it
+    parts.push('<div class="panel ai"><p class="h">'+SPARK+' AI summary</p><p>'+esc(m.summary || m.snippet)+'</p></div>');
+    var bodyText = m.body || m.snippet || '';
+    parts.push('<details class="panel mailpanel" open><summary class="h">Full email</summary>'
+      + '<div class="mailbody">'+esc(bodyText).replace(/\n/g,'<br>')+'</div></details>');
     // labels — AI-assigned, tap to fix (the app learns from the change)
     var lblEditor = (state.labels||[]).map(function(l){
       var on = (m.labels||[]).indexOf(l.id) >= 0;
@@ -811,8 +832,8 @@ a{color:inherit}
         + '<button class="toggle'+(c.visible?'':' off')+'" data-act="togglecat" data-id="'+c.id+'" aria-label="toggle '+esc(c.name)+'"></button></div>';
     }).join('');
     return {
-      top: '<button class="back" data-nav="#/">'+svg('<path d="M15 18l-6-6 6-6"/>',16)+' Cockpit</button><h1>Categories &amp; rules</h1>',
-      withBack: true,
+      top: '<h1>Categories &amp; rules</h1>',
+      withBack: false,
       body: '<div class="view pad" style="padding-top:2px">'
         + '<div class="seghead">Mail accounts · kept separate</div>' + acctRows()
         + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addacct">+ Add a mail account</button>'

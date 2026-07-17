@@ -129,11 +129,25 @@ def _messages():
         "m13": {"Trip": "Amsterdam → New York", "Depart": "22 Jul · 10:05", "Return": "26 Jul", "Check-in opens": "23 Jul"},
         "m14": {"Stay": "Hotel Pulitzer, Amsterdam", "Check-in": "22 Jul", "Check-out": "24 Jul", "Confirmation": "4471"},
     }
+    bodies = {
+        "m1": "Hi,\n\nThe board review is at 12:00 and the chair has specifically asked to see the revised Q3 revenue slide. Could you get me the updated numbers before then? I'll assemble the rest of the deck once yours land.\n\nThanks,\nSarah",
+        "m2": "Dear patient,\n\nThis is a reminder of your appointment with Dr. Reyes tomorrow at 09:30. Please reply C to confirm or R to reschedule.\n\nKind regards,\nDr. Reyes' office",
+        "m3": "Your AWS account has reached 90% of the $500 monthly budget you configured for July. Review your usage in the Billing console to avoid exceeding the limit.",
+        "m4": "Hey!\n\nIt's been too long — would love to catch up over coffee next week. Are you around Tuesday or Wednesday afternoon? My treat.\n\nJordan",
+        "m5": "Hi,\n\nI left a few comments in the onboarding doc — mostly on the welcome-screen wording. Could you take a look and share your thoughts by Friday?\n\nCheers,\nMaya",
+        "m6": "Hi,\n\nPlease find the contract redlines attached. The main change is in section 4 (payment terms). Let me know if those terms work for you and I'll get it finalised.\n\nBest,\nTomás",
+        "m7": "Your parcel 3SABC1234567890 is out for delivery and will arrive today between 13:00 and 15:00. Track it live or leave delivery instructions via the link in this email.",
+        "m10": "Thank you for your purchase.\n\nOrder W1234567\niCloud+ 200GB (monthly) — €12.99\nBilled to Visa ···4471.\n\nApple",
+        "m13": "Your trip is confirmed.\n\nAMS → JFK · 22 Jul · departs 10:05\nReturn · 26 Jul\nOnline check-in opens 23 Jul.\n\nSee you on board,\nKLM",
+        "m20": "Hi team,\n\nFollowing up on the vendor invoice approval — we still need sign-off to release payment before month-end. Let me know if anything is blocking it.\n\nThanks",
+    }
     for msg in m:
         msg["account"] = _ACCT.get(msg["id"], "private")
         msg["labels"] = list(_LABELS.get(msg["id"], []))
         if msg["id"] in extracted:
             msg["extracted"] = extracted[msg["id"]]
+        if msg["id"] in bodies:
+            msg["body"] = bodies[msg["id"]]
     return m
 
 

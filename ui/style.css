@@ -202,6 +202,14 @@ a{color:inherit}
   border-radius:999px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50;max-width:88%;text-align:center}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
+/* full email body (collapsible) */
+.mailpanel{padding:13px}
+.mailpanel>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px}
+.mailpanel>summary::-webkit-details-marker{display:none}
+.mailpanel>summary::after{content:"▾";margin-left:auto;color:var(--ink-3);font-size:11px;transition:transform .15s}
+.mailpanel[open]>summary::after{transform:rotate(180deg)}
+.mailbody{font-size:12.5px;color:var(--ink);line-height:1.6;white-space:pre-wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+
 /* labels */
 .lbl{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;
   color:var(--lc,var(--ink-2));background:color-mix(in srgb,var(--lc,var(--ink-3)) 14%,transparent);border:1px solid transparent}
