@@ -74,7 +74,13 @@ def _messages():
          "chip": "Reply needed", "summary": "Tomás needs you to review section 4 (payment terms) and confirm."},
         {"id": "m7", "cat": "delivery", "from": "PostNL", "initials": "PN", "av": "#EA580C", "time": "08:55",
          "subject": "Out for delivery — arrives 13:00–15:00", "snippet": "Parcel 3SABC1234567890 is on the van today.",
-         "chip": "Delivery", "ai": "Arrives today 13:00–15:00 · track live"},
+         "chip": "Delivery", "ai": "Arrives today 13:00–15:00 · track live", "group": "pkg1", "groupLatest": True},
+        {"id": "m7b", "cat": "delivery", "from": "PostNL", "initials": "PN", "av": "#EA580C", "time": "Yest 18:20",
+         "subject": "Shipped — on its way to you", "snippet": "Parcel 3SABC1234567890 has left the sorting centre.",
+         "chip": "Delivery", "group": "pkg1"},
+        {"id": "m7c", "cat": "delivery", "from": "PostNL", "initials": "PN", "av": "#EA580C", "time": "Mon 09:10",
+         "subject": "Label created — we’ll pick it up soon", "snippet": "The sender created a shipping label for parcel 3SABC1234567890.",
+         "chip": "Delivery", "group": "pkg1"},
         {"id": "m8", "cat": "delivery", "from": "DHL Parcel", "initials": "DH", "av": "#1E7FD6", "time": "Yest",
          "subject": "Ready for pickup — locker until 18 Jul", "snippet": "Collect at Albert Heijn, Overtoom 116 · locker 12. Code 8842.",
          "chip": "Pickup ready", "ai": "Pickup by 18 Jul · code 8842", "pickup": True},
@@ -149,10 +155,15 @@ def _messages():
         "Morning Brew": "morningbrew.com", "The Long Read": "longread.com", "Dr. Reyes' office": "reyesclinic.nl",
         "AWS Billing": "aws.amazon.com", "Alex (recruiter)": "talenthub.io", "Prize Draw": "promo-spam.co",
     }
+    groups = {"m13": "trip1", "m14": "trip1"}  # m7/m7b/m7c carry group inline above
     for msg in m:
         msg["account"] = _ACCT.get(msg["id"], "private")
         msg["labels"] = list(_LABELS.get(msg["id"], []))
         msg["domain"] = domains.get(msg["from"], "")
+        if msg["id"] in groups:
+            msg["group"] = groups[msg["id"]]
+        if msg["id"] == "m13":
+            msg["groupLatest"] = True
         if msg["id"] in extracted:
             msg["extracted"] = extracted[msg["id"]]
         if msg["id"] in bodies:

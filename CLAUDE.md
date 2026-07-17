@@ -77,6 +77,21 @@ Claude classifies every email into one of:
   **Needs attention · To reply · Waiting · Just info**, plus that label's open
   tasks and a "top of the pile" preview; each bucket drills into a filtered list.
 
+## Grouping (threads by "thing")
+
+Mail about the **same item** collapses into one card showing the **latest**, with
+the earlier ones collapsed beneath (tap to expand). Grouped by the detector key —
+delivery `tracking_number`, purchase `order_id`, travel `trip_id`, ticket
+confirmation — so all updates for one parcel/order/trip read as a single entry.
+
+## Archive cockpit
+
+A dedicated screen (bottom nav → **Archive**) showing **filed** mail still
+categorized (a tile per category), with **per-item delete, per-category
+delete-all, and Empty archive**. A **Snoozed** section lists snoozed mail with
+its wake time and a **Wake now** action. So you can delete directly, or file
+first and clear it out here in bulk.
+
 ## Archive vs delete
 
 - **Archive ("file it")** removes a mail from the cockpit (tiles, counts, category

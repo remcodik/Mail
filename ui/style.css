@@ -207,6 +207,15 @@ a{color:inherit}
   border-radius:999px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50;max-width:88%;text-align:center}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
+/* grouped mail (same parcel/order/trip) */
+.grp{display:flex;flex-direction:column}
+.grp-toggle{align-self:stretch;font-size:11px;font-weight:700;color:var(--accent-ink);background:transparent;border:0;border-top:1px dashed var(--line);padding:8px;text-align:center}
+.grp-more{display:flex;flex-direction:column;gap:9px;margin-top:9px;padding-left:10px;border-left:2px solid var(--line)}
+.grp-more .card{opacity:.82}
+/* archive rows */
+.arow{display:flex;flex-direction:column;gap:6px}
+.arow-del{padding:8px}
+
 /* full email body (collapsible) */
 .mailpanel{padding:13px}
 .mailpanel>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px}

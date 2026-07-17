@@ -77,6 +77,12 @@
       subject: 'Out for delivery — arrives 13:00–15:00',
       snippet: 'Parcel 3SABC1234567890 is on the van today. Track it live or leave delivery instructions.',
       chip: 'Delivery', ai: 'Arrives today 13:00–15:00 · track live' },
+    { id: 'm7b', cat: 'delivery', from: 'PostNL', initials: 'PN', av: '#EA580C', time: 'Yest 18:20',
+      subject: 'Shipped — on its way to you',
+      snippet: 'Parcel 3SABC1234567890 has left the sorting centre and is expected tomorrow.', chip: 'Delivery' },
+    { id: 'm7c', cat: 'delivery', from: 'PostNL', initials: 'PN', av: '#EA580C', time: 'Mon 09:10',
+      subject: 'Label created — we’ll pick it up soon',
+      snippet: 'The sender created a shipping label for parcel 3SABC1234567890.', chip: 'Delivery' },
     { id: 'm8', cat: 'delivery', from: 'DHL Parcel', initials: 'DH', av: '#1E7FD6', time: 'Yest',
       subject: 'Ready for pickup — locker until 18 Jul',
       snippet: 'Collect at Albert Heijn, Overtoom 116 · locker 12. Bring ID and code 8842.',
@@ -209,6 +215,12 @@
     'AWS Billing': 'aws.amazon.com', 'Alex (recruiter)': 'talenthub.io', 'Prize Draw': 'promo-spam.co'
   };
   messages.forEach(function (m) { m.domain = SENDER_DOMAIN[m.from] || (m.from.toLowerCase().replace(/[^a-z0-9]+/g,'') + '.example'); });
+
+  // grouping: mail about the same thing (parcel, trip…) collapses into one card.
+  // `groupLatest` marks the message shown on top; the rest collapse beneath.
+  const GROUP = { m7: 'pkg1', m7b: 'pkg1', m7c: 'pkg1', m13: 'trip1', m14: 'trip1' };
+  const GROUP_LATEST = { m7: true, m13: true };
+  messages.forEach(function (m) { if (GROUP[m.id]) { m.group = GROUP[m.id]; if (GROUP_LATEST[m.id]) m.groupLatest = true; } });
 
   window.MAILAI_FIXTURES = { accounts, categories, labels, messages };
 })();

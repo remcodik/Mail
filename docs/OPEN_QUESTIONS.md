@@ -15,7 +15,9 @@ Last updated: 2026-07-16
 | Q4 | **How autonomous?** | Should MailAI ever send/archive/delete/unsubscribe without an explicit tap? Current default: suggestion-only. | Leaning suggestion-only; confirm |
 | Q5 | **Category vs label overlap for tickets/receipts** | Retail receipts → `purchase`; reservations/boarding → `ticket`; trips → `travel`. Confirm boundaries. | Proposed, needs sign-off (#24, #26) |
 | Q6 | **Custom-category limit** | Soft cap on number of active cockpit categories before classification gets ambiguous/costly? | Open (suggested ~5–6) |
-| Q7 | **Snooze / swipe actions** | ✅ Built (demo): swipe a card **left = archive**, **right = snooze**. Snooze currently just hides it; real snooze-until-time is a follow-up. | Done (demo); timed snooze follow-up |
+| Q7 | **Snooze / swipe actions** | ✅ Built (demo): swipe **left = archive**, **right = snooze** with a **timed chooser** (Later today / Tomorrow / Weekend / Next week); snoozed mail sits in the Archive cockpit with **Wake now**. Real clock-based auto-return is a backend follow-up. | Done (demo); auto-return follow-up |
+| Q9 | **Grouping related mail** | ✅ Built (demo): mail sharing a parcel/order/trip collapses into one card (latest on top, rest under a toggle). Grouping is by an inline `group` key in the demo; live grouping keys off detector fields (tracking/order/trip id). | Done (demo); live keying follow-up |
+| Q10 | **Archive cockpit** | ✅ Built (demo): filed mail stays categorized under a dedicated Archive tab with per-item / per-category / empty-all delete, plus a Snoozed section. | Done (demo) |
 | Q8 | **Label cockpit depth** | Per-label cockpit buckets = Needs attention / Reply / Waiting / Info (+ tasks). Are these the right buckets, or add e.g. Money (invoices/purchases) per customer? | **Being built** — feedback wanted |
 
 ## Technical decisions to make (before real use)
