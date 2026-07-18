@@ -31,6 +31,27 @@ def _cat_name(user_id: str, cat_id: str) -> str:
     return cat_id.title()
 
 
+def gmail_label_names(user_id: str, msg: dict) -> list[str]:
+    """The Gmail labels a message mirrors to: the category as the "main" label,
+    then each cross-cutting label — all namespaced under "MailAI/". Mirrors the
+    UI's gmailLabelNames() so app and Gmail agree."""
+    names = ["MailAI/" + msg.get("chip", _cat_name(user_id, msg.get("cat", "mail")))]
+    id2name = {l["id"]: l["name"] for l in store.labels(user_id)}
+    for lid in msg.get("labels", []):
+        names.append("MailAI/" + id2name.get(lid, lid))
+    return names
+
+
+def mirror_to_gmail(client: GmailClient, gmail_message_id: str, label_names: list[str]) -> None:
+    """Ensure each label exists in Gmail and apply it to the message. Live only;
+    best-effort — a mirror failure must never break the sync."""
+    for name in label_names:
+        try:
+            client.apply_label(gmail_message_id, client.ensure_label(name))
+        except Exception:
+            pass
+
+
 def process_account(user_id: str, account_id: str, max_results: int = 25) -> int:
     """Classify + summarize new inbox mail for one account. Returns count processed."""
     token = store.get_token(user_id, account_id)
@@ -38,6 +59,7 @@ def process_account(user_id: str, account_id: str, max_results: int = 25) -> int
         raise RuntimeError(f"no OAuth token for account {account_id}")
     client = GmailClient(user_id, account_id, token)
     valid = {c["id"] for c in store.categories(user_id)}
+    mirror = store.get_settings(user_id).get("mirror_gmail", False)
     # First connect: file all existing mail to the Archive so the cockpit starts
     # clean. Later syncs bring genuinely new mail into the cockpit.
     first_sync = len(store.messages(user_id, account=account_id, include_archived=True)) == 0
@@ -64,6 +86,9 @@ def process_account(user_id: str, account_id: str, max_results: int = 25) -> int
             if extracted:
                 msg["extracted"] = extracted
         store.upsert_message(user_id, msg)
+        # mirror category + labels into Gmail as "MailAI/…" labels, if the user opted in
+        if mirror and not msg.get("archived"):
+            mirror_to_gmail(client, mid, gmail_label_names(user_id, msg))
         processed += 1
     return processed
 

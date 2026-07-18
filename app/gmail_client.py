@@ -62,6 +62,35 @@ class GmailClient:
         self._service().users().messages().modify(
             userId="me", id=message_id, body={"addLabelIds": [label_id]}).execute()
 
+    def remove_label(self, message_id: str, label_id: str) -> None:
+        self._service().users().messages().modify(
+            userId="me", id=message_id, body={"removeLabelIds": [label_id]}).execute()
+
+    def ensure_label(self, name: str) -> str:
+        """Return the Gmail label id for `name` (e.g. "MailAI/Urgent"), creating it
+        — and any parent like "MailAI" — if it doesn't exist yet. Nesting is by "/"."""
+        svc = self._service()
+        existing = {l["name"]: l["id"] for l in
+                    svc.users().labels().list(userId="me").execute().get("labels", [])}
+        if name in existing:
+            return existing[name]
+        # create parents first so Gmail nests the label under a collapsible "MailAI/"
+        parts = name.split("/")
+        label_id = ""
+        for i in range(len(parts)):
+            path = "/".join(parts[: i + 1])
+            if path in existing:
+                label_id = existing[path]
+                continue
+            created = svc.users().labels().create(userId="me", body={
+                "name": path,
+                "labelListVisibility": "labelShow",
+                "messageListVisibility": "show",
+            }).execute()
+            existing[path] = created["id"]
+            label_id = created["id"]
+        return label_id
+
 
 # ---- parsing helpers ----
 def _display_name(sender: str) -> str:

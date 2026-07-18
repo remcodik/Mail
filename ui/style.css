@@ -154,6 +154,15 @@ a{color:inherit}
 .btnrow{display:flex;gap:7px;margin-top:10px}
 .btn{flex:1;text-align:center;font-size:12.5px;font-weight:650;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
 .btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+/* sign-in screen (live mode, before a session exists) */
+.signin{min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;
+  gap:14px;padding:32px 26px;max-width:420px;margin:0 auto}
+.signin .brand{font-weight:800;display:inline-flex;align-items:center;gap:7px;color:var(--ink-2)}
+.signin h1{font-size:26px;line-height:1.2;margin:2px 0}
+.signin .lede{color:var(--ink-2);font-size:14px;line-height:1.5}
+.signin .gsign{flex:none;display:inline-flex;align-items:center;justify-content:center;gap:9px;
+  font-size:15px;padding:13px 22px;border-radius:12px;text-decoration:none;margin-top:6px}
+.signin .fine{color:var(--ink-3);font-size:11.5px;line-height:1.5;margin-top:8px}
 .btn.ghost{background:transparent}
 .btn.danger{color:var(--c-urgent);border-color:color-mix(in srgb,var(--c-urgent) 40%,var(--line))}
 .btn.wide{width:100%;flex:none}
@@ -248,6 +257,12 @@ a{color:inherit}
 .lbledit .lbl.on{border:1px solid color-mix(in srgb,var(--lc) 45%,transparent)}
 .lbledit .lbl.new{color:var(--accent-ink);background:transparent;border:1px dashed var(--line)}
 .lbledit .lbl.new::before{content:""}
+/* Gmail-label preview chips (read-only, path-style) */
+.lbl.gmail{font-family:ui-monospace,monospace;font-weight:600;color:var(--ink-2);
+  background:color-mix(in srgb,#EA4335 8%,transparent);border:1px solid color-mix(in srgb,#EA4335 22%,transparent);cursor:default}
+.lbl.gmail::before{content:"";width:6px;height:6px;border-radius:2px;background:color-mix(in srgb,#EA4335 55%,var(--ink-3));opacity:.7}
+.lbl.gmail.main{color:#B3261E;font-weight:700;background:color-mix(in srgb,#EA4335 15%,transparent);border-color:color-mix(in srgb,#EA4335 38%,transparent)}
+.lbl.gmail.main::before{background:#EA4335;opacity:1}
 
 /* mini add-to-task button on extracted tasks */
 .miniadd{flex:none;font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;border:1px solid color-mix(in srgb,var(--accent) 40%,var(--line));background:transparent;color:var(--accent-ink);align-self:flex-start}

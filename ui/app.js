@@ -66,6 +66,18 @@
   }
   function labelCount(id){ return state.messages.filter(function(m){ return isActive(m) && inSel(m) && (m.labels||[]).indexOf(id)>=0; }).length; }
 
+  // ---- mirror to Gmail: categories + labels become Gmail labels under "MailAI/" ----
+  var MIRROR_KEY = 'mailai-mirror-gmail-v1';
+  function loadMirror(){ try { return localStorage.getItem(MIRROR_KEY) === '1'; } catch(e){ return false; } }
+  function saveMirror(){ try { localStorage.setItem(MIRROR_KEY, state.mirrorGmail ? '1' : '0'); } catch(e){} }
+  // category → the "main" Gmail label (exactly one); labels → extra Gmail labels.
+  function gmailLabelNames(m){
+    var c = catById(m.cat);
+    var out = ['MailAI/' + (c ? c.name : m.cat)];
+    (m.labels||[]).forEach(function(id){ var l = labelById(id); if(l) out.push('MailAI/' + l.name); });
+    return out;
+  }
+
   var LEARN_KEY = 'mailai-learn-v2';
   function loadLearned(){
     try {
@@ -435,6 +447,12 @@
     }).join('');
     parts.push('<div class="panel"><p class="h">'+SPARK+' Category · tap to fix</p><div class="lbledit">'+catEditor+'</div>'
       + '<div class="ai-note" style="margin-top:8px">Wrong bucket? Tap the right one — I learn from it.</div></div>');
+    // if Gmail sync is on, show exactly which Gmail labels this mail gets
+    if(state.mirrorGmail){
+      parts.push('<div class="panel"><p class="h">'+svg('<path d="M3 6l9 6 9-6"/><rect x="3" y="5" width="18" height="14" rx="2"/>',13)+' In Gmail</p><div class="lbledit">'
+        + gmailLabelNames(m).map(function(n,i){ return '<span class="lbl gmail'+(i===0?' main':'')+'">'+esc(n)+'</span>'; }).join('')
+        + '</div><div class="ai-note" style="margin-top:8px">These appear on this mail in the Gmail app too. The <b>first</b> is the main label (your category); the rest are your labels.</div></div>');
+    }
     if(m.extracted){
       var kv = Object.keys(m.extracted).map(function(k){
         return '<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--line);font-size:12.5px">'
@@ -532,6 +550,12 @@
         + '<div class="seghead">Cockpit</div>'
         + '<div class="rule" style="color:var(--ink-2)">New mail lands in the cockpit. <b>File everything</b> to start clean — archived mail stays under its labels and in the Archive tab, and you can move any of it back to the cockpit anytime.</div>'
         + '<button class="btn wide danger" data-act="emptycockpit" style="border-style:dashed">File everything to Archive (empty cockpit)</button>'
+        + '<div class="seghead">Show in Gmail</div>'
+        + '<div class="catrow"><span class="cdot" style="background:#EA4335">'+svg('<path d="M3 6l9 6 9-6"/><rect x="3" y="5" width="18" height="14" rx="2"/>',13)+'</span>'
+        +   '<span><span class="cnm">Mirror categories &amp; labels to Gmail</span><br>'
+        +   '<span class="ccount">Adds them as Gmail labels under <b>MailAI/</b> — visible in the Gmail app &amp; search</span></span>'
+        +   '<button class="toggle'+(state.mirrorGmail?'':' off')+'" data-act="togglemirror" aria-label="toggle Gmail sync"></button></div>'
+        + '<div class="rule" style="color:var(--ink-2)">'+SPARK+'Your <b>category</b> becomes the main label (e.g. <b>MailAI/Urgent</b>) — one per mail; each <b>label</b> is added too (e.g. <b>MailAI/Acme Corp</b>). Everything groups under one <b>MailAI/</b> parent you can collapse or remove in Gmail in a single step. Off by default — nothing is written to Gmail until you turn this on (and, live, connect an account).</div>'
         + '<div class="seghead">Mail accounts · kept separate</div>' + acctRows()
         + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addacct">+ Add a mail account</button>'
         + '<div class="seghead">Cockpit categories · toggle to show/hide</div>'+rows
@@ -680,6 +704,7 @@
         render(); break;
       }
       case 'togglecat': { var cat=catById(id); if(cat){ cat.visible=!cat.visible; apiPost('/api/categories/'+id+'/visibility',{visible:cat.visible}); } render(); break; }
+      case 'togglemirror': { state.mirrorGmail=!state.mirrorGmail; saveMirror(); apiPost('/api/settings/mirror',{enabled:state.mirrorGmail}); toast(state.mirrorGmail?'Gmail sync on · these show as labels in Gmail':'Gmail sync off'); render(); break; }
       case 'addcat': {
         var name = window.prompt('New category name (e.g. Finance & bills):');
         if(name && name.trim()){
@@ -879,17 +904,32 @@
     // learned rules survive reloads (localStorage) and re-apply on load
     state.labelRules = loadLearned();
     state.catRules = loadCatRules();
+    state.mirrorGmail = (data.settings && data.settings.mirror_gmail) || loadMirror();
     state.demoNow = 0;
     recomputeAll();
     render();
+  }
+  function showSignIn(){
+    var root = document.getElementById('root');
+    root.innerHTML = '<div class="signin">'
+      + '<div class="brand"><span class="dot"></span> MailAI</div>'
+      + '<h1>Your inbox, on autopilot</h1>'
+      + '<p class="lede">Sign in with the Google account you want MailAI to manage. That account becomes your login.</p>'
+      + '<a class="btn pri gsign" href="/api/login">'+svg('<path d="M3 6l9 6 9-6"/><rect x="3" y="5" width="18" height="14" rx="2"/>',16)+' Sign in with Google</a>'
+      + '<p class="fine">MailAI only reads the mailboxes you connect, and never sends or deletes without you tapping. You can revoke access anytime in your Google account settings.</p>'
+      + '</div>';
   }
   function load(){
     var http = location.protocol === 'http:' || location.protocol === 'https:';
     if(!http || !window.fetch){ boot(window.MAILAI_FIXTURES); return; }
     fetch('/api/inbox', { credentials:'same-origin' })
-      .then(function(r){ if(!r.ok) throw 0; return r.json(); })
-      .then(function(d){ API_OK = true; boot(d); })
-      .catch(function(){ boot(window.MAILAI_FIXTURES); });
+      .then(function(r){
+        if(r.status===401){ showSignIn(); return null; }   // live + not signed in
+        if(!r.ok) throw 0;
+        return r.json();
+      })
+      .then(function(d){ if(d){ API_OK = true; boot(d); } })
+      .catch(function(){ boot(window.MAILAI_FIXTURES); });   // offline / static prototype
   }
   load();
 })();

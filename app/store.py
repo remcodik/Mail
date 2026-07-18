@@ -34,6 +34,7 @@ class Store:
             bucket["profile"] = {"id": user_id, "email": email or (user_id + "@example.com"), "name": "Remco"}
             bucket["tokens"] = {}            # {account_id: oauth token dict}
             bucket["label_corrections"] = []  # [{sender, label_id, action}] — learning signal
+            bucket["settings"] = {"mirror_gmail": False}  # user prefs (e.g. mirror labels to Gmail)
             self._users[user_id] = bucket
             self._persist(user_id)
 
@@ -59,6 +60,14 @@ class Store:
     def label_corrections(self, user_id: str) -> list[dict]:
         return self._bucket(user_id).get("label_corrections", [])
 
+    def get_settings(self, user_id: str) -> dict:
+        return self._bucket(user_id).setdefault("settings", {"mirror_gmail": False})
+
+    def set_setting(self, user_id: str, key: str, value) -> None:
+        with self._lock:
+            self._bucket(user_id).setdefault("settings", {})[key] = value
+            self._persist(user_id)
+
     def messages(self, user_id: str, account: str = "all", include_archived: bool = False) -> list[dict]:
         msgs = self._bucket(user_id)["messages"]
         out = []
@@ -77,6 +86,7 @@ class Store:
             "accounts": b["accounts"],
             "categories": b["categories"],
             "labels": b.get("labels", []),
+            "settings": b.get("settings", {"mirror_gmail": False}),
             # include archived ("filed") mail so the UI can keep it under its labels
             # while hiding it from the cockpit; the client decides what's active.
             "messages": self.messages(user_id, account=account, include_archived=True),

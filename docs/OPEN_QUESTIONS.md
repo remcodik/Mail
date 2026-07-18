@@ -10,6 +10,7 @@ Last updated: 2026-07-18
 | # | Question | Context / options | Status |
 |---|----------|-------------------|--------|
 | Q1 | **Rule scope: sender vs domain vs subject** | ✅ Built (demo): the proposal lets you pick **This sender**, **Anyone @domain**, or **Subject…** (keyword match), plus an explicit "Add a label rule" in Settings. Backend still applies rules by sender — domain/subject scope server-side is a follow-up. | Done (demo); backend follow-up |
+| Q14 | **Categories/labels visible in Gmail** | ✅ Built: Gmail has only *labels* (its Primary/Social/Promotions categories are a fixed system set), so a MailAI category can only surface in Gmail as a label. Decision: **category → main Gmail label** (`MailAI/Urgent`), **labels → extra Gmail labels** (`MailAI/Acme Corp`), all under one `MailAI/` parent. A Settings **"Show in Gmail"** toggle (off by default) controls it; sync calls `ensure_label`+`apply_label`, label fixes re-mirror. Demo shows an "In Gmail" preview; live writes the labels. Two-way sync + un-applying removed labels are follow-ups. | Done (demo + backend); live verify follow-up |
 | Q2 | **Auto-apply labels by fixed rule** | Besides learning from corrections, allow explicit user rules ("anything from @acme.com → Acme Corp") applied deterministically before the AI guess? | Open |
 | Q3 | **Rule management UI** | ✅ Built (demo): Settings lists label + category rules each with a delete (✕); removing a rule cleanly reverts its effect (labels/categories recompute from the original AI assignment + remaining rules). | Done (demo) |
 | Q11 | **Category correction loop** | ✅ Built (demo): "Category · tap to fix" on the detail screen; fixing proposes a sender/@domain rule you approve; rules recompute categories and are deletable. Mirrors the label loop (#15). | Done (demo); backend few-shot follow-up |
@@ -28,7 +29,7 @@ Last updated: 2026-07-18
 | # | Decision | Current state | Status |
 |---|----------|---------------|--------|
 | T1 | **Production datastore** | In-memory, or SQLite JSON blob per user with encrypted tokens (`MAILAI_DB`). Needs a real DB (Postgres) + migrations for production, and a volume on Fly. | Open (#30) |
-| T2 | **User auth / login** | Demo auto-logs-in a single user; live has signed-cookie sessions but **no real sign-in/identity provider** yet. | Open (#30) |
+| T2 | **User auth / login** | ✅ Built: live has **Sign in with Google** (`GET /api/login` → Google OAuth → `/api/accounts/callback` sets a signed session cookie; your email = your user id). `MAILAI_OWNER_EMAIL` restricts sign-in to your account. Demo still auto-logs-in. Needs a first live round-trip to verify; hardening (CSRF/state store, refresh) is a follow-up. | Done (backend); live verify follow-up |
 | T3 | **Model ids** | Pinned `claude-haiku-4-5-…` (classify) / `claude-sonnet-5` (reason). Verify against the current model list at first live run. | Verify (#2) |
 | T4 | **Polling vs push** | Sync is on-demand (`/api/accounts/{id}/sync`); live should use Gmail `history`/`watch` + Pub/Sub or a scheduler. | Open (#14) |
 | T5 | **Sent-mail monitoring / auto-dismiss Waiting** | Not wired to live Gmail yet. | Open (#14) |
@@ -56,3 +57,4 @@ Last updated: 2026-07-18
 - **Task due-dates + inline edit** — tasks can be edited (text/due) and completed from the Tasks screen.
 - **Account colour / rename / remove** — Settings → Mail accounts now manages each account's colour, label, and removal.
 - **Subject-keyword rule scope** — label/category rule proposals can now scope to a keyword in the subject, not just sender/domain.
+- **Mirror categories + labels to Gmail** — Settings toggle; category → main `MailAI/…` label, labels → extra `MailAI/…` labels, all under one parent. Visible in the Gmail app.

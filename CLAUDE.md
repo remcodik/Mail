@@ -77,6 +77,30 @@ Claude classifies every email into one of:
   **Needs attention · To reply · Waiting · Just info**, plus that label's open
   tasks and a "top of the pile" preview; each bucket drills into a filtered list.
 
+## Mirror to Gmail (categories + labels as Gmail labels)
+
+Gmail's only user-creatable organizing primitive is the **label** (its built-in
+Primary/Social/Promotions "categories" are a fixed system set you can't extend).
+So to make MailAI's category/labels visible in the Gmail app, they must become
+Gmail labels. A **Settings → "Show in Gmail"** toggle (off by default) controls this:
+
+- **Category → the "main" Gmail label** (exactly one per mail): `MailAI/Urgent`,
+  `MailAI/Delivery`, …
+- **Labels → extra Gmail labels** (zero-or-more): `MailAI/Acme Corp`,
+  `MailAI/Project Apollo`, …
+- Everything nests under one **`MailAI/`** parent so it collapses into a single
+  group in Gmail's sidebar and can be hidden or bulk-removed in one step.
+
+In MailAI they stay two distinct concepts (category drives the cockpit tiles;
+labels are cross-cutting tags); in Gmail they're all just labels — "one flow",
+visible and searchable. When on, `orchestrator.process_account()` calls
+`GmailClient.ensure_label()` (get-or-create, nesting by `/`) + `apply_label()`
+on each synced mail; correcting a label re-mirrors that mail (`_mirror_one`).
+The toggle persists per user (`settings.mirror_gmail`); demo mode shows an
+**"In Gmail"** preview of the resulting label names but writes nothing. Two-way
+sync (relabel in Gmail → MailAI notices) and un-applying removed labels are live
+follow-ups.
+
 ## Onboarding & the archive-first model
 
 - **First connect files existing mail** to the Archive so the cockpit starts

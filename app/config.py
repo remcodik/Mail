@@ -22,10 +22,15 @@ class Settings:
     google_client_id: str | None
     google_client_secret: str | None
     oauth_redirect_base: str        # public base URL for OAuth redirect URIs
+    owner_email: str | None         # if set, only this Google account may sign in
 
     @property
     def is_live(self) -> bool:
         return self.mode == "live"
+
+    @property
+    def cookie_secure(self) -> bool:
+        return self.oauth_redirect_base.lower().startswith("https")
 
 
 def load_settings() -> Settings:
@@ -39,6 +44,7 @@ def load_settings() -> Settings:
         google_client_id=os.getenv("GOOGLE_CLIENT_ID"),
         google_client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
         oauth_redirect_base=os.getenv("MAILAI_OAUTH_REDIRECT_BASE", "http://localhost:8000"),
+        owner_email=(os.getenv("MAILAI_OWNER_EMAIL") or None),
     )
 
 

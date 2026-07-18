@@ -25,15 +25,23 @@ Open <http://localhost:8000> — the UI loads from `GET /api/inbox`. No `.env` n
 |--------|------|---------|
 | GET  | `/api/health` | liveness + mode |
 | GET  | `/api/me` | current user profile |
+| GET  | `/api/login` | live: start "Sign in with Google" · demo: redirect to app |
+| GET  | `/api/logout` | clear the session cookie |
 | GET  | `/api/inbox?account=all\|<id>` | accounts + categories + messages (per user, optionally one account) |
 | POST | `/api/messages/{id}/archive` | archive a message |
 | POST | `/api/categories/{id}/visibility` | show/hide a cockpit category |
 | POST | `/api/accounts/connect` | demo: add account · live: return Google OAuth URL |
+| POST | `/api/settings/mirror` | toggle "mirror categories + labels to Gmail" (`MailAI/…` labels) |
+| POST | `/api/messages/{id}/labels` | fix a label (learns from it; re-mirrors to Gmail when on) |
 
 Every request is scoped to the authenticated `user_id`; accounts stay separated
 by `account_id` and are only combined when `account=all`.
 
 ## Go live — what you need to provide
+
+> 👉 For a friendly, click-by-click walkthrough (Google setup → deploy → sign in
+> on your iPhone), see **[GO_LIVE.md](GO_LIVE.md)**. The summary below is the
+> reference version.
 
 Live mode needs three things I can't provision for you:
 
@@ -86,8 +94,18 @@ redirect URI: `https://your-mailai-name.fly.dev/api/accounts/callback` (must mat
 Add a mail account** to connect Gmail; each connected account syncs and stays
 separated.
 
-> ⚠️ The in-memory store resets when the machine restarts. Before real use, wire a
-> database + encrypted token storage (#30) — the `Store` interface is drop-in.
+> **Persistence:** set `MAILAI_DB=/data/mailai.db` (add a Fly volume mounted at
+> `/data`) for durable SQLite storage with OAuth tokens **encrypted at rest**
+> (key derived from `MAILAI_SESSION_SECRET`). Leave it unset and the store is
+> in-memory and resets on restart — fine for a quick demo, not for real use.
+> Postgres + migrations is the production follow-up (#30); the `Store` interface
+> is drop-in.
+
+> **Show in Gmail (optional):** in the app, **Settings → Show in Gmail** mirrors
+> each mail's category (as the main `MailAI/<Category>` label) and its labels
+> (`MailAI/<Label>`) into Gmail, all nested under a single `MailAI/` parent so
+> you can see/search them in the Gmail app and collapse or remove them in one go.
+> Off by default; nothing is written to Gmail until you turn it on.
 
 ## Deploy with plain Docker (any host)
 
