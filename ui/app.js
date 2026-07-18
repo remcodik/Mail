@@ -135,6 +135,10 @@
     // tasks / agenda
     'Set due':'Deadline','Change due':'Deadline wijzigen','Agenda · proposed meetings':'Agenda · voorgestelde afspraken',
     'Send proposal':'Voorstel sturen','Remove':'Verwijderen','Meeting':'Afspraak','with':'met',
+    'Agenda':'Agenda','Open Google Calendar':'Google Agenda openen','Add to Google Calendar':'Aan Google Agenda toevoegen',
+    '+ Add calendar':'+ Agenda toevoegen','Proposed by MailAI':'Voorgesteld door MailAI','Resend':'Opnieuw sturen',
+    'Personal':'Persoonlijk','Work':'Werk','Family':'Familie','NL Holidays':'NL Feestdagen',
+    'No events in the calendars you’re viewing.':'Geen afspraken in de agenda’s die je bekijkt.',
     // archive
     'Empty archive':'Archief legen','tap to review':'tik om te bekijken',
     '⏭ Advance demo clock (wake due snoozes)':'⏭ Demo-klok vooruit (wek gesnoozede mails)',
@@ -307,6 +311,28 @@
     (state.meetings = state.meetings || []).push(mt);
     toast('Added to agenda · '+when);
   }
+
+  // ---- agenda: link out to Google Calendar + pull in more calendars to view ----
+  var GCAL_URL = 'https://calendar.google.com';
+  function gcalCreateUrl(title){ return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(title); }
+  var CAL_KEY = 'mailai-cals-v1';
+  var DEMO_CALENDARS = [
+    { id:'personal', name:'Personal',    color:'#0FA398', on:true },
+    { id:'work',     name:'Work',        color:'#3E7BF0', on:true },
+    { id:'family',   name:'Family',      color:'#8257E6', on:false },
+    { id:'holidays', name:'NL Holidays', color:'#EA580C', on:false }
+  ];
+  // events that live in those calendars (what you'd also see in Google Calendar)
+  var DEMO_EVENTS = [
+    { cal:'work',     title:'Sprint planning',     when:'Today · 11:00' },
+    { cal:'personal', title:'Dentist',             when:'Tomorrow · 09:30' },
+    { cal:'work',     title:'1:1 with Sarah',      when:'Tue · 14:00' },
+    { cal:'family',   title:'Dinner with parents', when:'Fri · 19:00' },
+    { cal:'holidays', title:'Bank holiday',        when:'Mon · all day' }
+  ];
+  function loadCalPrefs(){ try { return JSON.parse(localStorage.getItem(CAL_KEY)); } catch(e){ return null; } }
+  function saveCalPrefs(){ try { localStorage.setItem(CAL_KEY, JSON.stringify((state.calendars||[]).map(function(c){ return { id:c.id, on:c.on }; }))); } catch(e){} }
+  function calById(id){ return (state.calendars||[]).filter(function(c){ return c.id===id; })[0]; }
 
   // timed snooze chooser
   var pendingSnooze = null;   // msgId awaiting a "snooze until" choice
@@ -720,8 +746,30 @@
       + '<div class="tkbody"><div class="tktext">'+esc(mt.title)+'</div>'
       + '<div class="due">'+esc(mt.when)+' · with '+esc(mt.withWho)+(mt.status==='sent'?' · <b>proposal sent</b>':'')+'</div>'
       + (m?'<button class="tklink" data-nav="#/m/'+m.id+'">'+svg('<path d="M14 4h6v6M20 4l-9 9M20 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5"/>',11)+' '+esc(m.from)+' — '+esc(m.subject)+'</button>':'')
-      + '<div class="tkacts"><button data-act="meetingsend" data-id="'+mt.id+'">'+(mt.status==='sent'?'Resend':'Send proposal')+'</button><button class="del" data-act="meetingdel" data-id="'+mt.id+'">Remove</button></div>'
+      + '<div class="tkacts"><a class="tkgcal" href="'+gcalCreateUrl(mt.title)+'" target="_blank" rel="noopener">Add to Google Calendar</a>'
+      + '<button data-act="meetingsend" data-id="'+mt.id+'">'+(mt.status==='sent'?'Resend':'Send proposal')+'</button>'
+      + '<button class="del" data-act="meetingdel" data-id="'+mt.id+'">Remove</button></div>'
       + '</div></div>';
+  }
+  function eventRow(ev){
+    var c = calById(ev.cal);
+    return '<div class="evrow"><span class="evdot" style="background:'+(c?c.color:'#888')+'"></span>'
+      + '<div class="evbody"><div class="evtitle">'+esc(ev.title)+'</div>'
+      + '<div class="evwhen">'+esc(ev.when)+' · '+esc(c?c.name:'')+'</div></div></div>';
+  }
+  function agendaBlock(){
+    var cals = state.calendars || [];
+    var on = {}; cals.forEach(function(c){ if(c.on) on[c.id] = true; });
+    var evs = (state.events||[]).filter(function(e){ return on[e.cal]; });
+    var meetings = state.meetings || [];
+    var head = '<div class="seghead agendahead">Agenda'
+      + '<a class="gcal" href="'+GCAL_URL+'" target="_blank" rel="noopener">Open Google Calendar '+svg('<path d="M7 17L17 7M8 7h9v9"/>',12)+'</a></div>';
+    var chips = '<div class="calchips">'
+      + cals.map(function(c){ return '<button class="calchip'+(c.on?' on':'')+'" data-act="togglecal" data-id="'+c.id+'"><span class="cdotmini" style="background:'+c.color+'"></span>'+esc(c.name)+'</button>'; }).join('')
+      + '<button class="calchip add" data-act="addcal">+ Add calendar</button></div>';
+    var events = evs.length ? evs.map(eventRow).join('') : '<div class="empty" style="padding:10px 0">No events in the calendars you’re viewing.</div>';
+    var mtg = meetings.length ? '<div class="agendasub">Proposed by MailAI</div>' + meetings.map(meetingRow).join('') : '';
+    return head + chips + events + mtg;
   }
   function viewTasks(){
     var open = (state.tasks||[]).filter(function(t){ return !t.done; });
@@ -730,7 +778,7 @@
     var body = '<div class="list">'
       + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="tasknew">+ New task</button>'
       + (open.length ? open.map(taskRow).join('') : '<div class="empty">No open tasks. Add one from any email or above.</div>')
-      + (meetings.length ? '<div class="seghead">Agenda · proposed meetings</div>'+meetings.map(meetingRow).join('') : '')
+      + agendaBlock()
       + (done.length ? '<div class="seghead">Done</div>'+done.map(taskRow).join('') : '')
       + '</div>';
     return { top:'<div class="brand"><span class="dot"></span> MailAI · Tasks</div><h1>Tasks</h1><div class="sub">'+open.length+' open'+(meetings.length?' · '+meetings.length+' meeting'+(meetings.length===1?'':'s'):'')+'</div>', body:body, nav:'tasks' };
@@ -811,6 +859,8 @@
       case 'meetingcancel': { pendingMeeting=null; render(); break; }
       case 'meetingsend': { var mts=(state.meetings||[]).filter(function(x){return x.id===id;})[0]; if(mts){ mts.status='sent'; toast('Proposal sent'); } render(); break; }
       case 'meetingdel': { state.meetings=(state.meetings||[]).filter(function(x){return x.id!==id;}); render(); break; }
+      case 'togglecal': { var cc=calById(id); if(cc){ cc.on=!cc.on; saveCalPrefs(); toast(cc.on?('Showing '+cc.name):('Hidden '+cc.name)); } render(); break; }
+      case 'addcal': { var nm=window.prompt('Add a calendar to view (name):',''); if(nm&&nm.trim()){ var pal=['#D6336C','#0891B2','#059669','#B45309','#7C3AED']; state.calendars.push({ id:'cal'+Date.now(), name:nm.trim(), color:pal[state.calendars.length%pal.length], on:true }); saveCalPrefs(); toast('Calendar added'); } render(); break; }
       case 'wallet': toast('Added to Apple Wallet (demo)'); break;
       case 'edit': toast('Editing (demo)'); break;
       case 'discard': toast('Draft discarded'); break;
@@ -1049,6 +1099,12 @@
     state.mirrorGmail = (data.settings && data.settings.mirror_gmail) || loadMirror();
     state.lang = (data.settings && data.settings.lang) || loadLang();
     state.meetings = [];
+    var calPrefs = loadCalPrefs();
+    state.calendars = DEMO_CALENDARS.map(function(c){
+      var p = calPrefs && calPrefs.filter(function(x){ return x.id===c.id; })[0];
+      return { id:c.id, name:c.name, color:c.color, on: p ? !!p.on : c.on };
+    });
+    state.events = DEMO_EVENTS.slice();
     state.demoNow = 0;
     recomputeAll();
     render();

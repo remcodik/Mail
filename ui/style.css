@@ -284,6 +284,22 @@ a{color:inherit}
 .tkacts button{background:transparent;border:0;font-size:11px;font-weight:700;color:var(--ink-3);padding:2px 0}
 .tkacts button.del{color:var(--c-urgent)}
 .mtcal{width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;color:var(--accent-ink)}
+/* agenda: Google Calendar link, calendar selector, events */
+.agendahead{display:flex;align-items:center;justify-content:space-between}
+.gcal{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;color:var(--accent-ink);text-decoration:none;text-transform:none;letter-spacing:0}
+.calchips{display:flex;flex-wrap:wrap;gap:7px;padding:2px 0 10px}
+.calchip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:650;padding:6px 11px;border-radius:999px;
+  border:1px dashed var(--line);background:transparent;color:var(--ink-3)}
+.calchip.on{border-style:solid;border-color:var(--line);background:var(--surface);color:var(--ink)}
+.calchip.add{color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
+.cdotmini{width:8px;height:8px;border-radius:50%;flex:none;opacity:.5}
+.calchip.on .cdotmini{opacity:1}
+.evrow{display:flex;align-items:flex-start;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.evdot{width:9px;height:9px;border-radius:50%;flex:none;margin-top:4px}
+.evtitle{font-size:13.5px;font-weight:650}
+.evwhen{font-size:11.5px;color:var(--ink-3);margin-top:1px}
+.agendasub{font-size:11px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em;margin:4px 0 8px}
+.tkgcal{font-size:11px;font-weight:700;color:var(--accent-ink);text-decoration:none}
 /* language switch */
 .langrow{display:flex;gap:8px;margin:2px 0 4px}
 .langseg{flex:1;text-align:center;font-size:13.5px;font-weight:650;padding:11px;border-radius:11px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2)}

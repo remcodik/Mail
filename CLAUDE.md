@@ -148,10 +148,16 @@ top-right actions.
   **+ Propose meeting for agenda**. When the mail reads as scheduling (meet /
   call / "are you around" / availability…) MailAI flags it and suggests it. It
   opens a slot chooser (a few proposed times), and picking one adds an
-  **appointment to the agenda** (shown in an *Agenda · proposed meetings* section
-  on the Tasks screen) with a ready-to-send proposal reply — *Send proposal* /
-  *Remove*. Mirrors `detect_scheduling_intent` + `generate_appointment_proposal`;
-  live Calendar write is a follow-up.
+  **appointment to the agenda** (shown on the Tasks screen) with an **Add to
+  Google Calendar** link (opens Google Calendar's new-event screen prefilled —
+  no copy to write), plus *Send proposal* / *Remove*. Mirrors
+  `detect_scheduling_intent` + `generate_appointment_proposal`.
+- **Agenda view (Google Calendar):** the Tasks screen's Agenda has an **Open
+  Google Calendar** link and a **calendar selector** — toggle chips to pull
+  additional calendars (Personal / Work / Family / Holidays / your own) into the
+  view, so it shows the same events you'd see in Google Calendar. Selected
+  calendars persist. Demo seeds sample calendars/events; live reads calendars +
+  events via the Google Calendar API (added scope) — a follow-up.
 
 ## Intelligence functions (intelligence.py)
 
