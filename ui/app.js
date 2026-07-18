@@ -88,7 +88,18 @@
     });
     return n;
   }
-  function applyLearnedToAll(){ (state.labelRules||[]).forEach(applyRule); }
+  // recompute from the original AI assignments + current rules (clean add/undo)
+  function recomputeLabels(){ state.messages.forEach(function(m){ m.labels = (state.originalLabels[m.id]||[]).slice(); }); (state.labelRules||[]).forEach(applyRule); }
+  function recomputeCats(){ state.messages.forEach(function(m){ m.cat = state.originalCat[m.id]; }); (state.catRules||[]).forEach(applyCatRule); }
+  function recomputeAll(){ recomputeLabels(); recomputeCats(); }
+
+  // ---- category rules (correction loop, mirrors labels) ----
+  var CATRULE_KEY = 'mailai-catrules-v1';
+  function loadCatRules(){ try { return JSON.parse(localStorage.getItem(CATRULE_KEY)) || []; } catch(e){ return []; } }
+  function saveCatRules(){ try { localStorage.setItem(CATRULE_KEY, JSON.stringify(state.catRules||[])); } catch(e){} }
+  function catRuleMatches(rule, m){ return rule.scope==='domain' ? m.domain===rule.value : m.from===rule.value; }
+  function applyCatRule(rule){ state.messages.forEach(function(m){ if(catRuleMatches(rule, m)) m.cat = rule.catId; }); }
+  function learnCatRule(rule){ state.catRules = (state.catRules||[]).filter(function(r){ return !(r.scope===rule.scope && r.value===rule.value); }); state.catRules.push(rule); saveCatRules(); }
   var pendingProposal = null;   // {sender,labelId,action,others,labelName,msgId} awaiting approval
   function fixLabel(msgId, labelId){
     var m = msgById(msgId); if(!m) return;
@@ -113,6 +124,35 @@
       + '<button class="pseg'+(p.scope==='domain'?' on':'')+'" data-act="scope" data-v="domain">Anyone @'+esc(p.domain)+'</button></div>'
       + '<div class="pacts"><button class="btn pri" data-act="applyrule">Apply rule</button>'
       + '<button class="btn" data-act="dismissrule">Just this one</button></div></div>';
+  }
+
+  // category correction — mirrors the label loop
+  var pendingCatProposal = null;
+  function setCat(msgId, catId){
+    var m = msgById(msgId); if(!m || m.cat===catId) return;
+    m.cat = catId;   // this email only
+    var c = catById(catId);
+    toast('Moved to '+(c?c.name:catId));
+    pendingCatProposal = { sender:m.from, domain:m.domain, catId:catId, catName:(c?c.name:catId), msgId:msgId, scope:'sender' };
+  }
+  function catProposalBar(){
+    if(!pendingCatProposal) return '';
+    var p = pendingCatProposal;
+    var target = p.scope==='domain' ? ('anyone @'+p.domain) : p.sender;
+    var affected = state.messages.filter(function(m){ return (p.scope==='domain'?m.domain===p.domain:m.from===p.sender); }).length;
+    return '<div class="proposal"><div class="ptext">'+SPARK+' Make it a rule? <b>Always put mail from '+esc(target)+' in “'+esc(p.catName)+'”</b> — '+affected+' mail'+(affected===1?'':'s')+'.</div>'
+      + '<div class="pscope"><button class="pseg'+(p.scope==='sender'?' on':'')+'" data-act="catscope" data-v="sender">This sender</button>'
+      + '<button class="pseg'+(p.scope==='domain'?' on':'')+'" data-act="catscope" data-v="domain">Anyone @'+esc(p.domain)+'</button></div>'
+      + '<div class="pacts"><button class="btn pri" data-act="applycatrule">Apply rule</button><button class="btn" data-act="dismisscatrule">Just this one</button></div></div>';
+  }
+
+  // newsletter unsubscribe — confirm first
+  var pendingUnsub = null;
+  function unsubBar(){
+    if(!pendingUnsub) return '';
+    var m = msgById(pendingUnsub);
+    return '<div class="proposal"><div class="ptext">'+SPARK+' Unsubscribe from <b>'+esc(m?m.from:'')+'</b>? MailAI sends the List-Unsubscribe request, then files the email.</div>'
+      + '<div class="pacts"><button class="btn danger" data-act="unsubconfirm">Unsubscribe</button><button class="btn" data-act="unsubcancel">Cancel</button></div></div>';
   }
 
   // timed snooze chooser
@@ -358,6 +398,13 @@
     parts.push('<div class="panel"><p class="h">'+SPARK+' Labels · tap to fix</p><div class="lbledit">'+lblEditor
       + '<button class="lbl new" data-act="newlabel" data-id="'+m.id+'">+ New</button></div>'
       + '<div class="ai-note" style="margin-top:8px">I assign these automatically and learn from your corrections.</div></div>');
+    // category — AI-assigned, tap the right one to fix (learns like labels)
+    var catEditor = visibleCats().map(function(c){
+      var on = m.cat===c.id;
+      return '<button class="lbl cat '+(on?'on':'off')+'" style="--lc:'+c.color+'" data-act="fixcat" data-id="'+m.id+'" data-cat="'+c.id+'">'+(on?'✓ ':'')+esc(c.name)+'</button>';
+    }).join('');
+    parts.push('<div class="panel"><p class="h">'+SPARK+' Category · tap to fix</p><div class="lbledit">'+catEditor+'</div>'
+      + '<div class="ai-note" style="margin-top:8px">Wrong bucket? Tap the right one — I learn from it.</div></div>');
     if(m.extracted){
       var kv = Object.keys(m.extracted).map(function(k){
         return '<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--line);font-size:12.5px">'
@@ -459,8 +506,10 @@
         + (state.labels||[]).map(function(l){ return '<div class="catrow"><span class="grip">#</span><span class="cdot" style="background:'+l.color+'"></span><span><span class="cnm">'+esc(l.name)+'</span><br><span class="ccount">'+labelCount(l.id)+' mails</span></span></div>'; }).join('')
         + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="newlabeldef">+ Add a label</button>'
         + '<div class="seghead">Label rules · learned + yours</div>'
-        + ((state.labelRules&&state.labelRules.length) ? state.labelRules.map(function(r){ var l=labelById(r.labelId); var who=r.scope==='domain'?('@'+r.value):r.value; return '<div class="rule">Mail from <b>'+esc(who)+'</b> '+(r.action==='add'?'→ tag':'✗ don’t tag')+' <b style="color:'+(l?l.color:'#888')+'">'+(l?esc(l.name):esc(r.labelId))+'</b></div>'; }).join('') : '<div class="rule" style="color:var(--ink-3)">No rules yet — fix a label on any email, or add one below.</div>')
+        + ((state.labelRules&&state.labelRules.length) ? state.labelRules.map(function(r,i){ var l=labelById(r.labelId); var who=r.scope==='domain'?('@'+r.value):r.value; return '<div class="rule rule-row"><span>Mail from <b>'+esc(who)+'</b> '+(r.action==='add'?'→ tag':'✗ don’t tag')+' <b style="color:'+(l?l.color:'#888')+'">'+(l?esc(l.name):esc(r.labelId))+'</b></span><button class="rule-x" data-act="delrule" data-i="'+i+'" aria-label="remove rule">✕</button></div>'; }).join('') : '<div class="rule" style="color:var(--ink-3)">No rules yet — fix a label on any email, or add one below.</div>')
         + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addrulelabel">+ Add a label rule</button>'
+        + '<div class="seghead">Category rules · learned from “wrong category” fixes</div>'
+        + ((state.catRules&&state.catRules.length) ? state.catRules.map(function(r,i){ var c=catById(r.catId); var who=r.scope==='domain'?('@'+r.value):r.value; return '<div class="rule rule-row"><span>Mail from <b>'+esc(who)+'</b> → <b style="color:'+(c?c.color:'#888')+'">'+(c?esc(c.name):esc(r.catId))+'</b></span><button class="rule-x" data-act="delcatrule" data-i="'+i+'" aria-label="remove rule">✕</button></div>'; }).join('') : '<div class="rule" style="color:var(--ink-3)">No category rules yet — use “Category · tap to fix” on any email.</div>')
         + '<div class="seghead">Rules</div>'
         + '<div class="rule"><b>Emails from my boss</b> are always <b style="color:var(--c-urgent)">Urgent</b></div>'
         + '<div class="rule"><b>Anything from klm.com</b> → <b style="color:var(--c-ticket)">Tickets</b></div>'
@@ -518,7 +567,7 @@
     var html = '<div class="topbar'+(v.withBack?' with-back':'')+'">'+v.top+'</div>'
       + (v.tabs||'')
       + (v.bare ? v.body : '<div class="view">'+v.body+'</div>')
-      + proposalBar() + snoozeBar()
+      + proposalBar() + catProposalBar() + unsubBar() + snoozeBar()
       + tabbar(v.nav);
     root.innerHTML = html;
     // scroll view to top on nav
@@ -552,7 +601,7 @@
       case 'snoozepick': { var sid=pendingSnooze; pendingSnooze=null; if(sid){ snoozeMsg(sid, el.getAttribute('data-label')); } if(location.hash==='#/m/'+sid){ back(); } else render(); break; }
       case 'snoozecancel': { pendingSnooze=null; render(); break; }
       case 'done': archive(id,'Marked done'); render(); break;
-      case 'unsub': archive(id,'Unsubscribed'); back(); break;
+      case 'unsub': pendingUnsub = id; render(); break;
       case 'send': archive(id,'Reply sent'); back(); break;
       case 'wallet': toast('Added to Apple Wallet (demo)'); break;
       case 'edit': toast('Editing (demo)'); break;
@@ -602,8 +651,8 @@
       case 'applyrule': {
         if(pendingProposal){ var p=pendingProposal;
           var rule = { scope:p.scope, value:(p.scope==='domain'?p.domain:p.sender), labelId:p.labelId, action:p.action };
-          learnRule(rule);
-          var n = applyRule(rule);
+          learnRule(rule); recomputeLabels();
+          var n = state.messages.filter(function(m){ return ruleMatches(rule, m); }).length;
           apiPost('/api/messages/'+p.msgId+'/labels', { label_id: p.labelId }); // learns server-side when live
           toast('Rule saved · applied to '+n+' mail'+(n===1?'':'s')+(p.scope==='domain'?(' @'+p.domain):(' from '+p.sender)));
           pendingProposal = null;
@@ -611,6 +660,25 @@
         render(); break;
       }
       case 'dismissrule': { pendingProposal = null; toast('Kept it to just this email'); render(); break; }
+      case 'delrule': { var ri=parseInt(el.getAttribute('data-i'),10); if(state.labelRules){ state.labelRules.splice(ri,1); saveLearned(); recomputeLabels(); toast('Rule removed'); } render(); break; }
+      // category correction
+      case 'fixcat': { setCat(id, el.getAttribute('data-cat')); render(); break; }
+      case 'catscope': { if(pendingCatProposal){ pendingCatProposal.scope = el.getAttribute('data-v'); } render(); break; }
+      case 'applycatrule': {
+        if(pendingCatProposal){ var cp=pendingCatProposal;
+          var crule = { scope:cp.scope, value:(cp.scope==='domain'?cp.domain:cp.sender), catId:cp.catId };
+          learnCatRule(crule); recomputeCats();
+          var cn = state.messages.filter(function(m){ return catRuleMatches(crule, m); }).length;
+          toast('Rule saved · '+cn+' mail'+(cn===1?'':'s')+' → '+cp.catName);
+          pendingCatProposal = null;
+        }
+        render(); break;
+      }
+      case 'dismisscatrule': { pendingCatProposal = null; toast('Kept it to just this email'); render(); break; }
+      case 'delcatrule': { var ci=parseInt(el.getAttribute('data-i'),10); if(state.catRules){ state.catRules.splice(ci,1); saveCatRules(); recomputeCats(); toast('Rule removed'); } render(); break; }
+      // newsletter unsubscribe (confirm)
+      case 'unsubconfirm': { var us=pendingUnsub; pendingUnsub=null; if(us){ archive(us,'Unsubscribed'); } if(location.hash==='#/m/'+us){ back(); } else render(); break; }
+      case 'unsubcancel': { pendingUnsub = null; render(); break; }
       case 'newlabel': {
         var lnm = window.prompt('New label (e.g. Project X, Customer Acme, tax-2026):');
         if(lnm && lnm.trim()){
@@ -670,8 +738,8 @@
             var lab = (state.labels||[]).filter(function(x){ return x.name.toLowerCase()===lname.trim().toLowerCase(); })[0];
             if(!lab){ lab = { id:slug(lname)+'-'+(Date.now()%1000), name:lname.trim(), color:CUSTOM_COLORS[state.labels.length % CUSTOM_COLORS.length] }; state.labels.push(lab); }
             var rule = { scope:scope, value:value, labelId:lab.id, action:'add' };
-            learnRule(rule);
-            var n = applyRule(rule);
+            learnRule(rule); recomputeLabels();
+            var n = state.messages.filter(function(m){ return ruleMatches(rule, m); }).length;
             toast('Rule added · '+n+' mail'+(n===1?'':'s')+' tagged');
           }
         }
@@ -730,15 +798,18 @@
   function boot(data){
     state = JSON.parse(JSON.stringify({ accounts:data.accounts, categories:data.categories, labels:data.labels||[], messages:data.messages }));
     state.messages.forEach(function(m){ if(!m.labels) m.labels = []; });
+    // remember the AI's original assignments so rules can be applied AND undone
+    state.originalLabels = {}; state.originalCat = {};
+    state.messages.forEach(function(m){ state.originalLabels[m.id] = (m.labels||[]).slice(); state.originalCat[m.id] = m.cat; });
     // a couple of example tasks so the screen isn't empty; each linked to its mail.
-    // (extracted tasks on the detail screen stay actionable via "+ Task".)
     state.tasks = [
       { id:'seed1', text:'Send the revised Q3 revenue slide', due:'Today · 12:00', done:false, msgId:'m1' },
       { id:'seed2', text:'Approve the vendor invoice before month-end', due:'', done:false, msgId:'m20' }
     ];
-    // learned label rules survive reloads (localStorage) and re-apply on load
+    // learned rules survive reloads (localStorage) and re-apply on load
     state.labelRules = loadLearned();
-    applyLearnedToAll();
+    state.catRules = loadCatRules();
+    recomputeAll();
     render();
   }
   function load(){

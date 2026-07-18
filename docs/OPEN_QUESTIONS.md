@@ -11,7 +11,9 @@ Last updated: 2026-07-16
 |---|----------|-------------------|--------|
 | Q1 | **Rule scope: sender vs domain** | ✅ Built (demo): the proposal now lets you pick **This sender** or **Anyone @domain**; plus an explicit "Add a label rule" in Settings. Backend still applies rules by sender — domain-scope server-side is a follow-up. Subject-keyword scope still open. | Done (demo); backend follow-up |
 | Q2 | **Auto-apply labels by fixed rule** | Besides learning from corrections, allow explicit user rules ("anything from @acme.com → Acme Corp") applied deterministically before the AI guess? | Open |
-| Q3 | **Rule management UI** | Where to view/edit/delete learned + manual rules (currently read-only list in Settings). Undo a learned rule? | Open |
+| Q3 | **Rule management UI** | ✅ Built (demo): Settings lists label + category rules each with a delete (✕); removing a rule cleanly reverts its effect (labels/categories recompute from the original AI assignment + remaining rules). | Done (demo) |
+| Q11 | **Category correction loop** | ✅ Built (demo): "Category · tap to fix" on the detail screen; fixing proposes a sender/@domain rule you approve; rules recompute categories and are deletable. Mirrors the label loop (#15). | Done (demo); backend few-shot follow-up |
+| Q12 | **Newsletter unsubscribe** | ✅ Built (demo): Unsubscribe now asks to confirm ("sends the List-Unsubscribe request, then files it"). Live call of the actual `List-Unsubscribe` URL/mailto (RFC 8058) is the backend follow-up (#12, gap G7). | Done (demo); live call follow-up |
 | Q4 | **How autonomous?** | Should MailAI ever send/archive/delete/unsubscribe without an explicit tap? Current default: suggestion-only. | Leaning suggestion-only; confirm |
 | Q5 | **Category vs label overlap for tickets/receipts** | Retail receipts → `purchase`; reservations/boarding → `ticket`; trips → `travel`. Confirm boundaries. | Proposed, needs sign-off (#24, #26) |
 | Q6 | **Custom-category limit** | Soft cap on number of active cockpit categories before classification gets ambiguous/costly? | Open (suggested ~5–6) |
