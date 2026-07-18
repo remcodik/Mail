@@ -209,7 +209,9 @@ a{color:inherit}
 
 /* grouped mail (same parcel/order/trip) */
 .grp{display:flex;flex-direction:column}
-.grp-toggle{align-self:stretch;font-size:11px;font-weight:700;color:var(--accent-ink);background:transparent;border:0;border-top:1px dashed var(--line);padding:8px;text-align:center}
+.grp-actions{display:flex;border-top:1px dashed var(--line)}
+.grp-toggle{flex:1;font-size:11px;font-weight:700;color:var(--accent-ink);background:transparent;border:0;padding:8px;text-align:center}
+.grp-arch{flex:none;font-size:11px;font-weight:700;color:var(--ink-2);background:transparent;border:0;border-left:1px dashed var(--line);padding:8px 12px}
 .grp-more{display:flex;flex-direction:column;gap:9px;margin-top:9px;padding-left:10px;border-left:2px solid var(--line)}
 .grp-more .card{opacity:.82}
 /* archive rows */

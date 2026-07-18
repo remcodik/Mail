@@ -200,8 +200,11 @@
       if(!others.length){ out.push(cardHTML(rep)); return; }
       var open = expandedGroups[m.group];
       out.push('<div class="grp">' + cardHTML(rep)
-        + '<button class="grp-toggle" data-act="expandgroup" data-g="'+m.group+'">'
-        + (open ? '▴ Hide earlier' : '▾ '+others.length+' earlier update'+(others.length===1?'':'s')) + '</button>'
+        + '<div class="grp-actions">'
+        +   '<button class="grp-toggle" data-act="expandgroup" data-g="'+m.group+'">'
+        +     (open ? '▴ Hide earlier' : '▾ '+others.length+' earlier update'+(others.length===1?'':'s')) + '</button>'
+        +   '<button class="grp-arch" data-act="archgroup" data-g="'+m.group+'">Archive all '+members.length+'</button>'
+        + '</div>'
         + (open ? '<div class="grp-more">'+others.map(cardHTML).join('')+'</div>' : '')
         + '</div>');
     });
@@ -398,7 +401,7 @@
   // ---------- screen: archive cockpit ----------
   function archivedMsgs(){ return state.messages.filter(function(m){ return m.archived && !m.snoozed && inSel(m); }); }
   function snoozedMsgs(){ return state.messages.filter(function(m){ return m.snoozed && inSel(m); }); }
-  function archiveRow(m){ return '<div class="arow">'+cardHTML(m)+'<button class="btn danger arow-del" data-act="delete" data-id="'+m.id+'">Delete</button></div>'; }
+  function archiveRow(m){ return '<div class="arow">'+cardHTML(m)+'<div class="btnrow"><button class="btn" data-act="restore" data-id="'+m.id+'">Move to cockpit</button><button class="btn danger" data-act="delete" data-id="'+m.id+'">Delete</button></div></div>'; }
   function viewArchive(spec){
     if(spec) return viewArchiveCat(spec);
     var arc = archivedMsgs(), sn = snoozedMsgs();
@@ -445,6 +448,9 @@
       top: '<h1>Categories &amp; rules</h1>',
       withBack: false,
       body: '<div class="view pad" style="padding-top:2px">'
+        + '<div class="seghead">Cockpit</div>'
+        + '<div class="rule" style="color:var(--ink-2)">New mail lands in the cockpit. <b>File everything</b> to start clean — archived mail stays under its labels and in the Archive tab, and you can move any of it back to the cockpit anytime.</div>'
+        + '<button class="btn wide danger" data-act="emptycockpit" style="border-style:dashed">File everything to Archive (empty cockpit)</button>'
         + '<div class="seghead">Mail accounts · kept separate</div>' + acctRows()
         + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addacct">+ Add a mail account</button>'
         + '<div class="seghead">Cockpit categories · toggle to show/hide</div>'+rows
@@ -531,7 +537,9 @@
   function archive(id, word){ var m=msgById(id); if(m){ m.archived=true; m.snoozed=false; apiPost('/api/messages/'+id+'/archive'); toast((word||'Archived')+' · '+m.from); } }
   function snoozeMsg(id, label){ var m=msgById(id); if(m){ m.snoozed=true; m.snoozeUntil=label||''; toast('Snoozed'+(label?' · '+label:'')+' · '+m.from); } }
   function removeMsg(id){ var m=msgById(id); for(var i=0;i<state.messages.length;i++){ if(state.messages[i].id===id){ state.messages.splice(i,1); break; } } if(m) toast('Deleted · '+m.from); }
-  function restoreMsg(id){ var m=msgById(id); if(m){ m.archived=false; m.snoozed=false; toast('Restored to inbox · '+m.from); } }
+  function restoreMsg(id){ var m=msgById(id); if(m){ m.archived=false; m.snoozed=false; toast('Moved to cockpit · '+m.from); } }
+  function archiveGroup(gid){ var n=0; state.messages.forEach(function(m){ if(m.group===gid && isActive(m) && inSel(m)){ m.archived=true; n++; } }); toast('Filed '+n+' update'+(n===1?'':'s')); }
+  function emptyCockpit(){ var n=0; state.messages.forEach(function(m){ if(isActive(m) && inSel(m)){ m.archived=true; n++; } }); toast('Filed '+n+' mail to Archive · cockpit clear'); }
   function slug(s){ return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,24) || ('cat'+Date.now()); }
 
   function handleAct(act, el){
@@ -632,6 +640,8 @@
       }
       case 'taskdone': { var tk=(state.tasks||[]).filter(function(x){ return x.id===id; })[0]; if(tk){ tk.done=!tk.done; } render(); break; }
       case 'expandgroup': { var g=el.getAttribute('data-g'); expandedGroups[g] = !expandedGroups[g]; render(); break; }
+      case 'archgroup': { archiveGroup(el.getAttribute('data-g')); render(); break; }
+      case 'emptycockpit': { if(window.confirm('File all cockpit mail to the Archive? You can move any of it back anytime.')){ emptyCockpit(); } location.hash = '#/'; break; }
       case 'unsnooze': { var um=msgById(id); if(um){ um.snoozed=false; um.snoozeUntil=''; toast('Woke · '+um.from); } render(); break; }
       case 'emptyarchive': {
         if(window.confirm('Delete all filed mail? This can’t be undone.')){
@@ -706,7 +716,7 @@
     if(!sw) return; var s = sw; sw = null;
     if(!s.moved) return;
     suppressClick = true; setTimeout(function(){ suppressClick = false; }, 400);
-    if(s.dx < -70){ archive(s.id, 'Archived'); render(); }
+    if(s.dx < -70){ var sm=msgById(s.id); if(sm && sm.group){ archiveGroup(sm.group); } else { archive(s.id, 'Archived'); } render(); }
     else if(s.dx > 70){ pendingSnooze = s.id; render(); }   // open the snooze chooser
     else { s.c.style.transition = 'transform .2s, opacity .2s'; s.c.style.transform = ''; s.c.style.opacity = ''; }
   });

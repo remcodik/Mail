@@ -77,6 +77,18 @@ Claude classifies every email into one of:
   **Needs attention · To reply · Waiting · Just info**, plus that label's open
   tasks and a "top of the pile" preview; each bucket drills into a filtered list.
 
+## Onboarding & the archive-first model
+
+- **First connect files existing mail** to the Archive so the cockpit starts
+  **clean**; only mail arriving after connect lands in the cockpit.
+- **Move to cockpit**: any filed mail can be promoted into the live cockpit in one
+  tap (removes the archived state). This is how you pull history in as you want it.
+- **Empty cockpit anytime**: Settings → *File everything to Archive* re-runs the
+  "start clean" whenever you like.
+- **Group vs individual archive**: archiving a grouped card (or its "Archive all")
+  files the **whole group**; archiving a single message from its detail files just
+  that one.
+
 ## Grouping (threads by "thing")
 
 Mail about the **same item** collapses into one card showing the **latest**, with

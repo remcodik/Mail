@@ -38,6 +38,9 @@ def process_account(user_id: str, account_id: str, max_results: int = 25) -> int
         raise RuntimeError(f"no OAuth token for account {account_id}")
     client = GmailClient(user_id, account_id, token)
     valid = {c["id"] for c in store.categories(user_id)}
+    # First connect: file all existing mail to the Archive so the cockpit starts
+    # clean. Later syncs bring genuinely new mail into the cockpit.
+    first_sync = len(store.messages(user_id, account=account_id, include_archived=True)) == 0
 
     processed = 0
     for mid in client.list_message_ids(query="in:inbox", max_results=max_results):
@@ -50,7 +53,8 @@ def process_account(user_id: str, account_id: str, max_results: int = 25) -> int
             cat = "fyi"
         msg = {**email, "cat": cat, "chip": _cat_name(user_id, cat),
                "summary": intelligence.summarize_thread([email]),
-               "labels": intelligence.suggest_labels(email, store.labels(user_id), store.label_corrections(user_id))}
+               "labels": intelligence.suggest_labels(email, store.labels(user_id), store.label_corrections(user_id)),
+               "archived": first_sync}  # first connect files existing mail; new mail stays active
         if cat in ("urgent", "reply"):
             msg["needsAction"] = True
             msg["reply"] = intelligence.draft_reply(email)
