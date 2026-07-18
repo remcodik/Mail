@@ -155,6 +155,29 @@
       + '<div class="pacts"><button class="btn danger" data-act="unsubconfirm">Unsubscribe</button><button class="btn" data-act="unsubcancel">Cancel</button></div></div>';
   }
 
+  // sent-mail follow-up: if a reply/mail asks for something, offer a reminder
+  function looksLikeRequest(text){ return /\?|please|could you|can you|let me know|get back|by (friday|monday|tomorrow|eod|end of)|availability|when (are|can|could|will)|waiting|need|kindly|follow ?up/i.test(text||''); }
+  var pendingFollowup = null;   // {to, subject, account} awaiting a follow-up-in choice
+  var FOLLOWUP_OPTS = [['3 days'], ['1 week'], ['2 weeks']];
+  function followupBar(){
+    if(!pendingFollowup) return '';
+    var p = pendingFollowup;
+    return '<div class="proposal"><div class="ptext">'+SPARK+' That asks '+esc(p.to)+' for something. <b>Remind you to follow up</b> if no reply?</div>'
+      + '<div class="pacts" style="flex-wrap:wrap">'
+      + FOLLOWUP_OPTS.map(function(o){ return '<button class="btn" data-act="followuppick" data-label="'+o[0]+'">'+o[0]+'</button>'; }).join('')
+      + '<button class="btn ghost" data-act="followupcancel">No thanks</button></div></div>';
+  }
+  function makeFollowup(to, subject, account, label){
+    var id = 'w'+Date.now();
+    state.originalCat[id] = 'waiting'; state.originalLabels[id] = [];
+    state.messages.push({ id:id, cat:'waiting', account:account, from:'To: '+to, to:to, initials:'→', av:'#0FA398',
+      subject:'Awaiting reply — '+subject, snippet:'You asked '+to+' for a reply. I’ll flag this if nothing comes back within '+label+'.',
+      chip:'Awaiting reply', days:0, overdue:false, time:'just now', domain:'', labels:[],
+      reply:'Hi — just following up on my note below, whenever you get a chance. Thanks!' });
+    state.tasks.push({ id:'t'+Date.now(), text:'Follow up with '+to+' · '+subject, due:'in '+label, done:false, msgId:id });
+    toast('Reminder set · I’ll nudge you in '+label+' + added to Tasks');
+  }
+
   // timed snooze chooser
   var pendingSnooze = null;   // msgId awaiting a "snooze until" choice
   var SNOOZE_OPTS = [['later','Later today'], ['tomorrow','Tomorrow'], ['weekend','This weekend'], ['nextweek','Next week']];
@@ -567,7 +590,7 @@
     var html = '<div class="topbar'+(v.withBack?' with-back':'')+'">'+v.top+'</div>'
       + (v.tabs||'')
       + (v.bare ? v.body : '<div class="view">'+v.body+'</div>')
-      + proposalBar() + catProposalBar() + unsubBar() + snoozeBar()
+      + proposalBar() + catProposalBar() + unsubBar() + snoozeBar() + followupBar()
       + tabbar(v.nav);
     root.innerHTML = html;
     // scroll view to top on nav
@@ -602,7 +625,14 @@
       case 'snoozecancel': { pendingSnooze=null; render(); break; }
       case 'done': archive(id,'Marked done'); render(); break;
       case 'unsub': pendingUnsub = id; render(); break;
-      case 'send': archive(id,'Reply sent'); back(); break;
+      case 'send': {
+        var sm2 = msgById(id); archive(id,'Reply sent');
+        if(sm2 && looksLikeRequest(sm2.reply)){ pendingFollowup = { to:sm2.from, subject:sm2.subject, account:sm2.account }; render(); }
+        else back();
+        break;
+      }
+      case 'followuppick': { if(pendingFollowup){ var f=pendingFollowup; pendingFollowup=null; makeFollowup(f.to, f.subject, f.account, el.getAttribute('data-label')); location.hash='#/c/waiting'; } else render(); break; }
+      case 'followupcancel': { pendingFollowup=null; toast('No reminder set'); back(); break; }
       case 'wallet': toast('Added to Apple Wallet (demo)'); break;
       case 'edit': toast('Editing (demo)'); break;
       case 'discard': toast('Draft discarded'); break;
