@@ -3,13 +3,13 @@
 Living log of things we've parked to decide/build later. Newest at top of each
 section. Cross-referenced with GitHub issues where tracked.
 
-Last updated: 2026-07-16
+Last updated: 2026-07-18
 
 ## Product / UX questions to decide
 
 | # | Question | Context / options | Status |
 |---|----------|-------------------|--------|
-| Q1 | **Rule scope: sender vs domain** | ✅ Built (demo): the proposal now lets you pick **This sender** or **Anyone @domain**; plus an explicit "Add a label rule" in Settings. Backend still applies rules by sender — domain-scope server-side is a follow-up. Subject-keyword scope still open. | Done (demo); backend follow-up |
+| Q1 | **Rule scope: sender vs domain vs subject** | ✅ Built (demo): the proposal lets you pick **This sender**, **Anyone @domain**, or **Subject…** (keyword match), plus an explicit "Add a label rule" in Settings. Backend still applies rules by sender — domain/subject scope server-side is a follow-up. | Done (demo); backend follow-up |
 | Q2 | **Auto-apply labels by fixed rule** | Besides learning from corrections, allow explicit user rules ("anything from @acme.com → Acme Corp") applied deterministically before the AI guess? | Open |
 | Q3 | **Rule management UI** | ✅ Built (demo): Settings lists label + category rules each with a delete (✕); removing a rule cleanly reverts its effect (labels/categories recompute from the original AI assignment + remaining rules). | Done (demo) |
 | Q11 | **Category correction loop** | ✅ Built (demo): "Category · tap to fix" on the detail screen; fixing proposes a sender/@domain rule you approve; rules recompute categories and are deletable. Mirrors the label loop (#15). | Done (demo); backend few-shot follow-up |
@@ -18,7 +18,7 @@ Last updated: 2026-07-16
 | Q4 | **How autonomous?** | Should MailAI ever send/archive/delete/unsubscribe without an explicit tap? Current default: suggestion-only. | Leaning suggestion-only; confirm |
 | Q5 | **Category vs label overlap for tickets/receipts** | Retail receipts → `purchase`; reservations/boarding → `ticket`; trips → `travel`. Confirm boundaries. | Proposed, needs sign-off (#24, #26) |
 | Q6 | **Custom-category limit** | Soft cap on number of active cockpit categories before classification gets ambiguous/costly? | Open (suggested ~5–6) |
-| Q7 | **Snooze / swipe actions** | ✅ Built (demo): swipe **left = archive**, **right = snooze** with a **timed chooser** (Later today / Tomorrow / Weekend / Next week); snoozed mail sits in the Archive cockpit with **Wake now**. Real clock-based auto-return is a backend follow-up. | Done (demo); auto-return follow-up |
+| Q7 | **Snooze / swipe actions** | ✅ Built (demo): swipe **left = archive**, **right = snooze** with a **timed chooser** (Later today / Tomorrow / Weekend / Next week); snoozed mail sits in the Archive cockpit with **Wake now**. **Timed auto-return** is now demoed via an "Advance demo clock" control that wakes due snoozes back into the cockpit. Live wants a real scheduler/clock. | Done (demo); live scheduler follow-up |
 | Q9 | **Grouping related mail** | ✅ Built (demo): mail sharing a parcel/order/trip collapses into one card (latest on top, rest under a toggle). Grouping is by an inline `group` key in the demo; live grouping keys off detector fields (tracking/order/trip id). | Done (demo); live keying follow-up |
 | Q10 | **Archive cockpit** | ✅ Built (demo): filed mail stays categorized under a dedicated Archive tab with per-item / per-category / empty-all delete, plus a Snoozed section. | Done (demo) |
 | Q8 | **Label cockpit depth** | Per-label cockpit buckets = Needs attention / Reply / Waiting / Info (+ tasks). Are these the right buckets, or add e.g. Money (invoices/purchases) per customer? | **Being built** — feedback wanted |
@@ -52,3 +52,7 @@ Last updated: 2026-07-16
 - **Labels: AI-assigns, you fix, it learns — and now proposes the rule before applying** — built.
 - **Tasks linked to their mail; create task from email** — built.
 - **"Need you" vs "Auto-handled" made explicit + tappable** — built.
+- **Timed snooze auto-return** — demoed via an "Advance demo clock" control; due snoozes wake back into the cockpit.
+- **Task due-dates + inline edit** — tasks can be edited (text/due) and completed from the Tasks screen.
+- **Account colour / rename / remove** — Settings → Mail accounts now manages each account's colour, label, and removal.
+- **Subject-keyword rule scope** — label/category rule proposals can now scope to a keyword in the subject, not just sender/domain.

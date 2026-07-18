@@ -265,5 +265,12 @@ a{color:inherit}
   background:color-mix(in srgb,var(--accent) 10%,transparent);border:1px solid color-mix(in srgb,var(--accent) 25%,var(--line));
   border-radius:8px;padding:5px 9px;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tklink svg{flex:none}
+.tkacts{display:flex;gap:16px;margin-top:8px}
+.tkacts button{background:transparent;border:0;font-size:11px;font-weight:700;color:var(--ink-3);padding:2px 0}
+.tkacts button.del{color:var(--c-urgent)}
+/* account management rows */
+.acctrow2{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:9px 11px;margin-bottom:8px}
+.acctrow2 .cdot-btn{width:27px;height:27px;border:0;flex:none;cursor:pointer}
+.acctinfo{flex:1;min-width:0}
 
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
