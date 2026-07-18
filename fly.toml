@@ -1,0 +1,35 @@
+# Fly.io config for MailAI. Rename `app` to something globally unique, then:
+#   fly launch --no-deploy      (or `fly apps create <name>`)
+#   fly secrets set MAILAI_SESSION_SECRET=... ANTHROPIC_API_KEY=... \
+#                   GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=...
+#   fly deploy
+# Then set MAILAI_OAUTH_REDIRECT_BASE below to your real https URL and add
+#   <that URL>/api/accounts/callback  as an authorized redirect URI in Google Cloud.
+
+app = "mailai-CHANGE-ME"
+primary_region = "ams"
+
+[build]
+
+[env]
+  MAILAI_MODE = "live"
+  MAILAI_OAUTH_REDIRECT_BASE = "https://mailai-CHANGE-ME.fly.dev"
+  MAILAI_DB = "/data/mailai.db"
+
+# Durable storage for the SQLite DB + encrypted tokens. Create the volume once:
+#   fly volumes create mailai_data --size 1 --region ams
+[mounts]
+  source = "mailai_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 512
