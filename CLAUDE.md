@@ -137,12 +137,21 @@ first and clear it out here in bulk.
 - **Snooze** (swipe right) temporarily hides a mail from everywhere until it's due.
 - Swipe left = archive, swipe right = snooze.
 
-## Tasks
+## Tasks & agenda
 
 Extracted from emails; each task **keeps a link to its source mail** (tap a task
 → open the email). Tasks can be created from an email (whole email or a specific
 extracted action). Cockpit ↔ Tasks reachable from the bottom nav and the sticky
 top-right actions.
+
+- **Propose meeting for agenda:** alongside "create task", an email detail offers
+  **+ Propose meeting for agenda**. When the mail reads as scheduling (meet /
+  call / "are you around" / availability…) MailAI flags it and suggests it. It
+  opens a slot chooser (a few proposed times), and picking one adds an
+  **appointment to the agenda** (shown in an *Agenda · proposed meetings* section
+  on the Tasks screen) with a ready-to-send proposal reply — *Send proposal* /
+  *Remove*. Mirrors `detect_scheduling_intent` + `generate_appointment_proposal`;
+  live Calendar write is a follow-up.
 
 ## Intelligence functions (intelligence.py)
 
@@ -204,6 +213,12 @@ suggest_followup_date(email) -> date
 - Auto-dismisses when reply arrives
 
 ### Settings / Rules screen
+- **Language (English / Dutch):** a toggle switches **all of MailAI's own UI**
+  (labels, categories, buttons, headings, toasts) between English and Dutch.
+  Email content (senders, subjects, bodies) is never machine-translated — only
+  the app chrome changes. Persists per user (`settings.lang`); the frontend
+  translates via an English→Dutch phrase dictionary + a post-render text pass.
+- **Show in Gmail:** the mirror toggle (see "Mirror to Gmail" above).
 - **Cockpit categories:** reorder (drag), toggle visibility, and **add custom categories** — each becomes a cockpit tile. Custom categories carry a name, color/icon, and a plain-language definition used by the classifier.
 - Plain-language classification rules
 - Add / edit / delete rules

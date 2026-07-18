@@ -123,6 +123,15 @@ def set_mirror(request: Request, enabled: bool = Body(embed=True)) -> dict:
     return {"ok": True, "mirror_gmail": bool(enabled)}
 
 
+@app.post("/api/settings/lang")
+def set_lang(request: Request, lang: str = Body(embed=True)) -> dict:
+    """Set the UI language ('en' | 'nl'). Only affects MailAI's own chrome."""
+    uid = _uid(request)
+    lang = "nl" if str(lang).lower().startswith("nl") else "en"
+    store.set_setting(uid, "lang", lang)
+    return {"ok": True, "lang": lang}
+
+
 @app.post("/api/messages/{message_id}/labels")
 def fix_label(request: Request, message_id: str, label_id: str = Body(embed=True)) -> dict:
     """Add/remove a label on a message and learn from it (applies to same-sender mail)."""

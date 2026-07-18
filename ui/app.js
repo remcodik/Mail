@@ -78,6 +78,93 @@
     return out;
   }
 
+  // ---- language: switch all UI labels & text between English and Dutch ----
+  var LANG_KEY = 'mailai-lang-v1';
+  function loadLang(){ try { return localStorage.getItem(LANG_KEY) === 'nl' ? 'nl' : 'en'; } catch(e){ return 'en'; } }
+  function saveLang(){ try { localStorage.setItem(LANG_KEY, state.lang === 'nl' ? 'nl' : 'en'); } catch(e){} }
+  // English UI phrase -> Dutch. Only exact, whole phrases translate, so email
+  // content (senders, subjects, bodies) is never touched — just the app's chrome.
+  var DICT = {
+    // nav + cockpit
+    'Cockpit':'Cockpit','Tasks':'Taken','Archive':'Archief','Settings':'Instellingen',
+    'Good morning, Remco':'Goedemorgen, Remco','need you today ›':'heeft je aandacht ›',
+    'auto-handled ›':'automatisch afgehandeld ›','Add a category tile':'Categorietegel toevoegen',
+    'active':'actief',
+    'Tap a number to see those emails. Need you = waiting on your action (urgent, replies, overdue). Auto-handled = MailAI already sorted it (newsletters, receipts, deliveries…).':
+      'Tik op een getal om die e-mails te zien. Aandacht = wacht op jou (urgent, antwoorden, te laat). Automatisch = MailAI heeft het al gesorteerd (nieuwsbrieven, bonnen, bezorgingen…).',
+    'need you':'aandacht','auto-handled':'automatisch',
+    // category names + chip
+    'Urgent':'Urgent','Reply':'Beantwoorden','Deliveries':'Bezorgingen','Purchases':'Aankopen',
+    'Travel':'Reizen','Newsletter':'Nieuwsbrief','Tickets':'Tickets','Waiting':'Wachtend',
+    'Junk':'Ongewenst','FYI':'Ter info','Reply needed':'Antwoord nodig','filed':'gearchiveerd',
+    // focus screens
+    'need you today':'heeft je aandacht','auto-handled today':'automatisch afgehandeld',
+    // cards / detail panels
+    'Full email':'Volledige e-mail','Labels · tap to fix':'Labels · tik om te corrigeren',
+    'Category · tap to fix':'Categorie · tik om te corrigeren','In Gmail':'In Gmail',
+    'Extracted details':'Uitgelezen gegevens','Extracted tasks':'Uitgelezen taken',
+    'Suggested reply · professional':'Voorgesteld antwoord · zakelijk',
+    'I assign these automatically and learn from your corrections.':'Ik wijs deze automatisch toe en leer van je correcties.',
+    'Wrong bucket? Tap the right one — I learn from it.':'Verkeerde categorie? Tik de juiste — ik leer ervan.',
+    'These appear on this mail in the Gmail app too. The first is the main label (your category); the rest are your labels.':
+      'Deze verschijnen ook bij deze mail in de Gmail-app. De eerste is het hoofdlabel (je categorie); de rest zijn je labels.',
+    // buttons
+    'Send':'Versturen','Edit':'Bewerken','Discard':'Weggooien','Delete':'Verwijderen',
+    'Archive (file it)':'Archiveren (opbergen)','Restore to inbox':'Terug naar inbox',
+    'Move to cockpit':'Naar cockpit','Unsubscribe':'Uitschrijven','+ New':'+ Nieuw',
+    '+ Create task from this email':'+ Maak een taak van deze e-mail',
+    '+ Propose meeting for agenda':'+ Stel afspraak voor agenda voor',
+    'Wake now':'Nu wekken','Cancel':'Annuleren','Apply rule':'Regel toepassen',
+    'Just this one':'Alleen deze','This sender':'Deze afzender','Subject…':'Onderwerp…',
+    // choosers
+    'Later today':'Later vandaag','Tomorrow':'Morgen','Weekend':'Weekend','Next week':'Volgende week',
+    '3 days':'3 dagen','1 week':'1 week','2 weeks':'2 weken',
+    // settings
+    'Categories & rules':'Categorieën & regels','Cockpit':'Cockpit','Show in Gmail':'Weergeven in Gmail',
+    'Language':'Taal','English':'Engels','Dutch':'Nederlands',
+    'Mirror categories & labels to Gmail':'Categorieën & labels spiegelen naar Gmail',
+    'Mail accounts · kept separate':'Mailaccounts · gescheiden gehouden',
+    'Cockpit categories · toggle to show/hide':'Cockpit-categorieën · toon/verberg',
+    'Labels · AI-assigned, you correct':'Labels · door AI toegewezen, jij corrigeert',
+    'Label rules · learned + yours':'Labelregels · geleerd + eigen',
+    'Rules':'Regels','+ Add a category':'+ Categorie toevoegen','+ Add a label':'+ Label toevoegen',
+    '+ Add a label rule':'+ Labelregel toevoegen','+ Add a rule':'+ Regel toevoegen',
+    '+ Add a mail account':'+ Mailaccount toevoegen',
+    'File everything to Archive (empty cockpit)':'Alles archiveren (cockpit legen)',
+    'Switch the whole app between English and Dutch':'Wissel de hele app tussen Engels en Nederlands',
+    // tasks / agenda
+    'Set due':'Deadline','Change due':'Deadline wijzigen','Agenda · proposed meetings':'Agenda · voorgestelde afspraken',
+    'Send proposal':'Voorstel sturen','Remove':'Verwijderen','Meeting':'Afspraak','with':'met',
+    // archive
+    'Empty archive':'Archief legen','tap to review':'tik om te bekijken',
+    '⏭ Advance demo clock (wake due snoozes)':'⏭ Demo-klok vooruit (wek gesnoozede mails)',
+    // empty states / toasts
+    'Nothing here yet.':'Nog niets hier.','Archived':'Gearchiveerd','Snoozed':'Gesnoozed',
+    'Woke':'Gewekt','Gmail sync on · these show as labels in Gmail':'Gmail-sync aan · deze verschijnen als labels in Gmail',
+    'Gmail sync off':'Gmail-sync uit','Added to agenda':'Toegevoegd aan agenda','Proposal sent':'Voorstel verstuurd'
+  };
+  function t(s){ return (state && state.lang === 'nl' && DICT[s] != null) ? DICT[s] : s; }
+  // post-render pass: translate matching text nodes + a couple of attributes.
+  function localize(rootEl){
+    if(!(state && state.lang === 'nl')) return;
+    var seg = function(raw){
+      var key = raw.trim();
+      if(DICT[key] != null) return raw.replace(key, DICT[key]);
+      if(raw.indexOf(' · ') >= 0){
+        var hit = false, parts = raw.split(' · ').map(function(p){ var k=p.trim(); if(DICT[k]!=null){ hit=true; return p.replace(k, DICT[k]); } return p; });
+        if(hit) return parts.join(' · ');
+      }
+      return null;
+    };
+    var walker = document.createTreeWalker(rootEl, NodeFilter.SHOW_TEXT, null);
+    var n, jobs = [];
+    while((n = walker.nextNode())){ var out = seg(n.nodeValue); if(out != null && out !== n.nodeValue) jobs.push([n, out]); }
+    jobs.forEach(function(j){ j[0].nodeValue = j[1]; });
+    Array.prototype.forEach.call(rootEl.querySelectorAll('[aria-label],[placeholder]'), function(el){
+      ['aria-label','placeholder'].forEach(function(a){ var v = el.getAttribute(a); if(v && DICT[v] != null) el.setAttribute(a, DICT[v]); });
+    });
+  }
+
   var LEARN_KEY = 'mailai-learn-v2';
   function loadLearned(){
     try {
@@ -194,6 +281,31 @@
       reply:'Hi — just following up on my note below, whenever you get a chance. Thanks!' });
     state.tasks.push({ id:'t'+Date.now(), text:'Follow up with '+to+' · '+subject, due:'in '+label, done:false, msgId:id });
     toast('Reminder set · I’ll nudge you in '+label+' + added to Tasks');
+  }
+
+  // scheduling: if a mail is about meeting up, propose an appointment for the agenda
+  function looksScheduley(m){
+    var s = ((m.subject||'')+' '+(m.snippet||'')+' '+(m.summary||'')).toLowerCase();
+    return /\bmeet|meeting\b|catch up|coffee|call\b|schedule|availab|calendar|appointment|agenda|are you (around|free)|which (day|time)|next week|book a/.test(s);
+  }
+  // a few plausible slots for the demo proposal
+  var MEETING_OPTS = [['tue15','Tue · 15:00'], ['wed10','Wed · 10:00'], ['thu14','Thu · 14:00']];
+  var pendingMeeting = null;   // {msgId, to} awaiting a slot choice
+  function meetingBar(){
+    if(!pendingMeeting) return '';
+    var m = msgById(pendingMeeting.msgId);
+    return '<div class="proposal"><div class="ptext">'+SPARK+' Propose a meeting with <b>'+esc(pendingMeeting.to)+'</b> — pick a time for your agenda:</div>'
+      + '<div class="pacts" style="flex-wrap:wrap">'
+      + MEETING_OPTS.map(function(o){ return '<button class="btn" data-act="meetingpick" data-when="'+o[1]+'">'+o[1]+'</button>'; }).join('')
+      + '<button class="btn ghost" data-act="meetingcancel">Cancel</button></div></div>';
+  }
+  function makeMeeting(msgId, to, when){
+    var m = msgById(msgId);
+    var subj = m ? m.subject.replace(/^re:\s*/i,'') : 'Meeting';
+    var mt = { id:'mt'+Date.now(), title:subj, withWho:to, when:when, msgId:msgId, status:'proposed',
+      reply:'Hi '+to+' — how about '+when+'? I’ve pencilled it in; happy to shift if another time suits you better.' };
+    (state.meetings = state.meetings || []).push(mt);
+    toast('Added to agenda · '+when);
   }
 
   // timed snooze chooser
@@ -468,6 +580,11 @@
       }).join('')+'</div>');
     }
     parts.push('<button class="btn wide" data-act="newtask" data-id="'+m.id+'" style="border-style:dashed;color:var(--accent-ink)">+ Create task from this email</button>');
+    // scheduling: propose a meeting/appointment for the agenda (parallel to tasks)
+    if(looksScheduley(m)){
+      parts.push('<div class="ai-note" style="padding:2px 4px">'+SPARK+'Looks like scheduling — want an appointment on your agenda?</div>');
+    }
+    parts.push('<button class="btn wide" data-act="proposemeeting" data-id="'+m.id+'" style="border-style:dashed;color:var(--accent-ink)">+ Propose meeting for agenda</button>');
     if(m.reply){
       parts.push('<div class="panel"><p class="h">Suggested reply · professional</p><div class="reply-body">'+esc(m.reply)+'</div>'
         + '<div class="btnrow"><button class="btn pri" data-act="send" data-id="'+m.id+'">Send</button>'
@@ -556,6 +673,12 @@
         +   '<span class="ccount">Adds them as Gmail labels under <b>MailAI/</b> — visible in the Gmail app &amp; search</span></span>'
         +   '<button class="toggle'+(state.mirrorGmail?'':' off')+'" data-act="togglemirror" aria-label="toggle Gmail sync"></button></div>'
         + '<div class="rule" style="color:var(--ink-2)">'+SPARK+'Your <b>category</b> becomes the main label (e.g. <b>MailAI/Urgent</b>) — one per mail; each <b>label</b> is added too (e.g. <b>MailAI/Acme Corp</b>). Everything groups under one <b>MailAI/</b> parent you can collapse or remove in Gmail in a single step. Off by default — nothing is written to Gmail until you turn this on (and, live, connect an account).</div>'
+        + '<div class="seghead">Language</div>'
+        + '<div class="langrow">'
+        +   '<button class="langseg'+(state.lang!=='nl'?' on':'')+'" data-act="setlang" data-v="en">🇬🇧 English</button>'
+        +   '<button class="langseg'+(state.lang==='nl'?' on':'')+'" data-act="setlang" data-v="nl">🇳🇱 Nederlands</button>'
+        + '</div>'
+        + '<div class="rule" style="color:var(--ink-2)">'+SPARK+'Switch the whole app between English and Dutch. Your emails stay in their own language — only MailAI’s labels &amp; text change.</div>'
         + '<div class="seghead">Mail accounts · kept separate</div>' + acctRows()
         + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addacct">+ Add a mail account</button>'
         + '<div class="seghead">Cockpit categories · toggle to show/hide</div>'+rows
@@ -590,15 +713,27 @@
       + '<div class="tkacts"><button data-act="taskedit" data-id="'+t.id+'">Edit</button><button data-act="taskdue" data-id="'+t.id+'">'+(t.due?'Change due':'Set due')+'</button><button class="del" data-act="taskdel" data-id="'+t.id+'">Delete</button></div>'
       + '</div></div>';
   }
+  function meetingRow(mt){
+    var m = msgById(mt.msgId);
+    return '<div class="tkrow">'
+      + '<span class="mtcal">'+svg('<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>',15)+'</span>'
+      + '<div class="tkbody"><div class="tktext">'+esc(mt.title)+'</div>'
+      + '<div class="due">'+esc(mt.when)+' · with '+esc(mt.withWho)+(mt.status==='sent'?' · <b>proposal sent</b>':'')+'</div>'
+      + (m?'<button class="tklink" data-nav="#/m/'+m.id+'">'+svg('<path d="M14 4h6v6M20 4l-9 9M20 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5"/>',11)+' '+esc(m.from)+' — '+esc(m.subject)+'</button>':'')
+      + '<div class="tkacts"><button data-act="meetingsend" data-id="'+mt.id+'">'+(mt.status==='sent'?'Resend':'Send proposal')+'</button><button class="del" data-act="meetingdel" data-id="'+mt.id+'">Remove</button></div>'
+      + '</div></div>';
+  }
   function viewTasks(){
     var open = (state.tasks||[]).filter(function(t){ return !t.done; });
     var done = (state.tasks||[]).filter(function(t){ return t.done; });
+    var meetings = state.meetings || [];
     var body = '<div class="list">'
       + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="tasknew">+ New task</button>'
       + (open.length ? open.map(taskRow).join('') : '<div class="empty">No open tasks. Add one from any email or above.</div>')
+      + (meetings.length ? '<div class="seghead">Agenda · proposed meetings</div>'+meetings.map(meetingRow).join('') : '')
       + (done.length ? '<div class="seghead">Done</div>'+done.map(taskRow).join('') : '')
       + '</div>';
-    return { top:'<div class="brand"><span class="dot"></span> MailAI · Tasks</div><h1>Tasks</h1><div class="sub">'+open.length+' open · each linked to its mail</div>', body:body, nav:'tasks' };
+    return { top:'<div class="brand"><span class="dot"></span> MailAI · Tasks</div><h1>Tasks</h1><div class="sub">'+open.length+' open'+(meetings.length?' · '+meetings.length+' meeting'+(meetings.length===1?'':'s'):'')+'</div>', body:body, nav:'tasks' };
   }
 
   // ---------- render ----------
@@ -627,9 +762,10 @@
     var html = '<div class="topbar'+(v.withBack?' with-back':'')+'">'+v.top+'</div>'
       + (v.tabs||'')
       + (v.bare ? v.body : '<div class="view">'+v.body+'</div>')
-      + proposalBar() + catProposalBar() + unsubBar() + snoozeBar() + followupBar()
+      + proposalBar() + catProposalBar() + unsubBar() + snoozeBar() + followupBar() + meetingBar()
       + tabbar(v.nav);
     root.innerHTML = html;
+    localize(root);   // switch UI chrome to Dutch when selected
     // scroll view to top on nav
     var view = root.querySelector('.view'); if(view) view.scrollTop = 0;
   }
@@ -638,7 +774,7 @@
   var toastEl;
   function toast(msg){
     if(!toastEl){ toastEl = document.createElement('div'); toastEl.className='toast'; document.body.appendChild(toastEl); }
-    toastEl.textContent = msg; toastEl.classList.add('show');
+    toastEl.textContent = t(msg); toastEl.classList.add('show');
     clearTimeout(toast._t); toast._t = setTimeout(function(){ toastEl.classList.remove('show'); }, 1800);
   }
 
@@ -670,6 +806,11 @@
       }
       case 'followuppick': { if(pendingFollowup){ var f=pendingFollowup; pendingFollowup=null; makeFollowup(f.to, f.subject, f.account, el.getAttribute('data-label')); location.hash='#/c/waiting'; } else render(); break; }
       case 'followupcancel': { pendingFollowup=null; toast('No reminder set'); back(); break; }
+      case 'proposemeeting': { var mm=msgById(id); if(mm){ pendingMeeting={ msgId:id, to:mm.from }; render(); } break; }
+      case 'meetingpick': { if(pendingMeeting){ var pm=pendingMeeting; pendingMeeting=null; makeMeeting(pm.msgId, pm.to, el.getAttribute('data-when')); location.hash='#/tasks'; } else render(); break; }
+      case 'meetingcancel': { pendingMeeting=null; render(); break; }
+      case 'meetingsend': { var mts=(state.meetings||[]).filter(function(x){return x.id===id;})[0]; if(mts){ mts.status='sent'; toast('Proposal sent'); } render(); break; }
+      case 'meetingdel': { state.meetings=(state.meetings||[]).filter(function(x){return x.id!==id;}); render(); break; }
       case 'wallet': toast('Added to Apple Wallet (demo)'); break;
       case 'edit': toast('Editing (demo)'); break;
       case 'discard': toast('Draft discarded'); break;
@@ -705,6 +846,7 @@
       }
       case 'togglecat': { var cat=catById(id); if(cat){ cat.visible=!cat.visible; apiPost('/api/categories/'+id+'/visibility',{visible:cat.visible}); } render(); break; }
       case 'togglemirror': { state.mirrorGmail=!state.mirrorGmail; saveMirror(); apiPost('/api/settings/mirror',{enabled:state.mirrorGmail}); toast(state.mirrorGmail?'Gmail sync on · these show as labels in Gmail':'Gmail sync off'); render(); break; }
+      case 'setlang': { var lv=el.getAttribute('data-v')==='nl'?'nl':'en'; state.lang=lv; saveLang(); apiPost('/api/settings/lang',{lang:lv}); render(); break; }
       case 'addcat': {
         var name = window.prompt('New category name (e.g. Finance & bills):');
         if(name && name.trim()){
@@ -905,6 +1047,8 @@
     state.labelRules = loadLearned();
     state.catRules = loadCatRules();
     state.mirrorGmail = (data.settings && data.settings.mirror_gmail) || loadMirror();
+    state.lang = (data.settings && data.settings.lang) || loadLang();
+    state.meetings = [];
     state.demoNow = 0;
     recomputeAll();
     render();

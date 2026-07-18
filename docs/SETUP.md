@@ -32,6 +32,7 @@ Open <http://localhost:8000> — the UI loads from `GET /api/inbox`. No `.env` n
 | POST | `/api/categories/{id}/visibility` | show/hide a cockpit category |
 | POST | `/api/accounts/connect` | demo: add account · live: return Google OAuth URL |
 | POST | `/api/settings/mirror` | toggle "mirror categories + labels to Gmail" (`MailAI/…` labels) |
+| POST | `/api/settings/lang` | set UI language (`en` \| `nl`) |
 | POST | `/api/messages/{id}/labels` | fix a label (learns from it; re-mirrors to Gmail when on) |
 
 Every request is scoped to the authenticated `user_id`; accounts stay separated

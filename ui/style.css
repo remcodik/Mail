@@ -283,6 +283,11 @@ a{color:inherit}
 .tkacts{display:flex;gap:16px;margin-top:8px}
 .tkacts button{background:transparent;border:0;font-size:11px;font-weight:700;color:var(--ink-3);padding:2px 0}
 .tkacts button.del{color:var(--c-urgent)}
+.mtcal{width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;color:var(--accent-ink)}
+/* language switch */
+.langrow{display:flex;gap:8px;margin:2px 0 4px}
+.langseg{flex:1;text-align:center;font-size:13.5px;font-weight:650;padding:11px;border-radius:11px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2)}
+.langseg.on{border-color:var(--accent);color:var(--accent-ink);background:color-mix(in srgb,var(--accent) 10%,transparent)}
 /* account management rows */
 .acctrow2{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:9px 11px;margin-bottom:8px}
 .acctrow2 .cdot-btn{width:27px;height:27px;border:0;flex:none;cursor:pointer}

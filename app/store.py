@@ -34,7 +34,7 @@ class Store:
             bucket["profile"] = {"id": user_id, "email": email or (user_id + "@example.com"), "name": "Remco"}
             bucket["tokens"] = {}            # {account_id: oauth token dict}
             bucket["label_corrections"] = []  # [{sender, label_id, action}] — learning signal
-            bucket["settings"] = {"mirror_gmail": False}  # user prefs (e.g. mirror labels to Gmail)
+            bucket["settings"] = {"mirror_gmail": False, "lang": "en"}  # user prefs
             self._users[user_id] = bucket
             self._persist(user_id)
 
