@@ -223,8 +223,14 @@ a{color:inherit}
 /* toast */
 .toast{position:fixed;left:50%;bottom:88px;transform:translateX(-50%) translateY(16px);
   background:var(--ink);color:var(--surface);font-size:12.5px;font-weight:600;padding:10px 16px;
-  border-radius:999px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50;max-width:88%;text-align:center}
+  border-radius:999px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50;max-width:92%;
+  display:inline-flex;align-items:center;gap:14px;text-align:center}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:62vw}
+.toast-undo{pointer-events:auto;flex:none;background:transparent;border:0;cursor:pointer;font:inherit;
+  font-weight:800;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:8px;
+  color:color-mix(in srgb,var(--accent) 55%,#fff);background:color-mix(in srgb,var(--accent) 26%,transparent)}
+.toast-undo:active{background:color-mix(in srgb,var(--accent) 40%,transparent)}
 
 /* grouped mail (same parcel/order/trip) */
 .grp{display:flex;flex-direction:column}
