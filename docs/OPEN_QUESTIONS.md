@@ -27,6 +27,13 @@ Last updated: 2026-07-18
 | Q10 | **Archive cockpit** | ✅ Built (demo): filed mail stays categorized under a dedicated Archive tab with per-item / per-category / empty-all delete, plus a Snoozed section. | Done (demo) |
 | Q8 | **Label cockpit depth** | Per-label cockpit buckets = Needs attention / Reply / Waiting / Info (+ tasks). Are these the right buckets, or add e.g. Money (invoices/purchases) per customer? | **Being built** — feedback wanted |
 
+## Roadmap items (decided, not yet built)
+
+| # | Item | Notes |
+|---|------|-------|
+| R1 | **Microsoft 365 / Outlook support** | ✅ On the roadmap (Phase 4). Add a `graph_client.py` (Microsoft Graph) behind the same interface as `gmail_client.py`; cockpit/AI/labels unchanged. Needed for work mail on `delaware.pro` (Microsoft 365). Requires IT/admin consent (Entra app). |
+| R2 | **Separate work vs personal deployments** | ✅ Decided (security/IT). Run two independent MailAI instances — personal (Gmail, personal keys) and work (Microsoft 365, company Anthropic key, IT-owned OAuth app, company hosting). Same code, two configs; data never commingled; labels split per instance. See ROADMAP §Phase 4. |
+
 ## Technical decisions to make (before real use)
 
 | # | Decision | Current state | Status |
