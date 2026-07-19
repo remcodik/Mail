@@ -201,8 +201,12 @@ a{color:inherit}
 
 /* settings */
 .seghead{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);font-weight:700;margin:14px 2px 8px}
-.catrow{display:grid;grid-template-columns:16px 27px 1fr auto;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:9px 11px;margin-bottom:8px}
+.catrow{display:grid;grid-template-columns:24px 27px 1fr auto;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:9px 11px;margin-bottom:8px}
 .catrow .grip{color:var(--ink-3);font-size:14px;line-height:1}
+.catrow .reorder{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+.catrow .rbtn{border:0;background:transparent;color:var(--ink-3);font-size:11px;line-height:1;padding:3px 0;width:24px;cursor:pointer;border-radius:5px}
+.catrow .rbtn:disabled{opacity:.22}
+.catrow .rbtn:not(:disabled):active{color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,transparent)}
 .catrow .cdot{width:27px;height:27px;border-radius:8px;display:grid;place-items:center;color:#fff}
 .catrow .cnm{font-size:12.5px;font-weight:650}
 .catrow .ccount{font-size:11px;color:var(--ink-3);font-family:ui-monospace,monospace}

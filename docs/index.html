@@ -1,6 +1,5 @@
 <!doctype html>
-<html lang="en">
-<head>
+<html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <meta name="theme-color" content="#0FA398">
@@ -214,8 +213,12 @@ a{color:inherit}
 
 /* settings */
 .seghead{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);font-weight:700;margin:14px 2px 8px}
-.catrow{display:grid;grid-template-columns:16px 27px 1fr auto;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:9px 11px;margin-bottom:8px}
+.catrow{display:grid;grid-template-columns:24px 27px 1fr auto;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:9px 11px;margin-bottom:8px}
 .catrow .grip{color:var(--ink-3);font-size:14px;line-height:1}
+.catrow .reorder{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+.catrow .rbtn{border:0;background:transparent;color:var(--ink-3);font-size:11px;line-height:1;padding:3px 0;width:24px;cursor:pointer;border-radius:5px}
+.catrow .rbtn:disabled{opacity:.22}
+.catrow .rbtn:not(:disabled):active{color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,transparent)}
 .catrow .cdot{width:27px;height:27px;border-radius:8px;display:grid;place-items:center;color:#fff}
 .catrow .cnm{font-size:12.5px;font-weight:650}
 .catrow .ccount{font-size:11px;color:var(--ink-3);font-family:ui-monospace,monospace}
@@ -326,9 +329,7 @@ a{color:inherit}
 
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 
-</style>
-</head>
-<body>
+</style></head><body>
 <div class="shell"><div id="root"></div></div>
 <script>
 /* MailAI — mock data for the Sprint 1 frontend.
@@ -770,6 +771,25 @@ a{color:inherit}
   function catRuleMatches(rule, m){ return rule.scope==='domain' ? m.domain===rule.value : rule.scope==='subject' ? (m.subject||'').toLowerCase().indexOf((rule.value||'').toLowerCase())>=0 : m.from===rule.value; }
   function applyCatRule(rule){ state.messages.forEach(function(m){ if(catRuleMatches(rule, m)) m.cat = rule.catId; }); }
   function learnCatRule(rule){ state.catRules = (state.catRules||[]).filter(function(r){ return !(r.scope===rule.scope && r.value===rule.value); }); state.catRules.push(rule); saveCatRules(); }
+
+  // ---- cockpit category order (reorder from Settings; persists) ----
+  var CATORDER_KEY = 'mailai-catorder-v1';
+  function saveCatOrder(){ try { localStorage.setItem(CATORDER_KEY, JSON.stringify(state.categories.map(function(c){ return c.id; }))); } catch(e){} }
+  function applyCatOrder(){
+    var ord; try { ord = JSON.parse(localStorage.getItem(CATORDER_KEY)); } catch(e){ ord = null; }
+    if(!ord || !ord.length) return;
+    state.categories.sort(function(a, b){
+      var ia = ord.indexOf(a.id), ib = ord.indexOf(b.id);
+      if(ia < 0) ia = 999; if(ib < 0) ib = 999;   // categories added later go to the end
+      return ia - ib;
+    });
+  }
+  function moveCat(id, dir){
+    var cats = state.categories, idx = cats.map(function(c){ return c.id; }).indexOf(id), j = idx + dir;
+    if(idx < 0 || j < 0 || j >= cats.length) return;
+    var tmp = cats[idx]; cats[idx] = cats[j]; cats[j] = tmp;
+    saveCatOrder(); render();
+  }
   var pendingProposal = null;   // {sender,labelId,action,others,labelName,msgId} awaiting approval
   function fixLabel(msgId, labelId){
     var m = msgById(msgId); if(!m) return;
@@ -1242,8 +1262,11 @@ a{color:inherit}
     }).join('');
   }
   function viewSettings(){
-    var rows = state.categories.map(function(c){
-      return '<div class="catrow"><span class="grip">⠿</span>'
+    var rows = state.categories.map(function(c, i){
+      var first = i===0, last = i===state.categories.length-1;
+      return '<div class="catrow"><span class="reorder">'
+        + '<button class="rbtn" data-act="catup" data-id="'+c.id+'"'+(first?' disabled':'')+' aria-label="move '+esc(c.name)+' up">▲</button>'
+        + '<button class="rbtn" data-act="catdown" data-id="'+c.id+'"'+(last?' disabled':'')+' aria-label="move '+esc(c.name)+' down">▼</button></span>'
         + '<span class="cdot" style="background:'+c.color+'">'+svg(iconFor(c),13)+'</span>'
         + '<span><span class="cnm">'+esc(c.name)+'</span>'+(c.builtin?'':' <span class="ccount">· custom</span>')+'<br>'
         + '<span class="ccount">'+msgsIn(c.id).length+' mails'+(c.visible?'':' · hidden')+'</span></span>'
@@ -1458,6 +1481,8 @@ a{color:inherit}
         render(); break;
       }
       case 'togglecat': { var cat=catById(id); if(cat){ cat.visible=!cat.visible; apiPost('/api/categories/'+id+'/visibility',{visible:cat.visible}); } render(); break; }
+      case 'catup': moveCat(id, -1); break;
+      case 'catdown': moveCat(id, 1); break;
       case 'togglemirror': { state.mirrorGmail=!state.mirrorGmail; saveMirror(); apiPost('/api/settings/mirror',{enabled:state.mirrorGmail}); toast(state.mirrorGmail?'Gmail sync on · these show as labels in Gmail':'Gmail sync off'); render(); break; }
       case 'setlang': { var lv=el.getAttribute('data-v')==='nl'?'nl':'en'; state.lang=lv; saveLang(); apiPost('/api/settings/lang',{lang:lv}); render(); break; }
       case 'addcat': {
@@ -1669,6 +1694,7 @@ a{color:inherit}
     });
     state.events = DEMO_EVENTS.slice();
     state.demoNow = 0;
+    applyCatOrder();   // restore a saved cockpit category order
     recomputeAll();
     render();
   }
@@ -1698,5 +1724,4 @@ a{color:inherit}
 })();
 
 </script>
-</body>
-</html>
+</body></html>
