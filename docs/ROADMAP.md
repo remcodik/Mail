@@ -7,7 +7,7 @@
 > [`SETUP.md`](./SETUP.md). This document evaluates the spec, records open
 > questions, and lays out the phased plan tracked in GitHub Issues.
 
-Last reviewed: 2026-07-14
+Last reviewed: 2026-07-19
 
 ---
 
@@ -150,6 +150,44 @@ Goal: Wallet, scheduling, polish.
 - Rules engine (plain-language classification rules)
 - **User-customizable categories** — add / reorder / hide cockpit tiles; custom category definitions feed the classifier (extends the rules engine)
 - Hardening: rate limits, cost caps, privacy disclosure (**G8**, **G10**, **G12**)
+
+### Phase 4 — Provider expansion: Microsoft 365 / Outlook
+
+Goal: support work mailboxes hosted on **Microsoft 365 / Outlook / Exchange**,
+not just Gmail. Today the app speaks only the **Gmail API**; a mailbox on
+Microsoft needs a **Microsoft Graph** connector (different API + OAuth via
+Entra/Azure AD).
+
+- **`graph_client.py`** — a second mail backend behind the same interface as
+  `gmail_client.py` (list/get/archive/apply-label/send), so the cockpit,
+  categories, labels, AI, tasks and agenda are **unchanged** — everything above
+  the connector layer is provider-agnostic. This is **additive, not a rewrite**.
+- **Auth** — Microsoft OAuth (Entra ID app registration). On a **company**
+  domain this requires **IT/admin consent**; the app registration is owned and
+  approved by the organisation.
+- **Labels** — Gmail's "labels" map to Outlook **categories** (and folders); the
+  same MailAI category→main-label / labels→extra-labels idea applies, expressed
+  in Outlook's model.
+- **AI is unaffected** — the Anthropic/Claude layer is the same regardless of
+  provider; a work instance simply uses the **organisation's Anthropic API key**.
+
+**Deployment topology — separate instances for work vs personal (by design).**
+For security / IT isolation, run **two independent MailAI deployments** rather
+than mixing mailboxes in one:
+
+| | **Personal instance** | **Work instance** |
+|---|---|---|
+| Mailbox | your Gmail | delaware.pro (Microsoft 365) |
+| Connector | `gmail_client` | `graph_client` (Phase 4) |
+| OAuth app | your Google client | IT-owned Entra app |
+| Anthropic key | your personal key | company/organisation key |
+| Hosting | your own | company-controlled |
+| Data / labels | personal, isolated | work, isolated — never commingled |
+
+Same codebase, two configs. Work mail and its tokens never touch the personal
+instance's storage, which is exactly what IT and compliance want. Labels are
+organised per instance (you "split labels over the two apps"). This is the
+recommended pattern for anyone with a corporate mailbox.
 
 ---
 
