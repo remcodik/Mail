@@ -146,7 +146,8 @@
     // empty states / toasts
     'Nothing here yet.':'Nog niets hier.','Archived':'Gearchiveerd','Snoozed':'Gesnoozed',
     'Woke':'Gewekt','Gmail sync on · these show as labels in Gmail':'Gmail-sync aan · deze verschijnen als labels in Gmail',
-    'Gmail sync off':'Gmail-sync uit','Added to agenda':'Toegevoegd aan agenda','Proposal sent':'Voorstel verstuurd'
+    'Gmail sync off':'Gmail-sync uit','Added to agenda':'Toegevoegd aan agenda','Proposal sent':'Voorstel verstuurd',
+    'Undo':'Ongedaan maken','Removed':'Verwijderd','Rule removed':'Regel verwijderd','Task deleted':'Taak verwijderd'
   };
   function t(s){ return (state && state.lang === 'nl' && DICT[s] != null) ? DICT[s] : s; }
   // post-render pass: translate matching text nodes + a couple of attributes.
@@ -847,25 +848,41 @@
 
   // ---------- toast ----------
   var toastEl;
-  function toast(msg){
+  function toast(msg, undoFn){
     if(!toastEl){ toastEl = document.createElement('div'); toastEl.className='toast'; document.body.appendChild(toastEl); }
-    toastEl.textContent = t(msg); toastEl.classList.add('show');
-    clearTimeout(toast._t); toast._t = setTimeout(function(){ toastEl.classList.remove('show'); }, 1800);
+    toastEl.innerHTML = '';
+    var span = document.createElement('span'); span.textContent = t(msg); toastEl.appendChild(span);
+    clearTimeout(toast._t);
+    if(undoFn){
+      var btn = document.createElement('button'); btn.className = 'toast-undo'; btn.type = 'button'; btn.textContent = t('Undo');
+      btn.onclick = function(){ clearTimeout(toast._t); toastEl.classList.remove('show'); undoFn(); };
+      toastEl.appendChild(btn);
+      toastEl.classList.add('show');
+      toast._t = setTimeout(function(){ toastEl.classList.remove('show'); }, 6000);   // longer, so Undo is reachable
+    } else {
+      toastEl.classList.add('show');
+      toast._t = setTimeout(function(){ toastEl.classList.remove('show'); }, 1800);
+    }
   }
 
   // ---------- actions ----------
-  function archive(id, word){ var m=msgById(id); if(m){ m.archived=true; m.snoozed=false; apiPost('/api/messages/'+id+'/archive'); toast((word||'Archived')+' · '+m.from); } }
-  function snoozeMsg(id, label, key){ var m=msgById(id); if(m){ m.snoozed=true; m.snoozeUntil=label||''; m.snoozeBucket=SNOOZE_ORDER[key]||9; toast('Snoozed'+(label?' · '+label:'')+' · '+m.from); } }
-  function removeMsg(id){ var m=msgById(id); for(var i=0;i<state.messages.length;i++){ if(state.messages[i].id===id){ state.messages.splice(i,1); break; } } if(m) toast('Deleted · '+m.from); }
+  function archive(id, word, undoable){ var m=msgById(id); if(!m) return; m.archived=true; m.snoozed=false; apiPost('/api/messages/'+id+'/archive');
+    var msg=(word||'Archived')+' · '+m.from;
+    if(undoable) toast(msg, function(){ m.archived=false; render(); }); else toast(msg); }
+  function snoozeMsg(id, label, key){ var m=msgById(id); if(m){ m.snoozed=true; m.snoozeUntil=label||''; m.snoozeBucket=SNOOZE_ORDER[key]||9; toast('Snoozed'+(label?' · '+label:'')+' · '+m.from, function(){ m.snoozed=false; m.snoozeUntil=''; m.snoozeBucket=0; render(); }); } }
+  function removeMsg(id){ var idx=-1, m=null; for(var i=0;i<state.messages.length;i++){ if(state.messages[i].id===id){ idx=i; m=state.messages[i]; state.messages.splice(i,1); break; } }
+    if(m) toast('Deleted · '+m.from, function(){ state.messages.splice(idx,0,m); render(); }); }
   function restoreMsg(id){ var m=msgById(id); if(m){ m.archived=false; m.snoozed=false; toast('Moved to cockpit · '+m.from); } }
-  function archiveGroup(gid){ var n=0; state.messages.forEach(function(m){ if(m.group===gid && isActive(m) && inSel(m)){ m.archived=true; n++; } }); toast('Filed '+n+' update'+(n===1?'':'s')); }
-  function emptyCockpit(){ var n=0; state.messages.forEach(function(m){ if(isActive(m) && inSel(m)){ m.archived=true; n++; } }); toast('Filed '+n+' mail to Archive · cockpit clear'); }
+  function archiveGroup(gid){ var hit=[]; state.messages.forEach(function(m){ if(m.group===gid && isActive(m) && inSel(m)){ m.archived=true; hit.push(m); } });
+    toast('Filed '+hit.length+' update'+(hit.length===1?'':'s'), function(){ hit.forEach(function(m){ m.archived=false; }); render(); }); }
+  function emptyCockpit(){ var hit=[]; state.messages.forEach(function(m){ if(isActive(m) && inSel(m)){ m.archived=true; hit.push(m); } });
+    toast('Filed '+hit.length+' mail to Archive · cockpit clear', function(){ hit.forEach(function(m){ m.archived=false; }); render(); }); }
   function slug(s){ return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,24) || ('cat'+Date.now()); }
 
   function handleAct(act, el){
     var id = el.getAttribute('data-id');
     switch(act){
-      case 'archive': archive(id); back(); break;
+      case 'archive': archive(id, null, true); back(); break;
       case 'delete': removeMsg(id); back(); break;
       case 'restore': restoreMsg(id); back(); break;
       case 'snooze': pendingSnooze = id; render(); break;
@@ -885,7 +902,7 @@
       case 'meetingpick': { if(pendingMeeting){ var pm=pendingMeeting; pendingMeeting=null; makeMeeting(pm.msgId, pm.to, el.getAttribute('data-when')); location.hash='#/tasks'; } else render(); break; }
       case 'meetingcancel': { pendingMeeting=null; render(); break; }
       case 'meetingsend': { var mts=(state.meetings||[]).filter(function(x){return x.id===id;})[0]; if(mts){ mts.status='sent'; toast('Proposal sent'); } render(); break; }
-      case 'meetingdel': { state.meetings=(state.meetings||[]).filter(function(x){return x.id!==id;}); render(); break; }
+      case 'meetingdel': { var marr=state.meetings||[]; var mix=marr.map(function(x){return x.id;}).indexOf(id); if(mix>=0){ var mrm=marr[mix]; marr.splice(mix,1); toast('Removed', function(){ marr.splice(mix,0,mrm); render(); }); } render(); break; }
       case 'togglecal': { var cc=calById(id); if(cc){ cc.on=!cc.on; saveCalPrefs(); toast(cc.on?('Showing '+cc.name):('Hidden '+cc.name)); } render(); break; }
       case 'addcal': { var nm=window.prompt('Add a calendar to view (name):',''); if(nm&&nm.trim()){ var pal=['#D6336C','#0891B2','#059669','#B45309','#7C3AED']; state.calendars.push({ id:'cal'+Date.now(), name:nm.trim(), color:pal[state.calendars.length%pal.length], on:true }); saveCalPrefs(); toast('Calendar added'); } render(); break; }
       case 'wallet': toast('Added to Apple Wallet (demo)'); break;
@@ -944,13 +961,14 @@
           learnRule(rule); recomputeLabels();
           var n = state.messages.filter(function(m){ return ruleMatches(rule, m); }).length;
           apiPost('/api/messages/'+p.msgId+'/labels', { label_id: p.labelId }); // learns server-side when live
-          toast('Rule saved · applied to '+n+' mail'+(n===1?'':'s')+(p.scope==='domain'?(' @'+p.domain):(' from '+p.sender)));
+          toast('Rule saved · applied to '+n+' mail'+(n===1?'':'s')+(p.scope==='domain'?(' @'+p.domain):(' from '+p.sender)),
+            function(){ state.labelRules=(state.labelRules||[]).filter(function(r){ return !(r.scope===rule.scope && r.value===rule.value && r.labelId===rule.labelId); }); saveLearned(); recomputeLabels(); render(); });
           pendingProposal = null;
         }
         render(); break;
       }
       case 'dismissrule': { pendingProposal = null; toast('Kept it to just this email'); render(); break; }
-      case 'delrule': { var ri=parseInt(el.getAttribute('data-i'),10); if(state.labelRules){ state.labelRules.splice(ri,1); saveLearned(); recomputeLabels(); toast('Rule removed'); } render(); break; }
+      case 'delrule': { var ri=parseInt(el.getAttribute('data-i'),10); if(state.labelRules){ var rrm=state.labelRules.splice(ri,1)[0]; saveLearned(); recomputeLabels(); toast('Rule removed', function(){ state.labelRules.splice(ri,0,rrm); saveLearned(); recomputeLabels(); render(); }); } render(); break; }
       // category correction
       case 'fixcat': { setCat(id, el.getAttribute('data-cat')); render(); break; }
       case 'catscope': { if(pendingCatProposal){ var cv2=el.getAttribute('data-v'); if(cv2==='subject'){ var ck=window.prompt('Apply to mail whose subject contains:', pendingCatProposal.subjectWord||guessKeyword(pendingCatProposal.subject)); if(ck&&ck.trim()){ pendingCatProposal.scope='subject'; pendingCatProposal.subjectWord=ck.trim(); } } else pendingCatProposal.scope=cv2; } render(); break; }
@@ -960,13 +978,14 @@
           var crule = { scope:cp.scope, value:cval, catId:cp.catId };
           learnCatRule(crule); recomputeCats();
           var cn = state.messages.filter(function(m){ return catRuleMatches(crule, m); }).length;
-          toast('Rule saved · '+cn+' mail'+(cn===1?'':'s')+' → '+cp.catName);
+          toast('Rule saved · '+cn+' mail'+(cn===1?'':'s')+' → '+cp.catName,
+            function(){ state.catRules=(state.catRules||[]).filter(function(r){ return !(r.scope===crule.scope && r.value===crule.value); }); saveCatRules(); recomputeCats(); render(); });
           pendingCatProposal = null;
         }
         render(); break;
       }
       case 'dismisscatrule': { pendingCatProposal = null; toast('Kept it to just this email'); render(); break; }
-      case 'delcatrule': { var ci=parseInt(el.getAttribute('data-i'),10); if(state.catRules){ state.catRules.splice(ci,1); saveCatRules(); recomputeCats(); toast('Rule removed'); } render(); break; }
+      case 'delcatrule': { var ci=parseInt(el.getAttribute('data-i'),10); if(state.catRules){ var crm=state.catRules.splice(ci,1)[0]; saveCatRules(); recomputeCats(); toast('Rule removed', function(){ state.catRules.splice(ci,0,crm); saveCatRules(); recomputeCats(); render(); }); } render(); break; }
       // newsletter unsubscribe (confirm)
       case 'unsubconfirm': { var us=pendingUnsub; pendingUnsub=null; if(us){ archive(us,'Unsubscribed'); } if(location.hash==='#/m/'+us){ back(); } else render(); break; }
       case 'unsubcancel': { pendingUnsub = null; render(); break; }
@@ -1007,17 +1026,20 @@
       case 'acctremove': {
         var arm=acctById(id);
         if(arm && window.confirm('Remove “'+arm.name+'”? Its mail will be deleted from the app.')){
+          var goneMsgs = state.messages.filter(function(m){ return m.account===id; });
+          var acctIdx = state.accounts.map(function(x){return x.id;}).indexOf(id);
+          var prevSel = sel;
           state.messages = state.messages.filter(function(m){ return m.account!==id; });
           state.accounts = state.accounts.filter(function(x){ return x.id!==id; });
           if(sel===id) sel='all';
-          toast('Removed '+arm.name);
+          toast('Removed '+arm.name, function(){ state.accounts.splice(acctIdx,0,arm); goneMsgs.forEach(function(m){ if(!msgById(m.id)) state.messages.push(m); }); sel=prevSel; render(); });
         }
         render(); break;
       }
       // task editing
       case 'taskedit': { var te=taskById(id); if(te){ var tn=window.prompt('Edit task:', te.text); if(tn&&tn.trim()) te.text=tn.trim(); } render(); break; }
       case 'taskdue': { var td=taskById(id); if(td){ var dd=window.prompt('Due (e.g. Today 17:00, Fri, next week) — blank to clear:', td.due||''); td.due=(dd||'').trim(); } render(); break; }
-      case 'taskdel': { state.tasks=(state.tasks||[]).filter(function(x){ return x.id!==id; }); toast('Task deleted'); render(); break; }
+      case 'taskdel': { var tarr=state.tasks||[]; var tix=tarr.map(function(x){return x.id;}).indexOf(id); if(tix>=0){ var trm=tarr[tix]; tarr.splice(tix,1); toast('Task deleted', function(){ tarr.splice(tix,0,trm); render(); }); } render(); break; }
       case 'tasknew': { var tx=window.prompt('New task:'); if(tx&&tx.trim()){ state.tasks.push({ id:'t'+Date.now(), text:tx.trim(), due:'', done:false, msgId:null }); } render(); break; }
       // timed-snooze demo clock: advance and wake anything due
       case 'advancetime': {
@@ -1028,17 +1050,19 @@
       }
       case 'unsnooze': { var um=msgById(id); if(um){ um.snoozed=false; um.snoozeUntil=''; toast('Woke · '+um.from); } render(); break; }
       case 'emptyarchive': {
-        if(window.confirm('Delete all filed mail? This can’t be undone.')){
+        var gone = state.messages.filter(function(m){ return m.archived && !m.snoozed; });
+        if(gone.length && window.confirm('Delete all '+gone.length+' filed mail? (You can Undo right after.)')){
           state.messages = state.messages.filter(function(m){ return !(m.archived && !m.snoozed); });
-          toast('Archive emptied');
+          toast('Archive emptied · '+gone.length, function(){ gone.forEach(function(m){ if(!msgById(m.id)) state.messages.push(m); }); render(); });
         }
         render(); break;
       }
       case 'delcat': {
         var dc = el.getAttribute('data-cat'); var cat2 = catById(dc);
-        if(window.confirm('Delete all filed '+(cat2?cat2.name:dc)+' mail?')){
+        var goneC = state.messages.filter(function(m){ return m.archived && !m.snoozed && m.cat===dc; });
+        if(goneC.length && window.confirm('Delete all '+goneC.length+' filed '+(cat2?cat2.name:dc)+' mail?')){
           state.messages = state.messages.filter(function(m){ return !(m.archived && !m.snoozed && m.cat===dc); });
-          toast('Deleted');
+          toast('Deleted '+goneC.length+' · '+(cat2?cat2.name:dc), function(){ goneC.forEach(function(m){ if(!msgById(m.id)) state.messages.push(m); }); render(); });
         }
         location.hash = '#/archive'; break;
       }
@@ -1100,7 +1124,7 @@
     if(!sw) return; var s = sw; sw = null;
     if(!s.moved) return;
     swipeGuard = { card: s.c, t: Date.now() };
-    if(s.dx < -70){ var sm=msgById(s.id); if(sm && sm.group){ archiveGroup(sm.group); } else { archive(s.id, 'Archived'); } render(); }
+    if(s.dx < -70){ var sm=msgById(s.id); if(sm && sm.group){ archiveGroup(sm.group); } else { archive(s.id, 'Archived', true); } render(); }
     else if(s.dx > 70){ pendingSnooze = s.id; render(); }   // open the snooze chooser
     else { s.c.style.transition = 'transform .2s, opacity .2s'; s.c.style.transform = ''; s.c.style.opacity = ''; }
   });
