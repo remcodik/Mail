@@ -225,7 +225,7 @@ suggest_followup_date(email) -> date
   the app chrome changes. Persists per user (`settings.lang`); the frontend
   translates via an English→Dutch phrase dictionary + a post-render text pass.
 - **Show in Gmail:** the mirror toggle (see "Mirror to Gmail" above).
-- **Cockpit categories:** reorder (drag), toggle visibility, and **add custom categories** — each becomes a cockpit tile. Custom categories carry a name, color/icon, and a plain-language definition used by the classifier.
+- **Cockpit categories:** reorder (↑/↓ arrows — touch-friendly; the tile order follows), toggle visibility, and **add custom categories** — each becomes a cockpit tile. Order persists (`mailai-catorder` / `settings`). Custom categories carry a name, color/icon, and a plain-language definition used by the classifier.
 - Plain-language classification rules
 - Add / edit / delete rules
 - Example: "Emails from my boss are always urgent"

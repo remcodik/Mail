@@ -208,6 +208,25 @@
   function catRuleMatches(rule, m){ return rule.scope==='domain' ? m.domain===rule.value : rule.scope==='subject' ? (m.subject||'').toLowerCase().indexOf((rule.value||'').toLowerCase())>=0 : m.from===rule.value; }
   function applyCatRule(rule){ state.messages.forEach(function(m){ if(catRuleMatches(rule, m)) m.cat = rule.catId; }); }
   function learnCatRule(rule){ state.catRules = (state.catRules||[]).filter(function(r){ return !(r.scope===rule.scope && r.value===rule.value); }); state.catRules.push(rule); saveCatRules(); }
+
+  // ---- cockpit category order (reorder from Settings; persists) ----
+  var CATORDER_KEY = 'mailai-catorder-v1';
+  function saveCatOrder(){ try { localStorage.setItem(CATORDER_KEY, JSON.stringify(state.categories.map(function(c){ return c.id; }))); } catch(e){} }
+  function applyCatOrder(){
+    var ord; try { ord = JSON.parse(localStorage.getItem(CATORDER_KEY)); } catch(e){ ord = null; }
+    if(!ord || !ord.length) return;
+    state.categories.sort(function(a, b){
+      var ia = ord.indexOf(a.id), ib = ord.indexOf(b.id);
+      if(ia < 0) ia = 999; if(ib < 0) ib = 999;   // categories added later go to the end
+      return ia - ib;
+    });
+  }
+  function moveCat(id, dir){
+    var cats = state.categories, idx = cats.map(function(c){ return c.id; }).indexOf(id), j = idx + dir;
+    if(idx < 0 || j < 0 || j >= cats.length) return;
+    var tmp = cats[idx]; cats[idx] = cats[j]; cats[j] = tmp;
+    saveCatOrder(); render();
+  }
   var pendingProposal = null;   // {sender,labelId,action,others,labelName,msgId} awaiting approval
   function fixLabel(msgId, labelId){
     var m = msgById(msgId); if(!m) return;
@@ -680,8 +699,11 @@
     }).join('');
   }
   function viewSettings(){
-    var rows = state.categories.map(function(c){
-      return '<div class="catrow"><span class="grip">⠿</span>'
+    var rows = state.categories.map(function(c, i){
+      var first = i===0, last = i===state.categories.length-1;
+      return '<div class="catrow"><span class="reorder">'
+        + '<button class="rbtn" data-act="catup" data-id="'+c.id+'"'+(first?' disabled':'')+' aria-label="move '+esc(c.name)+' up">▲</button>'
+        + '<button class="rbtn" data-act="catdown" data-id="'+c.id+'"'+(last?' disabled':'')+' aria-label="move '+esc(c.name)+' down">▼</button></span>'
         + '<span class="cdot" style="background:'+c.color+'">'+svg(iconFor(c),13)+'</span>'
         + '<span><span class="cnm">'+esc(c.name)+'</span>'+(c.builtin?'':' <span class="ccount">· custom</span>')+'<br>'
         + '<span class="ccount">'+msgsIn(c.id).length+' mails'+(c.visible?'':' · hidden')+'</span></span>'
@@ -896,6 +918,8 @@
         render(); break;
       }
       case 'togglecat': { var cat=catById(id); if(cat){ cat.visible=!cat.visible; apiPost('/api/categories/'+id+'/visibility',{visible:cat.visible}); } render(); break; }
+      case 'catup': moveCat(id, -1); break;
+      case 'catdown': moveCat(id, 1); break;
       case 'togglemirror': { state.mirrorGmail=!state.mirrorGmail; saveMirror(); apiPost('/api/settings/mirror',{enabled:state.mirrorGmail}); toast(state.mirrorGmail?'Gmail sync on · these show as labels in Gmail':'Gmail sync off'); render(); break; }
       case 'setlang': { var lv=el.getAttribute('data-v')==='nl'?'nl':'en'; state.lang=lv; saveLang(); apiPost('/api/settings/lang',{lang:lv}); render(); break; }
       case 'addcat': {
@@ -1107,6 +1131,7 @@
     });
     state.events = DEMO_EVENTS.slice();
     state.demoNow = 0;
+    applyCatOrder();   // restore a saved cockpit category order
     recomputeAll();
     render();
   }
