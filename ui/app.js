@@ -392,7 +392,10 @@
 
   // ---------- screen: cockpit ----------
   function viewCockpit(){
-    var active = state.messages.filter(function(m){ return isActive(m) && inSel(m); });
+    // only count mail in categories that have a visible tile — hidden buckets
+    // (Junk, FYI) shouldn't inflate the "auto-handled" number.
+    var visSet = {}; visibleCats().forEach(function(c){ visSet[c.id] = true; });
+    var active = state.messages.filter(function(m){ return isActive(m) && inSel(m) && visSet[m.cat]; });
     var needYou = active.filter(function(m){ return m.needsAction || m.cat==='reply' || (m.cat==='waiting'&&m.overdue); }).length;
     var autoHandled = active.length - needYou;
     var tiles = visibleCats().map(function(c){
@@ -493,7 +496,8 @@
   // ---------- screen: focus (need-you / auto-handled) ----------
   function isNeedYou(m){ return m.needsAction || m.cat==='reply' || (m.cat==='waiting' && m.overdue); }
   function viewFocus(kind){
-    var ms = state.messages.filter(function(m){ if(m.archived || !inSel(m)) return false; return kind==='need' ? isNeedYou(m) : !isNeedYou(m); });
+    var visSet = {}; visibleCats().forEach(function(c){ visSet[c.id] = true; });
+    var ms = state.messages.filter(function(m){ if(m.archived || m.snoozed || !inSel(m) || !visSet[m.cat]) return false; return kind==='need' ? isNeedYou(m) : !isNeedYou(m); });
     var title = kind==='need' ? 'Need you today' : 'Auto-handled';
     var desc = kind==='need'
       ? 'Emails waiting on <b>your action</b> — urgent items, replies to send, and overdue follow-ups.'
