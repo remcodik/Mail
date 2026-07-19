@@ -114,7 +114,8 @@ https://mailai-remco.fly.dev/api/accounts/callback
 4. You're dropped back into MailAI, **signed in**, with that mailbox connecting
    and syncing. Done.
 5. Tip: tap Safari's **Share → Add to Home Screen** so MailAI opens like a real
-   app (full-screen, its own icon).
+   app (full-screen, with the **MailAI teal envelope icon** — see
+   `docs/screenshots/home-mockup.png`).
 
 **How login works:** your Google email *is* your account — there's no separate
 password. After signing in, a secure cookie keeps you logged in for ~30 days.

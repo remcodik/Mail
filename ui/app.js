@@ -28,6 +28,7 @@
   function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); }
   function svg(inner, size){ size = size || 20; return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'+inner+'</svg>'; }
   var SPARK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>';
+  var BRANDMARK = '<span class="brandmark">' + SPARK + '</span>';   // sparkle from the app icon
   function catById(id){ return state.categories.filter(function(c){ return c.id===id; })[0]; }
   function acctById(id){ return state.accounts.filter(function(a){ return a.id===id; })[0]; }
   function visibleCats(){ return state.categories.filter(function(c){ return c.visible; }); }
@@ -384,7 +385,7 @@
         + '<span class="tsub">'+hintFor(c)+'</span></button>';
     }).join('');
     return {
-      top: '<div class="brand"><span class="dot"></span> MailAI · Cockpit</div>'
+      top: '<div class="brand">'+BRANDMARK+' MailAI · Cockpit</div>'
          + '<h1>Good morning, Remco</h1><div class="sub">Tue 15 Jul · '+esc(selLabel())+' · '+active.length+' active</div>',
       body: acctSwitcher() + labelsRow()
           + '<div class="hero">'
@@ -656,7 +657,7 @@
       + (tiles ? '<div class="tilegrid">'+tiles+'</div>' : '<div class="empty">Archive is empty.</div>')
       + (arc.length ? '<div style="padding:12px 14px"><button class="btn danger wide" data-act="emptyarchive">Empty archive ('+arc.length+')</button></div>' : '')
       + snoozeSec;
-    return { top:'<div class="brand"><span class="dot"></span> MailAI · Archive</div><h1>Archive</h1><div class="sub">'+arc.length+' filed'+(sn.length?(' · '+sn.length+' snoozed'):'')+'</div>', body:body, nav:'archive' };
+    return { top:'<div class="brand">'+BRANDMARK+' MailAI · Archive</div><h1>Archive</h1><div class="sub">'+arc.length+' filed'+(sn.length?(' · '+sn.length+' snoozed'):'')+'</div>', body:body, nav:'archive' };
   }
   function viewArchiveCat(cid){
     var c = catById(cid); var ms = archivedMsgs().filter(function(m){ return m.cat===cid; });
@@ -781,7 +782,7 @@
       + agendaBlock()
       + (done.length ? '<div class="seghead">Done</div>'+done.map(taskRow).join('') : '')
       + '</div>';
-    return { top:'<div class="brand"><span class="dot"></span> MailAI · Tasks</div><h1>Tasks</h1><div class="sub">'+open.length+' open'+(meetings.length?' · '+meetings.length+' meeting'+(meetings.length===1?'':'s'):'')+'</div>', body:body, nav:'tasks' };
+    return { top:'<div class="brand">'+BRANDMARK+' MailAI · Tasks</div><h1>Tasks</h1><div class="sub">'+open.length+' open'+(meetings.length?' · '+meetings.length+' meeting'+(meetings.length===1?'':'s'):'')+'</div>', body:body, nav:'tasks' };
   }
 
   // ---------- render ----------
@@ -1112,7 +1113,7 @@
   function showSignIn(){
     var root = document.getElementById('root');
     root.innerHTML = '<div class="signin">'
-      + '<div class="brand"><span class="dot"></span> MailAI</div>'
+      + '<div class="brand">'+BRANDMARK+' MailAI</div>'
       + '<h1>Your inbox, on autopilot</h1>'
       + '<p class="lede">Sign in with the Google account you want MailAI to manage. That account becomes your login.</p>'
       + '<a class="btn pri gsign" href="/api/login">'+svg('<path d="M3 6l9 6 9-6"/><rect x="3" y="5" width="18" height="14" rx="2"/>',16)+' Sign in with Google</a>'
