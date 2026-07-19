@@ -74,21 +74,28 @@ def process_account(user_id: str, account_id: str, max_results: int = 25) -> int
         if cat not in valid:
             cat = "fyi"
         msg = {**email, "cat": cat, "chip": _cat_name(user_id, cat),
-               "summary": intelligence.summarize_thread([email]),
-               "labels": intelligence.suggest_labels(email, store.labels(user_id), store.label_corrections(user_id)),
                "archived": first_sync}  # first connect files existing mail; new mail stays active
-        if cat in ("urgent", "reply"):
-            msg["needsAction"] = True
-            msg["reply"] = intelligence.draft_reply(email)
-        detector = _DETECTORS.get(cat)
-        if detector:
-            extracted = detector(email)
-            if extracted:
-                msg["extracted"] = extracted
+        if first_sync:
+            # Baseline mail is filed to the Archive on first connect (start clean).
+            # Categorise it (for the Archive tiles) but skip the expensive AI —
+            # summaries/labels/drafts/detectors — so first connect is fast & cheap.
+            msg["summary"] = email.get("snippet", "")
+            msg["labels"] = []
+        else:
+            msg["summary"] = intelligence.summarize_thread([email])
+            msg["labels"] = intelligence.suggest_labels(email, store.labels(user_id), store.label_corrections(user_id))
+            if cat in ("urgent", "reply"):
+                msg["needsAction"] = True
+                msg["reply"] = intelligence.draft_reply(email)
+            detector = _DETECTORS.get(cat)
+            if detector:
+                extracted = detector(email)
+                if extracted:
+                    msg["extracted"] = extracted
+            # mirror category + labels into Gmail as "MailAI/…" labels, if opted in
+            if mirror:
+                mirror_to_gmail(client, mid, gmail_label_names(user_id, msg))
         store.upsert_message(user_id, msg)
-        # mirror category + labels into Gmail as "MailAI/…" labels, if the user opted in
-        if mirror and not msg.get("archived"):
-            mirror_to_gmail(client, mid, gmail_label_names(user_id, msg))
         processed += 1
     return processed
 

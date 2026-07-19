@@ -9,6 +9,14 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
+# Load a local .env if present (no-op on hosts like Fly where secrets are real
+# env vars, and a no-op if python-dotenv isn't installed).
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
+
 
 @dataclass(frozen=True)
 class Settings:

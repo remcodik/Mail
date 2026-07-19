@@ -13,3 +13,7 @@ venv/
 # OS / editor
 .DS_Store
 *.swp
+
+# local SQLite dev DBs (prod DB lives on a mounted volume)
+*.db
+/data/

@@ -40,10 +40,13 @@ class GmailClient:
         headers = {h["name"].lower(): h["value"] for h in raw.get("payload", {}).get("headers", [])}
         sender = headers.get("from", "")
         name = _display_name(sender)
+        addr = _email_addr(sender)
         return {
             "id": message_id,
             "account": self.account_id,
             "from": name,
+            "email": addr,
+            "domain": addr.split("@", 1)[1] if "@" in addr else "",
             "initials": _initials(name),
             "av": _color_for(name),
             "subject": headers.get("subject", "(no subject)"),
@@ -101,6 +104,14 @@ def _display_name(sender: str) -> str:
     if "@" in sender:
         return sender.split("@", 1)[0]
     return sender or "Unknown"
+
+
+def _email_addr(sender: str) -> str:
+    # "Jane Doe <jane@x.com>" -> "jane@x.com"; "jane@x.com" -> "jane@x.com"
+    sender = (sender or "").strip()
+    if "<" in sender and ">" in sender:
+        return sender.split("<", 1)[1].split(">", 1)[0].strip().lower()
+    return sender.lower() if "@" in sender else ""
 
 
 def _initials(name: str) -> str:
