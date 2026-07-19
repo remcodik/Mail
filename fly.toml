@@ -6,14 +6,14 @@
 # Then set MAILAI_OAUTH_REDIRECT_BASE below to your real https URL and add
 #   <that URL>/api/accounts/callback  as an authorized redirect URI in Google Cloud.
 
-app = "mailai-CHANGE-ME"
+app = "mailai-remco"
 primary_region = "ams"
 
 [build]
 
 [env]
   MAILAI_MODE = "live"
-  MAILAI_OAUTH_REDIRECT_BASE = "https://mailai-CHANGE-ME.fly.dev"
+  MAILAI_OAUTH_REDIRECT_BASE = "https://mailai-remco.fly.dev"
   MAILAI_DB = "/data/mailai.db"
 
 # Durable storage for the SQLite DB + encrypted tokens. Create the volume once:
