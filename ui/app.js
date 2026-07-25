@@ -26,6 +26,15 @@
 
   // ---------- helpers ----------
   function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); }
+  function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short' }); } catch(e){ return ''; } }
+  // App version — bump BUILD + add a CHANGELOG entry on each release. The same
+  // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
+  var BUILD = '2026.07.25';
+  var CHANGELOG = [
+    { v:'2026.07.25', notes:['Mail list & detail show the date, not just the time', 'Show original email with images (safe, sandboxed)', 'Back from a filed mail returns to the Archive', 'Rename/delete categories; rename/recolor/delete labels', 'Import older mail from a date is always available', 'This version panel + “refresh to newest” button'] },
+    { v:'2026.07.24', notes:['Firestore storage so you stay signed in on free hosting', 'Keep-warm ping to avoid cold starts', 'New cockpit-style app icon'] },
+    { v:'2026.07.23', notes:['Propose meeting for the agenda + Google Calendar link', 'English/Dutch toggle for the whole app', 'Mirror categories & labels to Gmail', 'Undo on rule/label/category changes'] }
+  ];
   function svg(inner, size){ size = size || 20; return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'+inner+'</svg>'; }
   var SPARK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>';
   var BRANDMARK = '<span class="brandmark">' + SPARK + '</span>';   // sparkle from the app icon
@@ -409,7 +418,7 @@
     }).join('');
     return {
       top: '<div class="brand">'+BRANDMARK+' MailAI · Cockpit</div>'
-         + '<h1>Good morning, Remco</h1><div class="sub">Tue 15 Jul · '+esc(selLabel())+' · '+active.length+' active</div>',
+         + '<h1>Good morning, Remco</h1><div class="sub">'+esc(todayStr())+' · '+esc(selLabel())+' · '+active.length+' active</div>',
       body: acctSwitcher() + labelsRow()
           + '<div class="hero">'
           + '<button class="hstat" data-nav="#/focus/need"><div class="big">'+needYou+'</div><div class="hl">need you today ›</div></button>'
@@ -764,6 +773,10 @@
         + '<div class="rule"><b>Anything from klm.com</b> → <b style="color:var(--c-ticket)">Tickets</b></div>'
         + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addrule">+ Add a rule</button>'
         + '<div class="ai-note" style="padding:8px 2px">'+SPARK+'Your last 10 “wrong category” corrections guide every new classification.</div>'
+        + '<div class="seghead">Version</div>'
+        + '<div class="rule" style="color:var(--ink-2)">You’re on <b>v'+BUILD+'</b>. If a change isn’t showing, tap refresh — it clears the cache and reloads the newest version.</div>'
+        + '<button class="btn wide" data-act="apprefresh" style="border-style:dashed;color:var(--accent-ink)">↻ Refresh to newest version</button>'
+        + CHANGELOG.map(function(c){ return '<div class="rule" style="display:block"><b>v'+esc(c.v)+'</b><ul style="margin:6px 0 0 16px;padding:0;color:var(--ink-2);font-size:12px">'+c.notes.map(function(n){ return '<li>'+esc(n)+'</li>'; }).join('')+'</ul></div>'; }).join('')
         + '</div>',
       bare: true,
       nav: 'settings'
@@ -1122,6 +1135,14 @@
           toast('Deleted '+goneC.length+' · '+(cat2?cat2.name:dc), function(){ goneC.forEach(function(m){ if(!msgById(m.id)) state.messages.push(m); }); render(); });
         }
         location.hash = '#/archive'; break;
+      }
+      case 'apprefresh': {
+        toast('Fetching the newest version…');
+        try { if(window.caches && caches.keys){ caches.keys().then(function(ks){ ks.forEach(function(k){ caches.delete(k); }); }); } } catch(e){}
+        try { if(navigator.serviceWorker && navigator.serviceWorker.getRegistrations){ navigator.serviceWorker.getRegistrations().then(function(rs){ rs.forEach(function(r){ r.unregister(); }); }); } } catch(e){}
+        // reload index.html with a cache-buster so it re-fetches the versioned app.js/style.css
+        setTimeout(function(){ location.replace(location.pathname + '?r=' + Date.now()); }, 250);
+        break;
       }
       case 'catrenamedef': {
         var rc = catById(id);
