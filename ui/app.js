@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.25-9';
+  var BUILD = '2026.07.25-10';
   var CHANGELOG = [
+    { v:'2026.07.25-10', notes:['Settings reorganised into collapsible sections — Label rules on top (open), everything else tidied below and folded away', 'Sections you open stay open while you work'] },
     { v:'2026.07.25-9', notes:['FIXED: “Move to cockpit”, delete and snooze now stick after a refresh (they weren’t saved to the server before)', 'Category rules are now editable too — tap ✎ to change what they match, with a live · N mails count'] },
     { v:'2026.07.25-8', notes:['FIXED: custom categories & label edits now survive a refresh', 'Removed the confusing fixed example rules (“boss”, “klm.com”) — every rule shown is real and editable/deletable now', 'Settings explains how to make AI rules and how to change any rule'] },
     { v:'2026.07.25-7', notes:['Label rules are now fully editable — tap ✎ to change what a rule matches (incl. the ones I generate), tap → tag to flip it, and see a live count of matching mail', 'New AI rules: describe in plain language what to tag (e.g. “invoices, payments”)', '“Suggest a rule from my mail” proposes a rule from your own labelling'] },
@@ -931,6 +932,7 @@
         + '</div>';
     }).join('');
   }
+  var settingsOpen = null;   // which Settings sections are expanded (persists across re-renders)
   function viewSettings(){
     var rows = state.categories.map(function(c, i){
       var first = i===0, last = i===state.categories.length-1;
@@ -944,55 +946,60 @@
         + (c.builtin?'':'<button class="rule-x" data-act="catdeldef" data-id="'+c.id+'" aria-label="delete '+esc(c.name)+'">✕</button>')
         + '<button class="toggle'+(c.visible?'':' off')+'" data-act="togglecat" data-id="'+c.id+'" aria-label="toggle '+esc(c.name)+'"></button></div>';
     }).join('');
+    if(!settingsOpen) settingsOpen = { rules:true, catrules:false, cats:false, labels:false, accounts:false, gmail:false, lang:false, cleanup:false, version:false };
+    function sec(id, title, inner){
+      return '<details class="setsec" data-sec="'+id+'"'+(settingsOpen[id]?' open':'')+'>'
+        + '<summary class="setsum">'+title+'</summary><div class="setbody">'+inner+'</div></details>';
+    }
+    var ruleInner = '<div class="rule" style="color:var(--ink-2);display:block;line-height:1.7">'+SPARK+'<b>Three ways to make a rule:</b><br>'
+      +   '• <b>'+SPARK+'AI rule</b> — describe in plain words what to tag, e.g. <i>“invoices, payments, subscription bills”</i>. Best for topics.<br>'
+      +   '• <b>Sender / @domain</b> — always tag everything from one sender or a whole domain.<br>'
+      +   '• <b>✨ Suggest</b> — I look at what you’ve already labelled and propose a rule you can edit before saving.<br><br>'
+      +   '<b>Change any rule:</b> tap <b>✎</b> to edit what it matches (works on rules I made from your corrections too), tap the <b>→ tag</b> chip to flip it on/off, <b>✕</b> to delete. The <b>· N mails</b> count shows how many mails each rule hits right now.</div>'
+      + ((state.labelRules&&state.labelRules.length) ? state.labelRules.map(ruleRowHTML).join('') : '<div class="rule" style="color:var(--ink-3)">No rules yet — add one below, or fix a label on any email and I’ll offer to make a rule.</div>')
+      + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addairule">'+SPARK+' Add an AI rule (describe in words)</button>'
+      + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addrulelabel">+ Add a sender / @domain rule</button>'
+      + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="suggestrule">✨ Suggest a rule from my mail</button>';
+    var catRuleInner = '<div class="rule" style="color:var(--ink-2)">'+SPARK+'These appear when you use “Category · tap to fix” on an email and approve the rule. Tap <b>✎</b> to edit or <b>✕</b> to remove.</div>'
+      + ((state.catRules&&state.catRules.length) ? state.catRules.map(function(r,i){ var c=catById(r.catId); var cn=(state.messages||[]).filter(function(m){ return ruleMatches(r,m); }).length; return '<div class="rule rule-row"><span>'+rulePrefix(r)+'<b>'+esc(ruleWho(r))+'</b> → <b style="color:'+(c?c.color:'#888')+'">'+(c?esc(c.name):esc(r.catId))+'</b> <span class="ccount">· '+cn+' mail'+(cn===1?'':'s')+'</span></span><button class="rule-x" data-act="editcatrule" data-i="'+i+'" aria-label="edit rule">✎</button><button class="rule-x" data-act="delcatrule" data-i="'+i+'" aria-label="remove rule">✕</button></div>'; }).join('') : '<div class="rule" style="color:var(--ink-3)">No category rules yet.</div>')
+      + '<div class="ai-note" style="padding:8px 2px">'+SPARK+'I also learn from every correction automatically — your last 10 fixes guide how new mail is sorted.</div>';
+    var catsInner = '<div class="rule" style="color:var(--ink-2)">Reorder with ▲▼, show/hide with the toggle, ✎ rename, ✕ delete. This order drives the cockpit tiles and the Archive.</div>'
+      + rows + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addcat">+ Add a category</button>';
+    var labelsInner = (state.labels||[]).map(function(l){ return '<div class="catrow"><span class="grip">#</span>'
+        + '<button class="cdot" data-act="lblrecolor" data-id="'+l.id+'" style="background:'+l.color+';border:0;cursor:pointer" aria-label="recolor '+esc(l.name)+'"></button>'
+        + '<span><span class="cnm">'+esc(l.name)+'</span><br><span class="ccount">'+labelCount(l.id)+' mails</span></span>'
+        + '<button class="rule-x" data-act="lblrenamedef" data-id="'+l.id+'" aria-label="rename '+esc(l.name)+'">✎</button>'
+        + '<button class="rule-x" data-act="lbldeldef" data-id="'+l.id+'" aria-label="delete '+esc(l.name)+'">✕</button></div>'; }).join('')
+      + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="newlabeldef">+ Add a label</button>';
+    var acctInner = acctRows() + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addacct">+ Add a mail account</button>';
+    var gmailInner = '<div class="catrow"><span class="grip"></span><span class="cdot" style="background:#EA4335">'+svg('<path d="M3 6l9 6 9-6"/><rect x="3" y="5" width="18" height="14" rx="2"/>',13)+'</span>'
+      +   '<span><span class="cnm">Mirror categories &amp; labels to Gmail</span><br>'
+      +   '<span class="ccount">Adds them as Gmail labels under <b>MailAI/</b></span></span>'
+      +   '<button class="toggle'+(state.mirrorGmail?'':' off')+'" data-act="togglemirror" aria-label="toggle Gmail sync"></button></div>'
+      + '<div class="rule" style="color:var(--ink-2)">'+SPARK+'Your <b>category</b> becomes the main label (e.g. <b>MailAI/Urgent</b>); each <b>label</b> is added too. Everything nests under one <b>MailAI/</b> parent. Off by default — nothing is written to Gmail until you turn this on.</div>';
+    var langInner = '<div class="langrow">'
+      +   '<button class="langseg'+(state.lang!=='nl'?' on':'')+'" data-act="setlang" data-v="en">🇬🇧 English</button>'
+      +   '<button class="langseg'+(state.lang==='nl'?' on':'')+'" data-act="setlang" data-v="nl">🇳🇱 Nederlands</button></div>'
+      + '<div class="rule" style="color:var(--ink-2)">'+SPARK+'Switches the whole app between English and Dutch. Your emails stay in their own language.</div>';
+    var cleanupInner = '<div class="rule" style="color:var(--ink-2)">New mail lands in the cockpit. <b>File everything</b> to start clean — archived mail stays under its labels and in the Archive, movable back anytime.</div>'
+      + '<button class="btn wide danger" data-act="emptycockpit" style="border-style:dashed">File everything to Archive (empty cockpit)</button>'
+      + ((API_OK || (state.accounts&&state.accounts.length)) ? '<button class="btn wide" data-act="backfill" style="border-style:dashed;color:var(--accent-ink)">⤵ Import older mail to Archive (from a date)…</button>' : '');
+    var versionInner = '<div class="rule" style="color:var(--ink-2)">You’re on <b>v'+BUILD+'</b>. If a change isn’t showing, tap refresh — it clears the cache and reloads the newest version.</div>'
+      + '<button class="btn wide" data-act="apprefresh" style="border-style:dashed;color:var(--accent-ink)">↻ Refresh to newest version</button>'
+      + CHANGELOG.map(function(c){ return '<div class="rule" style="display:block"><b>v'+esc(c.v)+'</b><ul style="margin:6px 0 0 16px;padding:0;color:var(--ink-2);font-size:12px">'+c.notes.map(function(n){ return '<li>'+esc(n)+'</li>'; }).join('')+'</ul></div>'; }).join('');
     return {
-      top: '<h1>Categories &amp; rules</h1>',
+      top: '<h1>Settings</h1>',
       withBack: false,
-      body: '<div class="view pad" style="padding-top:2px">'
-        + '<div class="seghead">Cockpit</div>'
-        + '<div class="rule" style="color:var(--ink-2)">New mail lands in the cockpit. <b>File everything</b> to start clean — archived mail stays under its labels and in the Archive tab, and you can move any of it back to the cockpit anytime.</div>'
-        + '<button class="btn wide danger" data-act="emptycockpit" style="border-style:dashed">File everything to Archive (empty cockpit)</button>'
-        + ((API_OK || (state.accounts&&state.accounts.length)) ? '<button class="btn wide" data-act="backfill" style="border-style:dashed;color:var(--accent-ink)">⤵ Import older mail to Archive (from a date)…</button>' : '')
-        + '<div class="seghead">Show in Gmail</div>'
-        + '<div class="catrow"><span class="grip"></span><span class="cdot" style="background:#EA4335">'+svg('<path d="M3 6l9 6 9-6"/><rect x="3" y="5" width="18" height="14" rx="2"/>',13)+'</span>'
-        +   '<span><span class="cnm">Mirror categories &amp; labels to Gmail</span><br>'
-        +   '<span class="ccount">Adds them as Gmail labels under <b>MailAI/</b> — visible in the Gmail app &amp; search</span></span>'
-        +   '<button class="toggle'+(state.mirrorGmail?'':' off')+'" data-act="togglemirror" aria-label="toggle Gmail sync"></button></div>'
-        + '<div class="rule" style="color:var(--ink-2)">'+SPARK+'Your <b>category</b> becomes the main label (e.g. <b>MailAI/Urgent</b>) — one per mail; each <b>label</b> is added too (e.g. <b>MailAI/Acme Corp</b>). Everything groups under one <b>MailAI/</b> parent you can collapse or remove in Gmail in a single step. Off by default — nothing is written to Gmail until you turn this on (and, live, connect an account).</div>'
-        + '<div class="seghead">Language</div>'
-        + '<div class="langrow">'
-        +   '<button class="langseg'+(state.lang!=='nl'?' on':'')+'" data-act="setlang" data-v="en">🇬🇧 English</button>'
-        +   '<button class="langseg'+(state.lang==='nl'?' on':'')+'" data-act="setlang" data-v="nl">🇳🇱 Nederlands</button>'
-        + '</div>'
-        + '<div class="rule" style="color:var(--ink-2)">'+SPARK+'Switch the whole app between English and Dutch. Your emails stay in their own language — only MailAI’s labels &amp; text change.</div>'
-        + '<div class="seghead">Mail accounts · kept separate</div>' + acctRows()
-        + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addacct">+ Add a mail account</button>'
-        + '<div class="seghead">Cockpit categories · toggle to show/hide</div>'+rows
-        + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addcat">+ Add a category</button>'
-        + '<div class="seghead">Labels · AI-assigned, you correct</div>'
-        + (state.labels||[]).map(function(l){ return '<div class="catrow"><span class="grip">#</span>'
-            + '<button class="cdot" data-act="lblrecolor" data-id="'+l.id+'" style="background:'+l.color+';border:0;cursor:pointer" aria-label="recolor '+esc(l.name)+'"></button>'
-            + '<span><span class="cnm">'+esc(l.name)+'</span><br><span class="ccount">'+labelCount(l.id)+' mails</span></span>'
-            + '<button class="rule-x" data-act="lblrenamedef" data-id="'+l.id+'" aria-label="rename '+esc(l.name)+'">✎</button>'
-            + '<button class="rule-x" data-act="lbldeldef" data-id="'+l.id+'" aria-label="delete '+esc(l.name)+'">✕</button></div>'; }).join('')
-        + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="newlabeldef">+ Add a label</button>'
-        + '<div class="seghead">Label rules · how they work</div>'
-        + '<div class="rule" style="color:var(--ink-2);display:block;line-height:1.7">'+SPARK+'<b>Three ways to make a rule:</b><br>'
-        +   '• <b>'+SPARK+'AI rule</b> — describe in plain words what to tag, e.g. <i>“invoices, payments, subscription bills”</i>. Best for topics.<br>'
-        +   '• <b>Sender / @domain</b> — always tag everything from one sender or a whole domain.<br>'
-        +   '• <b>✨ Suggest</b> — I look at what you’ve already labelled and propose a rule you can edit before saving.<br><br>'
-        +   '<b>Change any rule:</b> tap <b>✎</b> to edit what it matches (works on rules I made from your corrections too), tap the <b>→ tag</b> chip to flip it on/off, <b>✕</b> to delete. The <b>· N mails</b> count shows how many mails each rule hits right now.</div>'
-        + ((state.labelRules&&state.labelRules.length) ? state.labelRules.map(ruleRowHTML).join('') : '<div class="rule" style="color:var(--ink-3)">No rules yet — add one below, or fix a label on any email and I’ll offer to make a rule.</div>')
-        + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addairule">'+SPARK+' Add an AI rule (describe in words)</button>'
-        + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addrulelabel">+ Add a sender / @domain rule</button>'
-        + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="suggestrule">✨ Suggest a rule from my mail</button>'
-        + '<div class="seghead">Category rules · learned from “wrong category” fixes</div>'
-        + '<div class="rule" style="color:var(--ink-2)">'+SPARK+'These appear when you use “Category · tap to fix” on an email and approve the rule. Tap <b>✕</b> to remove one.</div>'
-        + ((state.catRules&&state.catRules.length) ? state.catRules.map(function(r,i){ var c=catById(r.catId); var cn=(state.messages||[]).filter(function(m){ return ruleMatches(r,m); }).length; return '<div class="rule rule-row"><span>'+rulePrefix(r)+'<b>'+esc(ruleWho(r))+'</b> → <b style="color:'+(c?c.color:'#888')+'">'+(c?esc(c.name):esc(r.catId))+'</b> <span class="ccount">· '+cn+' mail'+(cn===1?'':'s')+'</span></span><button class="rule-x" data-act="editcatrule" data-i="'+i+'" aria-label="edit rule">✎</button><button class="rule-x" data-act="delcatrule" data-i="'+i+'" aria-label="remove rule">✕</button></div>'; }).join('') : '<div class="rule" style="color:var(--ink-3)">No category rules yet.</div>')
-        + '<div class="ai-note" style="padding:8px 2px">'+SPARK+'I also learn from every correction automatically — your last 10 fixes guide how new mail is sorted.</div>'
-        + '<div class="seghead">Version</div>'
-        + '<div class="rule" style="color:var(--ink-2)">You’re on <b>v'+BUILD+'</b>. If a change isn’t showing, tap refresh — it clears the cache and reloads the newest version.</div>'
-        + '<button class="btn wide" data-act="apprefresh" style="border-style:dashed;color:var(--accent-ink)">↻ Refresh to newest version</button>'
-        + CHANGELOG.map(function(c){ return '<div class="rule" style="display:block"><b>v'+esc(c.v)+'</b><ul style="margin:6px 0 0 16px;padding:0;color:var(--ink-2);font-size:12px">'+c.notes.map(function(n){ return '<li>'+esc(n)+'</li>'; }).join('')+'</ul></div>'; }).join('')
+      body: '<div class="view pad" style="padding-top:6px">'
+        + sec('rules', SPARK+' Label rules', ruleInner)
+        + sec('catrules', 'Category rules', catRuleInner)
+        + sec('cats', 'Cockpit categories', catsInner)
+        + sec('labels', 'Labels', labelsInner)
+        + sec('accounts', 'Mail accounts · kept separate', acctInner)
+        + sec('gmail', 'Show in Gmail', gmailInner)
+        + sec('lang', 'Language', langInner)
+        + sec('cleanup', 'Clean up cockpit', cleanupInner)
+        + sec('version', 'Version &amp; updates', versionInner)
         + '</div>',
       bare: true,
       nav: 'settings'
@@ -1090,6 +1097,10 @@
       + tabbar(v.nav);
     root.innerHTML = html;
     localize(root);   // switch UI chrome to Dutch when selected
+    // remember which Settings sections the user expands, so a re-render keeps them
+    if(settingsOpen){ Array.prototype.forEach.call(root.querySelectorAll('.setsec'), function(d){
+      d.addEventListener('toggle', function(){ settingsOpen[d.getAttribute('data-sec')] = d.open; });
+    }); }
     // keep position on in-place re-renders, top on navigation
     var view = root.querySelector('.view'); if(view) view.scrollTop = keepScroll;
     _lastHash = h;
