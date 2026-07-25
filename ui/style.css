@@ -223,6 +223,15 @@ a{color:inherit}
 .rbadge svg{width:10px;height:10px}
 .ruleflip{background:transparent;border:1px dashed var(--line);border-radius:7px;color:var(--accent-ink);font-size:11px;font-weight:700;padding:1px 6px;cursor:pointer}
 .rulelabel{background:transparent;border:0;font-weight:800;font-size:12.5px;padding:0;cursor:pointer}
+.rb .rb-card{display:flex;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.rb-num{flex:none;width:26px;height:26px;border-radius:50%;background:var(--accent);color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;margin-top:2px}
+.rb-body{flex:1;min-width:0}
+.rb-lbl{font-weight:700;font-size:13.5px;margin-bottom:9px}
+.rb-sel,.rb-txt{width:100%;box-sizing:border-box;font:inherit;font-size:14px;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:11px 12px;-webkit-appearance:none;appearance:none}
+.rb-sel{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='3'><path d='M6 9l6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 12px center;padding-right:34px}
+.rb-txt{resize:vertical;line-height:1.5}
+.rb-hint{font-size:11.5px;color:var(--ink-2);margin-top:8px;line-height:1.5}
+.rb-actions{display:flex;flex-direction:column;gap:9px;margin:4px 0 6px}
 .setsec{border:1px solid var(--line);border-radius:13px;margin:0 0 10px;background:var(--surface);overflow:hidden}
 .setsum{cursor:pointer;list-style:none;padding:14px 14px;font-weight:700;font-size:14px;display:flex;align-items:center;gap:7px}
 .setsum::-webkit-details-marker{display:none}

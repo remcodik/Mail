@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.25-13';
+  var BUILD = '2026.07.25-14';
   var CHANGELOG = [
+    { v:'2026.07.25-14', notes:['New full-screen “New rule” builder — clear 3-step form with dropdowns', 'Couple a rule to a label OR a category from one dropdown (existing ones + “New label…”)', 'Match type is a dropdown: AI / sender / @domain / subject, with help per choice'] },
     { v:'2026.07.25-13', notes:['Category rules can now be AI too — describe in plain words what belongs in a category and Claude sorts it there (semantic, live)', 'Pick the category from a list; edit AI category rules with ✎'] },
     { v:'2026.07.25-12', notes:['AI label rules are now truly semantic (live) — Claude reads the meaning, so “factuur” finds English invoices, synonyms and typos work', 'Falls back to on-device keyword match in the offline demo'] },
     { v:'2026.07.25-11', notes:['You now PICK a rule’s label from a list instead of typing it — a typo can’t silently create a duplicate label anymore', 'Tap the label ▾ on any rule to move it to another label', 'Category-rule editing warns if you type a category that doesn’t exist'] },
@@ -981,6 +982,48 @@
         + '</div>';
     }).join('');
   }
+  // ---------- screen: rule builder (the core "make a rule" flow) ----------
+  var RB_KINDS = [
+    ['ai', '✨ AI — describe it in your own words', 'Describe the mail this rule should catch', 'e.g. invoices, payments and subscription bills — in any language', SPARK+'Claude reads the <b>meaning</b>, so synonyms, other languages and typos all work.'],
+    ['sender', 'From a specific sender', 'Sender name or email address', 'e.g. Jane Doe  ·  billing@acme.com', 'Matches mail from exactly this sender.'],
+    ['domain', 'From a whole @domain', 'Domain (without the @)', 'e.g. acme.com', 'Matches every mail from any address at this domain.'],
+    ['subject', 'Subject contains a word', 'Word or phrase in the subject', 'e.g. invoice', 'Matches when the subject line contains this text.']
+  ];
+  function viewRuleBuilder(){
+    var k0 = RB_KINDS[0];
+    var kindOpts = RB_KINDS.map(function(k){ return '<option value="'+k[0]+'">'+k[1]+'</option>'; }).join('');
+    var labelOpts = (state.labels||[]).map(function(l){ return '<option value="label:'+l.id+'">🏷 '+esc(l.name)+'</option>'; }).join('');
+    var catOpts = (state.categories||[]).map(function(c){ return '<option value="cat:'+c.id+'">📁 '+esc(c.name)+'</option>'; }).join('');
+    return {
+      top: '<button class="back" data-nav="#/settings">'+svg('<path d="M15 18l-6-6 6-6"/>',16)+' Settings</button><h1>New rule</h1>'
+         + '<div class="sub">Auto-tag or sort mail — the heart of MailAI</div>',
+      withBack: true,
+      body: '<div class="view pad rb">'
+        + '<div class="rb-card"><div class="rb-num">1</div><div class="rb-body">'
+        +   '<div class="rb-lbl">What should this rule match?</div>'
+        +   '<select class="rb-sel" id="rb-kind" data-act="rbkind">'+kindOpts+'</select>'
+        + '</div></div>'
+        + '<div class="rb-card"><div class="rb-num">2</div><div class="rb-body">'
+        +   '<div class="rb-lbl" id="rb-vlbl">'+k0[2]+'</div>'
+        +   '<textarea class="rb-txt" id="rb-val" rows="3" placeholder="'+k0[3]+'"></textarea>'
+        +   '<div class="rb-hint" id="rb-hint">'+k0[4]+'</div>'
+        + '</div></div>'
+        + '<div class="rb-card"><div class="rb-num">3</div><div class="rb-body">'
+        +   '<div class="rb-lbl">Where should matching mail go?</div>'
+        +   '<select class="rb-sel" id="rb-target">'
+        +     '<optgroup label="🏷 Tag with a label">'+labelOpts+'<option value="newlabel">＋ New label…</option></optgroup>'
+        +     '<optgroup label="📁 Put in a category">'+catOpts+'</optgroup>'
+        +   '</select>'
+        +   '<div class="rb-hint">Pick an existing label/category, or make a new label — no typing mistakes.</div>'
+        + '</div></div>'
+        + '<div class="rb-actions"><button class="btn pri wide" data-act="rbcreate">Create rule</button>'
+        +   '<button class="btn ghost wide" data-nav="#/settings">Cancel</button></div>'
+        + '<div class="rb-hint" style="padding:4px 2px 12px">'+SPARK+'After creating, you can edit, flip or delete it anytime under <b>Label rules</b> or <b>Category rules</b> — the <b>N mails</b> count shows its effect.</div>'
+        + '</div>',
+      bare: true,
+      nav: 'settings'
+    };
+  }
   var settingsOpen = null;   // which Settings sections are expanded (persists across re-renders)
   function viewSettings(){
     var rows = state.categories.map(function(c, i){
@@ -1005,17 +1048,16 @@
       +   '• <b>Sender / @domain</b> — always tag everything from one sender or a whole domain.<br>'
       +   '• <b>✨ Suggest</b> — I look at what you’ve already labelled and propose a rule you can edit before saving.<br><br>'
       +   '<b>Change any rule:</b> tap <b>✎</b> to edit what it matches, tap the <b>label ▾</b> to move it to another label (pick from a list — no typing, so no accidental duplicates), tap <b>→ tag</b> to flip it, <b>✕</b> to delete. The <b>· N mails</b> count shows how many mails each rule hits right now.</div>'
-      + ((state.labelRules&&state.labelRules.length) ? state.labelRules.map(ruleRowHTML).join('') : '<div class="rule" style="color:var(--ink-3)">No rules yet — add one below, or fix a label on any email and I’ll offer to make a rule.</div>')
-      + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addairule">'+SPARK+' Add an AI rule (describe in words)</button>'
-      + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addrulelabel">+ Add a sender / @domain rule</button>'
+      + '<button class="btn pri wide" data-nav="#/newrule">＋ New rule</button>'
+      + ((state.labelRules&&state.labelRules.length) ? state.labelRules.map(ruleRowHTML).join('') : '<div class="rule" style="color:var(--ink-3)">No rules yet — tap <b>＋ New rule</b>, or fix a label on any email and I’ll offer to make one.</div>')
       + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="suggestrule">✨ Suggest a rule from my mail</button>';
     var catRuleInner = '<div class="rule" style="color:var(--ink-2);display:block;line-height:1.7">'+SPARK+'Send mail to a category by rule. Two ways:<br>'
       +   '• <b>'+SPARK+'AI category rule</b> — describe in plain words what belongs in a category (e.g. <i>“rekeningen en betaalverzoeken”</i>); Claude reads the meaning (synonyms/languages/typos).<br>'
       +   '• <b>From a correction</b> — use “Category · tap to fix” on an email and approve the rule.<br>'
       +   'Tap <b>✎</b> to edit, <b>✕</b> to remove. The <b>· N mails</b> count shows the effect.</div>'
       + ((state.catRules&&state.catRules.length) ? state.catRules.map(function(r,i){ var c=catById(r.catId); var cn=(state.messages||[]).filter(function(m){ return catRuleMatches(r,m); }).length; return '<div class="rule rule-row"><span>'+(r.scope==='ai'?'<span class="rbadge">'+SPARK+'AI</span> ':'')+rulePrefix(r)+'<b>'+esc(ruleWho(r))+'</b> → <b style="color:'+(c?c.color:'#888')+'">'+(c?esc(c.name):esc(r.catId))+'</b> <span class="ccount">· '+cn+' mail'+(cn===1?'':'s')+'</span></span><button class="rule-x" data-act="editcatrule" data-i="'+i+'" aria-label="edit rule">✎</button><button class="rule-x" data-act="delcatrule" data-i="'+i+'" aria-label="remove rule">✕</button></div>'; }).join('') : '<div class="rule" style="color:var(--ink-3)">No category rules yet.</div>')
-      + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addaicatrule">'+SPARK+' Add an AI category rule (describe in words)</button>'
-      + '<div class="ai-note" style="padding:8px 2px">'+SPARK+'I also learn from every correction automatically — your last 10 fixes guide how new mail is sorted.</div>';
+      + '<button class="btn pri wide" data-nav="#/newrule">＋ New rule</button>'
+      + '<div class="ai-note" style="padding:8px 2px">'+SPARK+'Tap <b>＋ New rule</b> and choose a <b>category</b> under “Put in a category”. I also learn from every correction automatically.</div>';
     var catsInner = '<div class="rule" style="color:var(--ink-2)">Reorder with ▲▼, show/hide with the toggle, ✎ rename, ✕ delete. This order drives the cockpit tiles and the Archive.</div>'
       + rows + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addcat">+ Add a category</button>';
     var labelsInner = (state.labels||[]).map(function(l){ return '<div class="catrow"><span class="grip">#</span>'
@@ -1138,6 +1180,7 @@
     else if(h.indexOf('#/focus/')===0) v = viewFocus(h.slice(8));
     else if(h.indexOf('#/label/')===0) v = viewLabel(h.slice(8));
     else if(h.indexOf('#/m/')===0) v = viewDetail(h.slice(4));
+    else if(h==='#/newrule') v = viewRuleBuilder();
     else if(h==='#/settings') v = viewSettings();
     else if(h.indexOf('#/archive')===0) v = viewArchive(h==='#/archive' ? '' : h.slice(10));
     else if(h==='#/tasks') v = viewTasks();
@@ -1355,6 +1398,26 @@
         render(); break;
       }
       case 'rulepickcancel': { pendingRule = null; render(); break; }
+      case 'rbcreate': {
+        var kEl=document.getElementById('rb-kind'), vEl=document.getElementById('rb-val'), tEl=document.getElementById('rb-target');
+        if(!kEl||!vEl||!tEl){ break; }
+        var rbkind=kEl.value, rbval=(vEl.value||'').trim(), rbtarget=tEl.value;
+        if(!rbval){ toast('Fill in step 2 — what the rule should match'); break; }
+        if(rbkind==='domain' && rbval.charAt(0)==='@') rbval=rbval.slice(1);
+        if(rbtarget.indexOf('cat:')===0){
+          learnCatRule({ scope:rbkind, value:rbval, catId:rbtarget.slice(4) }); recomputeCats();
+        } else {
+          var rblabel;
+          if(rbtarget==='newlabel'){ var rbnn=window.prompt('Name for the new label:'); if(!rbnn||!rbnn.trim()){ break; }
+            var rblab={ id:slug(rbnn)+'-'+(Date.now()%1000), name:rbnn.trim(), color:CUSTOM_COLORS[state.labels.length % CUSTOM_COLORS.length] };
+            state.labels.push(rblab); saveLabels(); rblabel=rblab.id; }
+          else { rblabel=rbtarget.slice(6); }   // 'label:'
+          learnRule({ scope:rbkind, value:rbval, labelId:rblabel, action:'add' }); recomputeLabels();
+        }
+        if(rbkind==='ai') evaluateAiRules();
+        toast('Rule created'+(rbkind==='ai'?' · checking your mail…':''));
+        location.hash = '#/settings'; break;
+      }
       case 'suggestrule': {
         // mine your own labelled mail for the strongest sender-domain → label pattern
         var best=null;
@@ -1592,6 +1655,15 @@
     if(navEl){ e.preventDefault(); var to = navEl.getAttribute('data-nav'); if(location.hash===to) render(); else location.hash = to; }
   });
   window.addEventListener('hashchange', render);
+  // rule builder: switching the match-type updates step 2's prompt/placeholder
+  // in place (no re-render) so what you've typed isn't lost
+  document.addEventListener('change', function(e){
+    if(e.target && e.target.id === 'rb-kind'){
+      var k = RB_KINDS.filter(function(x){ return x[0]===e.target.value; })[0]; if(!k) return;
+      var vl=document.getElementById('rb-vlbl'), tv=document.getElementById('rb-val'), hn=document.getElementById('rb-hint');
+      if(vl) vl.textContent = k[2]; if(tv) tv.placeholder = k[3]; if(hn) hn.innerHTML = k[4];
+    }
+  });
 
   // swipe the main screens left/right (Cockpit ⇄ Tasks ⇄ Archive ⇄ Settings)
   var MAIN_TABS = ['#/', '#/tasks', '#/archive', '#/settings'];
