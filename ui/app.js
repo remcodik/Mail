@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.25-7';
+  var BUILD = '2026.07.25-8';
   var CHANGELOG = [
+    { v:'2026.07.25-8', notes:['FIXED: custom categories & label edits now survive a refresh', 'Removed the confusing fixed example rules (“boss”, “klm.com”) — every rule shown is real and editable/deletable now', 'Settings explains how to make AI rules and how to change any rule'] },
     { v:'2026.07.25-7', notes:['Label rules are now fully editable — tap ✎ to change what a rule matches (incl. the ones I generate), tap → tag to flip it, and see a live count of matching mail', 'New AI rules: describe in plain language what to tag (e.g. “invoices, payments”)', '“Suggest a rule from my mail” proposes a rule from your own labelling'] },
     { v:'2026.07.25-6', notes:['Archive category tiles follow the same order as the Cockpit/Settings'] },
     { v:'2026.07.25-5', notes:['Swipe left/right between Cockpit · Tasks · Archive · Settings', 'Swiping on a card still archives/snoozes as before'] },
@@ -90,6 +91,25 @@
   var MERGES_KEY = 'mailai-merges-v1';
   function loadMerges(){ try { return JSON.parse(localStorage.getItem(MERGES_KEY) || '{}') || {}; } catch(e){ return {}; } }
   function saveMerges(){ try { localStorage.setItem(MERGES_KEY, JSON.stringify(state.merges || {})); } catch(e){} }
+  // custom categories & labels (adds, renames, colours, deletes) survive reloads
+  var CATS_KEY = 'mailai-cats-v1', LABELS_KEY = 'mailai-labels-v1';
+  function saveCats(){ try { localStorage.setItem(CATS_KEY, JSON.stringify(state.categories || [])); } catch(e){} }
+  function loadCats(){ try { return JSON.parse(localStorage.getItem(CATS_KEY) || 'null'); } catch(e){ return null; } }
+  function saveLabels(){ try { localStorage.setItem(LABELS_KEY, JSON.stringify(state.labels || [])); } catch(e){} }
+  function loadLabels(){ try { return JSON.parse(localStorage.getItem(LABELS_KEY) || 'null'); } catch(e){ return null; } }
+  // On boot: start from the server/default defs, then re-apply the user's saved
+  // customizations. Built-ins can't be deleted, so any new built-in the server
+  // adds later is appended; the user's custom cats/labels are preserved.
+  function applyCustomDefs(defaultCats){
+    var savedC = loadCats();
+    if(savedC && savedC.length){
+      var have = {}; savedC.forEach(function(c){ have[c.id] = 1; });
+      (defaultCats || []).forEach(function(c){ if(c.builtin && !have[c.id]) savedC.push(c); });
+      state.categories = savedC;
+    }
+    var savedL = loadLabels();
+    if(savedL){ state.labels = savedL; }
+  }
   // category → the "main" Gmail label (exactly one); labels → extra Gmail labels.
   function gmailLabelNames(m){
     var c = catById(m.cat);
@@ -245,7 +265,11 @@
     return n;
   }
   // recompute from the original AI assignments + current rules (clean add/undo)
-  function recomputeLabels(){ state.messages.forEach(function(m){ m.labels = (state.originalLabels[m.id]||[]).slice(); }); (state.labelRules||[]).forEach(applyRule); }
+  function recomputeLabels(){
+    var exist = {}; (state.labels||[]).forEach(function(l){ exist[l.id] = 1; });
+    state.messages.forEach(function(m){ m.labels = (state.originalLabels[m.id]||[]).slice().filter(function(id){ return exist[id]; }); });
+    (state.labelRules||[]).forEach(applyRule);
+  }
   function recomputeCats(){ state.messages.forEach(function(m){ m.cat = state.originalCat[m.id]; }); (state.catRules||[]).forEach(applyCatRule); }
   function recomputeAll(){ recomputeLabels(); recomputeCats(); deriveGroups(); }
 
@@ -363,7 +387,7 @@
     var cats = state.categories, idx = cats.map(function(c){ return c.id; }).indexOf(id), j = idx + dir;
     if(idx < 0 || j < 0 || j >= cats.length) return;
     var tmp = cats[idx]; cats[idx] = cats[j]; cats[j] = tmp;
-    saveCatOrder(); render();
+    saveCatOrder(); saveCats(); render();
   }
   var pendingProposal = null;   // {sender,labelId,action,others,labelName,msgId} awaiting approval
   function fixLabel(msgId, labelId){
@@ -950,19 +974,20 @@
             + '<button class="rule-x" data-act="lblrenamedef" data-id="'+l.id+'" aria-label="rename '+esc(l.name)+'">✎</button>'
             + '<button class="rule-x" data-act="lbldeldef" data-id="'+l.id+'" aria-label="delete '+esc(l.name)+'">✕</button></div>'; }).join('')
         + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="newlabeldef">+ Add a label</button>'
-        + '<div class="seghead">Label rules · learned + yours</div>'
-        + '<div class="rule" style="color:var(--ink-2)">'+SPARK+'Every rule is editable — tap ✎ to change what it matches, tap <b>→ tag</b> to flip it, and the <b>· N mails</b> count shows its effect live. Rules I generate from your corrections show up here too.</div>'
-        + ((state.labelRules&&state.labelRules.length) ? state.labelRules.map(ruleRowHTML).join('') : '<div class="rule" style="color:var(--ink-3)">No rules yet — fix a label on any email, or add one below.</div>')
-        + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addrulelabel">+ Add a rule (sender / @domain)</button>'
+        + '<div class="seghead">Label rules · how they work</div>'
+        + '<div class="rule" style="color:var(--ink-2);display:block;line-height:1.7">'+SPARK+'<b>Three ways to make a rule:</b><br>'
+        +   '• <b>'+SPARK+'AI rule</b> — describe in plain words what to tag, e.g. <i>“invoices, payments, subscription bills”</i>. Best for topics.<br>'
+        +   '• <b>Sender / @domain</b> — always tag everything from one sender or a whole domain.<br>'
+        +   '• <b>✨ Suggest</b> — I look at what you’ve already labelled and propose a rule you can edit before saving.<br><br>'
+        +   '<b>Change any rule:</b> tap <b>✎</b> to edit what it matches (works on rules I made from your corrections too), tap the <b>→ tag</b> chip to flip it on/off, <b>✕</b> to delete. The <b>· N mails</b> count shows how many mails each rule hits right now.</div>'
+        + ((state.labelRules&&state.labelRules.length) ? state.labelRules.map(ruleRowHTML).join('') : '<div class="rule" style="color:var(--ink-3)">No rules yet — add one below, or fix a label on any email and I’ll offer to make a rule.</div>')
         + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addairule">'+SPARK+' Add an AI rule (describe in words)</button>'
+        + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addrulelabel">+ Add a sender / @domain rule</button>'
         + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="suggestrule">✨ Suggest a rule from my mail</button>'
         + '<div class="seghead">Category rules · learned from “wrong category” fixes</div>'
-        + ((state.catRules&&state.catRules.length) ? state.catRules.map(function(r,i){ var c=catById(r.catId); return '<div class="rule rule-row"><span>'+rulePrefix(r)+'<b>'+esc(ruleWho(r))+'</b> → <b style="color:'+(c?c.color:'#888')+'">'+(c?esc(c.name):esc(r.catId))+'</b></span><button class="rule-x" data-act="delcatrule" data-i="'+i+'" aria-label="remove rule">✕</button></div>'; }).join('') : '<div class="rule" style="color:var(--ink-3)">No category rules yet — use “Category · tap to fix” on any email.</div>')
-        + '<div class="seghead">Rules</div>'
-        + '<div class="rule"><b>Emails from my boss</b> are always <b style="color:var(--c-urgent)">Urgent</b></div>'
-        + '<div class="rule"><b>Anything from klm.com</b> → <b style="color:var(--c-ticket)">Tickets</b></div>'
-        + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addrule">+ Add a rule</button>'
-        + '<div class="ai-note" style="padding:8px 2px">'+SPARK+'Your last 10 “wrong category” corrections guide every new classification.</div>'
+        + '<div class="rule" style="color:var(--ink-2)">'+SPARK+'These appear when you use “Category · tap to fix” on an email and approve the rule. Tap <b>✕</b> to remove one.</div>'
+        + ((state.catRules&&state.catRules.length) ? state.catRules.map(function(r,i){ var c=catById(r.catId); return '<div class="rule rule-row"><span>'+rulePrefix(r)+'<b>'+esc(ruleWho(r))+'</b> → <b style="color:'+(c?c.color:'#888')+'">'+(c?esc(c.name):esc(r.catId))+'</b></span><button class="rule-x" data-act="delcatrule" data-i="'+i+'" aria-label="remove rule">✕</button></div>'; }).join('') : '<div class="rule" style="color:var(--ink-3)">No category rules yet.</div>')
+        + '<div class="ai-note" style="padding:8px 2px">'+SPARK+'I also learn from every correction automatically — your last 10 fixes guide how new mail is sorted.</div>'
         + '<div class="seghead">Version</div>'
         + '<div class="rule" style="color:var(--ink-2)">You’re on <b>v'+BUILD+'</b>. If a change isn’t showing, tap refresh — it clears the cache and reloads the newest version.</div>'
         + '<button class="btn wide" data-act="apprefresh" style="border-style:dashed;color:var(--accent-ink)">↻ Refresh to newest version</button>'
@@ -1161,7 +1186,7 @@
         }
         render(); break;
       }
-      case 'togglecat': { var cat=catById(id); if(cat){ cat.visible=!cat.visible; apiPost('/api/categories/'+id+'/visibility',{visible:cat.visible}); } render(); break; }
+      case 'togglecat': { var cat=catById(id); if(cat){ cat.visible=!cat.visible; apiPost('/api/categories/'+id+'/visibility',{visible:cat.visible}); saveCats(); } render(); break; }
       case 'catup': moveCat(id, -1); break;
       case 'catdown': moveCat(id, 1); break;
       case 'togglemirror': { state.mirrorGmail=!state.mirrorGmail; saveMirror(); apiPost('/api/settings/mirror',{enabled:state.mirrorGmail}); toast(state.mirrorGmail?'Gmail sync on · these show as labels in Gmail':'Gmail sync off'); render(); break; }
@@ -1171,7 +1196,8 @@
         if(name && name.trim()){
           var color = CUSTOM_COLORS[state.categories.filter(function(c){return !c.builtin;}).length % CUSTOM_COLORS.length];
           state.categories.push({ id: slug(name)+'-'+(Date.now()%1000), name: name.trim(), color: color, icon: GENERIC_ICON, hint: 'mails', visible: true, builtin: false });
-          toast('Added “'+name.trim()+'” · define its rule in Settings');
+          saveCats();
+          toast('Added “'+name.trim()+'” · it stays after refresh');
         }
         render(); break;
       }
@@ -1234,7 +1260,7 @@
         var el2 = window.prompt('Label to apply (leave as-is to keep):', (labelById(er.labelId)||{}).name || '');
         if(el2 && el2.trim()){
           var lab2 = (state.labels||[]).filter(function(x){ return x.name.toLowerCase()===el2.trim().toLowerCase(); })[0];
-          if(!lab2){ lab2 = { id:slug(el2)+'-'+(Date.now()%1000), name:el2.trim(), color:CUSTOM_COLORS[state.labels.length % CUSTOM_COLORS.length] }; state.labels.push(lab2); }
+          if(!lab2){ lab2 = { id:slug(el2)+'-'+(Date.now()%1000), name:el2.trim(), color:CUSTOM_COLORS[state.labels.length % CUSTOM_COLORS.length] }; state.labels.push(lab2); saveLabels(); }
           er.labelId = lab2.id;
         }
         saveLearned(); recomputeLabels(); toast('Rule updated'); render(); break;
@@ -1250,7 +1276,7 @@
         var alname=window.prompt('…and tag it with which label?');
         if(!alname || !alname.trim()) break;
         var alab=(state.labels||[]).filter(function(x){ return x.name.toLowerCase()===alname.trim().toLowerCase(); })[0];
-        if(!alab){ alab={ id:slug(alname)+'-'+(Date.now()%1000), name:alname.trim(), color:CUSTOM_COLORS[state.labels.length % CUSTOM_COLORS.length] }; state.labels.push(alab); }
+        if(!alab){ alab={ id:slug(alname)+'-'+(Date.now()%1000), name:alname.trim(), color:CUSTOM_COLORS[state.labels.length % CUSTOM_COLORS.length] }; state.labels.push(alab); saveLabels(); }
         learnRule({ scope:'ai', value:desc.trim(), labelId:alab.id, action:'add' });
         recomputeLabels();
         var an=(state.messages||[]).filter(function(m){ return ruleMatches({scope:'ai',value:desc.trim()}, m); }).length;
@@ -1298,13 +1324,13 @@
         if(lnm && lnm.trim()){
           var lid = slug(lnm)+'-'+(Date.now()%1000);
           state.labels.push({ id:lid, name:lnm.trim(), color:CUSTOM_COLORS[state.labels.length % CUSTOM_COLORS.length] });
-          fixLabel(id, lid);
+          saveLabels(); fixLabel(id, lid);
         }
         render(); break;
       }
       case 'newlabeldef': {
         var dnm = window.prompt('New label name:');
-        if(dnm && dnm.trim()){ state.labels.push({ id:slug(dnm)+'-'+(Date.now()%1000), name:dnm.trim(), color:CUSTOM_COLORS[state.labels.length % CUSTOM_COLORS.length] }); toast('Label “'+dnm.trim()+'” created'); }
+        if(dnm && dnm.trim()){ state.labels.push({ id:slug(dnm)+'-'+(Date.now()%1000), name:dnm.trim(), color:CUSTOM_COLORS[state.labels.length % CUSTOM_COLORS.length] }); saveLabels(); toast('Label “'+dnm.trim()+'” created'); }
         render(); break;
       }
       case 'addtask': {
@@ -1397,7 +1423,7 @@
       }
       case 'catrenamedef': {
         var rc = catById(id);
-        if(rc){ var rn = window.prompt('Rename category:', rc.name); if(rn && rn.trim()){ var old=rc.name; rc.name = rn.trim(); state.messages.forEach(function(m){ if(m.cat===rc.id) m.chip = rc.name; }); toast('Renamed “'+old+'” → “'+rc.name+'”'); } }
+        if(rc){ var rn = window.prompt('Rename category:', rc.name); if(rn && rn.trim()){ var old=rc.name; rc.name = rn.trim(); state.messages.forEach(function(m){ if(m.cat===rc.id) m.chip = rc.name; }); saveCats(); toast('Renamed “'+old+'” → “'+rc.name+'”'); } }
         render(); break;
       }
       case 'catdeldef': {
@@ -1406,18 +1432,18 @@
           state.categories = state.categories.filter(function(c){ return c.id!==id; });
           state.messages.forEach(function(m){ if(m.cat===id){ m.cat='fyi'; m.chip=(catById('fyi')||{}).name||'FYI'; } });
           state.catRules = (state.catRules||[]).filter(function(r){ return r.catId!==id; }); saveCatRules();
-          recomputeAll(); toast('Category “'+xc.name+'” deleted');
+          saveCats(); recomputeAll(); toast('Category “'+xc.name+'” deleted');
         }
         render(); break;
       }
       case 'lblrecolor': {
         var lc = labelById(id);
-        if(lc){ var i2 = CUSTOM_COLORS.indexOf(lc.color); lc.color = CUSTOM_COLORS[(i2+1)%CUSTOM_COLORS.length]; }
+        if(lc){ var i2 = CUSTOM_COLORS.indexOf(lc.color); lc.color = CUSTOM_COLORS[(i2+1)%CUSTOM_COLORS.length]; saveLabels(); }
         render(); break;
       }
       case 'lblrenamedef': {
         var rl = labelById(id);
-        if(rl){ var ln = window.prompt('Rename label:', rl.name); if(ln && ln.trim()){ rl.name = ln.trim(); toast('Label renamed'); } }
+        if(rl){ var ln = window.prompt('Rename label:', rl.name); if(ln && ln.trim()){ rl.name = ln.trim(); saveLabels(); toast('Label renamed'); } }
         render(); break;
       }
       case 'lbldeldef': {
@@ -1426,7 +1452,7 @@
           state.labels = (state.labels||[]).filter(function(l){ return l.id!==id; });
           state.messages.forEach(function(m){ if(m.labels){ m.labels = m.labels.filter(function(x){ return x!==id; }); } });
           state.labelRules = (state.labelRules||[]).filter(function(r){ return r.labelId!==id; }); saveLearned();
-          recomputeLabels(); toast('Label “'+xl.name+'” deleted');
+          saveLabels(); recomputeLabels(); toast('Label “'+xl.name+'” deleted');
         }
         render(); break;
       }
@@ -1440,7 +1466,7 @@
           var lname = window.prompt('…with label:');
           if(lname && lname.trim()){
             var lab = (state.labels||[]).filter(function(x){ return x.name.toLowerCase()===lname.trim().toLowerCase(); })[0];
-            if(!lab){ lab = { id:slug(lname)+'-'+(Date.now()%1000), name:lname.trim(), color:CUSTOM_COLORS[state.labels.length % CUSTOM_COLORS.length] }; state.labels.push(lab); }
+            if(!lab){ lab = { id:slug(lname)+'-'+(Date.now()%1000), name:lname.trim(), color:CUSTOM_COLORS[state.labels.length % CUSTOM_COLORS.length] }; state.labels.push(lab); saveLabels(); }
             var rule = { scope:scope, value:value, labelId:lab.id, action:'add' };
             learnRule(rule); recomputeLabels();
             var n = state.messages.filter(function(m){ return ruleMatches(rule, m); }).length;
@@ -1553,6 +1579,7 @@
     state.events = DEMO_EVENTS.slice();
     state.demoNow = 0;
     state.merges = loadMerges();   // manual "merge with…" links
+    applyCustomDefs(data.categories);   // re-apply saved custom categories/labels
     applyCatOrder();   // restore a saved cockpit category order
     recomputeAll();
     render();
