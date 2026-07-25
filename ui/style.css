@@ -232,6 +232,12 @@ a{color:inherit}
 .rb-txt{resize:vertical;line-height:1.5}
 .rb-hint{font-size:11.5px;color:var(--ink-2);margin-top:8px;line-height:1.5}
 .rb-actions{display:flex;flex-direction:column;gap:9px;margin:4px 0 6px}
+.rb-pvcard{background:color-mix(in srgb,var(--accent) 6%,var(--surface))}
+.rb-preview{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-size:12.5px;min-height:44px}
+.rb-pv-empty{color:var(--ink-3)}
+.rb-pv-count{font-weight:800;color:var(--accent-ink);margin-bottom:7px}
+.rb-pv-ex{color:var(--ink-2);padding:4px 0;border-top:1px solid var(--line);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rb-pv-ex:first-of-type{border-top:0}
 .setsec{border:1px solid var(--line);border-radius:13px;margin:0 0 10px;background:var(--surface);overflow:hidden}
 .setsum{cursor:pointer;list-style:none;padding:14px 14px;font-weight:700;font-size:14px;display:flex;align-items:center;gap:7px}
 .setsum::-webkit-details-marker{display:none}
