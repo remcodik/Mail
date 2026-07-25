@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.25-11';
+  var BUILD = '2026.07.25-12';
   var CHANGELOG = [
+    { v:'2026.07.25-12', notes:['AI rules are now truly semantic (live) — Claude reads the meaning, so “factuur” finds English invoices, synonyms and typos work', 'Falls back to on-device keyword match in the offline demo'] },
     { v:'2026.07.25-11', notes:['You now PICK a rule’s label from a list instead of typing it — a typo can’t silently create a duplicate label anymore', 'Tap the label ▾ on any rule to move it to another label', 'Category-rule editing warns if you type a category that doesn’t exist'] },
     { v:'2026.07.25-10', notes:['Settings reorganised into collapsible sections — Label rules on top (open), everything else tidied below and folded away', 'Sections you open stay open while you work'] },
     { v:'2026.07.25-9', notes:['FIXED: “Move to cockpit”, delete and snooze now stick after a refresh (they weren’t saved to the server before)', 'Category rules are now editable too — tap ✎ to change what they match, with a live · N mails count'] },
@@ -220,7 +221,7 @@
       return raw.map(function(x){ return x.scope ? x : { scope:'sender', value:x.sender, labelId:x.labelId, action:x.action }; });
     } catch(e){ return []; }
   }
-  function saveLearned(){ try { localStorage.setItem(LEARN_KEY, JSON.stringify(state.labelRules||[])); } catch(e){} }
+  function saveLearned(){ try { localStorage.setItem(LEARN_KEY, JSON.stringify((state.labelRules||[]).map(function(r){ var o={}; for(var k in r){ if(k!=='_aiIds') o[k]=r[k]; } return o; }))); } catch(e){} }
   // plain-language "AI rule": matches when a significant word from the description
   // appears in the mail (a light on-device approximation of the AI labeler).
   var _STOP = { with:1, from:1, that:1, this:1, mail:1, email:1, about:1, over:1, your:1, been:1, will:1, they:1, them:1, when:1, which:1, then:1 };
@@ -232,10 +233,27 @@
     return words.some(function(w){ return w.length>2 && text.indexOf(w)>=0; });
   }
   function ruleMatches(rule, m){
-    return rule.scope==='ai' ? _aiRuleMatch(rule.value, m)
+    // AI rules: use Claude's semantic match when we have it (live), else the
+    // on-device keyword heuristic (demo/offline/while it loads).
+    return rule.scope==='ai' ? (rule._aiIds ? !!rule._aiIds[m.id] : _aiRuleMatch(rule.value, m))
       : rule.scope==='domain' ? m.domain===rule.value
       : rule.scope==='subject' ? (m.subject||'').toLowerCase().indexOf((rule.value||'').toLowerCase())>=0
       : m.from===rule.value;
+  }
+  // Ask the backend (real Claude) which mail matches each AI rule's meaning —
+  // handles synonyms, other languages and typos. Live only; no-op in demo.
+  function evaluateAiRules(){
+    if(!API_OK) return;
+    var aiRules = (state.labelRules||[]).filter(function(r){ return r.scope==='ai'; });
+    if(!aiRules.length) return;
+    var items = (state.messages||[]).map(function(m){ return { id:m.id, text:((m.subject||'')+' — '+(m.snippet||'')).slice(0,200) }; });
+    Promise.all(aiRules.map(function(r){
+      return fetch('/api/labels/ai-match', { method:'POST', credentials:'same-origin',
+        headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ description:r.value, items:items }) })
+        .then(function(x){ return x.ok ? x.json() : null; })
+        .then(function(d){ if(d && d.ids){ var s={}; d.ids.forEach(function(id){ s[id]=1; }); r._aiIds = s; } })
+        .catch(function(){});
+    })).then(function(){ recomputeLabels(); render(); });
   }
   // one row per rule: what it matches · which label · live count · edit/flip/delete
   function ruleRowHTML(r, i){
@@ -966,7 +984,7 @@
         + '<summary class="setsum">'+title+'</summary><div class="setbody">'+inner+'</div></details>';
     }
     var ruleInner = '<div class="rule" style="color:var(--ink-2);display:block;line-height:1.7">'+SPARK+'<b>Three ways to make a rule:</b><br>'
-      +   '• <b>'+SPARK+'AI rule</b> — describe in plain words what to tag, e.g. <i>“invoices, payments, subscription bills”</i>. Best for topics.<br>'
+      +   '• <b>'+SPARK+'AI rule</b> — describe in plain words what to tag, e.g. <i>“facturen en betalingen”</i>. Claude reads the meaning, so synonyms, other languages and typos all work.<br>'
       +   '• <b>Sender / @domain</b> — always tag everything from one sender or a whole domain.<br>'
       +   '• <b>✨ Suggest</b> — I look at what you’ve already labelled and propose a rule you can edit before saving.<br><br>'
       +   '<b>Change any rule:</b> tap <b>✎</b> to edit what it matches, tap the <b>label ▾</b> to move it to another label (pick from a list — no typing, so no accidental duplicates), tap <b>→ tag</b> to flip it, <b>✕</b> to delete. The <b>· N mails</b> count shows how many mails each rule hits right now.</div>'
@@ -1280,7 +1298,7 @@
           : er.scope==='domain' ? 'Tag mail from domain (without the @):'
           : er.scope==='subject' ? 'Tag mail whose subject contains:' : 'Tag mail from sender:';
         var ev = window.prompt(promptxt, er.value); if(ev===null) break;
-        if(ev.trim()){ er.value = ev.trim(); saveLearned(); recomputeLabels(); toast('Rule updated'); }
+        if(ev.trim()){ er.value = ev.trim(); if(er.scope==='ai') delete er._aiIds; saveLearned(); recomputeLabels(); toast('Rule updated'); if(er.scope==='ai') evaluateAiRules(); }
         render(); break;
       }
       case 'rulerelabel': {   // tap a rule's label → pick a different one (no typing)
@@ -1310,7 +1328,8 @@
           if(pr.editIndex!=null){ var rr=state.labelRules[pr.editIndex]; if(rr){ rr.labelId=lab.id; saveLearned(); recomputeLabels(); toast('Label changed to “'+lab.name+'”'); } }
           else { learnRule({ scope:pr.scope, value:pr.value, labelId:lab.id, action:pr.action }); recomputeLabels();
             var an=(state.messages||[]).filter(function(m){ return ruleMatches({scope:pr.scope,value:pr.value}, m); }).length;
-            toast('Rule added · '+an+' mail'+(an===1?'':'s')+' tagged'); }
+            toast(pr.scope==='ai' ? 'AI rule added · checking your mail…' : ('Rule added · '+an+' mail'+(an===1?'':'s')+' tagged'));
+            if(pr.scope==='ai') evaluateAiRules(); }
         }
         render(); break;
       }
@@ -1623,6 +1642,7 @@
     applyCatOrder();   // restore a saved cockpit category order
     recomputeAll();
     render();
+    evaluateAiRules();   // refine AI rules with Claude's semantic match (live)
   }
   function showSignIn(){
     var root = document.getElementById('root');
