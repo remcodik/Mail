@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.25-10';
+  var BUILD = '2026.07.25-11';
   var CHANGELOG = [
+    { v:'2026.07.25-11', notes:['You now PICK a rule’s label from a list instead of typing it — a typo can’t silently create a duplicate label anymore', 'Tap the label ▾ on any rule to move it to another label', 'Category-rule editing warns if you type a category that doesn’t exist'] },
     { v:'2026.07.25-10', notes:['Settings reorganised into collapsible sections — Label rules on top (open), everything else tidied below and folded away', 'Sections you open stay open while you work'] },
     { v:'2026.07.25-9', notes:['FIXED: “Move to cockpit”, delete and snooze now stick after a refresh (they weren’t saved to the server before)', 'Category rules are now editable too — tap ✎ to change what they match, with a live · N mails count'] },
     { v:'2026.07.25-8', notes:['FIXED: custom categories & label edits now survive a refresh', 'Removed the confusing fixed example rules (“boss”, “klm.com”) — every rule shown is real and editable/deletable now', 'Settings explains how to make AI rules and how to change any rule'] },
@@ -244,7 +245,7 @@
       + (r.scope==='ai' ? '<span class="rbadge">'+SPARK+'AI</span> ' : '')
       + rulePrefix(r) + '<b>' + esc(ruleWho(r)) + '</b> '
       + '<button class="ruleflip" data-act="ruleflip" data-i="'+i+'">' + (r.action==='remove' ? '✗ don’t tag' : '→ tag') + '</button> '
-      + '<b style="color:'+(l?l.color:'#888')+'">'+(l?esc(l.name):esc(r.labelId))+'</b>'
+      + '<button class="rulelabel" data-act="rulerelabel" data-i="'+i+'" style="color:'+(l?l.color:'#888')+'">'+(l?esc(l.name):esc(r.labelId))+' ▾</button>'
       + ' <span class="ccount">· '+n+' mail'+(n===1?'':'s')+'</span></span>'
       + '<button class="rule-x" data-act="editrule" data-i="'+i+'" aria-label="edit rule">✎</button>'
       + '<button class="rule-x" data-act="delrule" data-i="'+i+'" aria-label="remove rule">✕</button></div>';
@@ -478,6 +479,19 @@
   }
   // a few plausible slots for the demo proposal
   var MEETING_OPTS = [['tue15','Tue · 15:00'], ['wed10','Wed · 10:00'], ['thu14','Thu · 14:00']];
+  var pendingRule = null;   // a rule waiting for its label to be picked (no typing = no duplicates)
+  function rulePickBar(){
+    if(!pendingRule) return '';
+    var pr = pendingRule;
+    var what = pr.editIndex!=null ? 'Move this rule to which label?' : 'Tag matching mail with — pick a label:';
+    var chips = (state.labels||[]).map(function(l){
+      return '<button class="pseg" data-act="rulepick" data-id="'+l.id+'" style="text-align:left"><span class="cdotmini" style="background:'+l.color+'"></span>'+esc(l.name)+'</button>';
+    }).join('');
+    return '<div class="proposal"><div class="ptext">'+SPARK+' '+what+'</div>'
+      + '<div class="pacts" style="flex-wrap:wrap">'+chips
+      + '<button class="pseg" data-act="rulepick" data-id="__new__" style="border-style:dashed">+ New label…</button>'
+      + '<button class="btn ghost" data-act="rulepickcancel">Cancel</button></div></div>';
+  }
   var pendingMerge = null;   // messageId awaiting a merge target
   function mergeBar(){
     if(!pendingMerge) return '';
@@ -955,7 +969,7 @@
       +   '• <b>'+SPARK+'AI rule</b> — describe in plain words what to tag, e.g. <i>“invoices, payments, subscription bills”</i>. Best for topics.<br>'
       +   '• <b>Sender / @domain</b> — always tag everything from one sender or a whole domain.<br>'
       +   '• <b>✨ Suggest</b> — I look at what you’ve already labelled and propose a rule you can edit before saving.<br><br>'
-      +   '<b>Change any rule:</b> tap <b>✎</b> to edit what it matches (works on rules I made from your corrections too), tap the <b>→ tag</b> chip to flip it on/off, <b>✕</b> to delete. The <b>· N mails</b> count shows how many mails each rule hits right now.</div>'
+      +   '<b>Change any rule:</b> tap <b>✎</b> to edit what it matches, tap the <b>label ▾</b> to move it to another label (pick from a list — no typing, so no accidental duplicates), tap <b>→ tag</b> to flip it, <b>✕</b> to delete. The <b>· N mails</b> count shows how many mails each rule hits right now.</div>'
       + ((state.labelRules&&state.labelRules.length) ? state.labelRules.map(ruleRowHTML).join('') : '<div class="rule" style="color:var(--ink-3)">No rules yet — add one below, or fix a label on any email and I’ll offer to make a rule.</div>')
       + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addairule">'+SPARK+' Add an AI rule (describe in words)</button>'
       + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addrulelabel">+ Add a sender / @domain rule</button>'
@@ -1093,7 +1107,7 @@
     var html = '<div class="topbar'+(v.withBack?' with-back':'')+'">'+v.top+'</div>'
       + (v.tabs||'')
       + (v.bare ? v.body : '<div class="view">'+v.body+'</div>')
-      + proposalBar() + catProposalBar() + unsubBar() + snoozeBar() + followupBar() + meetingBar() + mergeBar()
+      + proposalBar() + catProposalBar() + unsubBar() + snoozeBar() + followupBar() + meetingBar() + mergeBar() + rulePickBar()
       + tabbar(v.nav);
     root.innerHTML = html;
     localize(root);   // switch UI chrome to Dutch when selected
@@ -1266,16 +1280,11 @@
           : er.scope==='domain' ? 'Tag mail from domain (without the @):'
           : er.scope==='subject' ? 'Tag mail whose subject contains:' : 'Tag mail from sender:';
         var ev = window.prompt(promptxt, er.value); if(ev===null) break;
-        if(!ev.trim()){ toast('Rule unchanged'); break; }
-        er.value = ev.trim();
-        // optionally move it to a different label
-        var el2 = window.prompt('Label to apply (leave as-is to keep):', (labelById(er.labelId)||{}).name || '');
-        if(el2 && el2.trim()){
-          var lab2 = (state.labels||[]).filter(function(x){ return x.name.toLowerCase()===el2.trim().toLowerCase(); })[0];
-          if(!lab2){ lab2 = { id:slug(el2)+'-'+(Date.now()%1000), name:el2.trim(), color:CUSTOM_COLORS[state.labels.length % CUSTOM_COLORS.length] }; state.labels.push(lab2); saveLabels(); }
-          er.labelId = lab2.id;
-        }
-        saveLearned(); recomputeLabels(); toast('Rule updated'); render(); break;
+        if(ev.trim()){ er.value = ev.trim(); saveLearned(); recomputeLabels(); toast('Rule updated'); }
+        render(); break;
+      }
+      case 'rulerelabel': {   // tap a rule's label → pick a different one (no typing)
+        pendingRule = { editIndex: parseInt(el.getAttribute('data-i'),10) }; render(); break;
       }
       case 'ruleflip': {
         var fi=parseInt(el.getAttribute('data-i'),10); var fr=(state.labelRules||[])[fi];
@@ -1285,15 +1294,27 @@
       case 'addairule': {
         var desc=window.prompt('Describe the mail to auto-label, in your own words\n(e.g. “invoices, payments or subscription bills”):');
         if(!desc || !desc.trim()) break;
-        var alname=window.prompt('…and tag it with which label?');
-        if(!alname || !alname.trim()) break;
-        var alab=(state.labels||[]).filter(function(x){ return x.name.toLowerCase()===alname.trim().toLowerCase(); })[0];
-        if(!alab){ alab={ id:slug(alname)+'-'+(Date.now()%1000), name:alname.trim(), color:CUSTOM_COLORS[state.labels.length % CUSTOM_COLORS.length] }; state.labels.push(alab); saveLabels(); }
-        learnRule({ scope:'ai', value:desc.trim(), labelId:alab.id, action:'add' });
-        recomputeLabels();
-        var an=(state.messages||[]).filter(function(m){ return ruleMatches({scope:'ai',value:desc.trim()}, m); }).length;
-        toast('AI rule added · '+an+' mail'+(an===1?'':'s')+' tagged'); render(); break;
+        pendingRule = { scope:'ai', value:desc.trim(), action:'add' };   // then PICK the label
+        render(); break;
       }
+      case 'rulepick': {
+        var pr = pendingRule; if(!pr){ render(); break; }
+        var lid = el.getAttribute('data-id'); var lab;
+        if(lid==='__new__'){
+          var nn = window.prompt('New label name:'); if(!nn || !nn.trim()){ pendingRule=null; render(); break; }
+          lab = { id:slug(nn)+'-'+(Date.now()%1000), name:nn.trim(), color:CUSTOM_COLORS[state.labels.length % CUSTOM_COLORS.length] };
+          state.labels.push(lab); saveLabels();
+        } else { lab = labelById(lid); }
+        pendingRule = null;
+        if(lab){
+          if(pr.editIndex!=null){ var rr=state.labelRules[pr.editIndex]; if(rr){ rr.labelId=lab.id; saveLearned(); recomputeLabels(); toast('Label changed to “'+lab.name+'”'); } }
+          else { learnRule({ scope:pr.scope, value:pr.value, labelId:lab.id, action:pr.action }); recomputeLabels();
+            var an=(state.messages||[]).filter(function(m){ return ruleMatches({scope:pr.scope,value:pr.value}, m); }).length;
+            toast('Rule added · '+an+' mail'+(an===1?'':'s')+' tagged'); }
+        }
+        render(); break;
+      }
+      case 'rulepickcancel': { pendingRule = null; render(); break; }
       case 'suggestrule': {
         // mine your own labelled mail for the strongest sender-domain → label pattern
         var best=null;
@@ -1334,10 +1355,12 @@
           : cer.scope==='subject' ? 'Match mail whose subject contains:' : 'Match mail from sender:';
         var cev = window.prompt(cpt, cer.value); if(cev===null) break;
         if(cev.trim()) cer.value = cev.trim();
-        var cel = window.prompt('Put matching mail in which category (leave as-is to keep):', (catById(cer.catId)||{}).name || '');
+        var names = (state.categories||[]).map(function(c){ return c.name; }).join(', ');
+        var cel = window.prompt('Put matching mail in which category (leave as-is to keep)?\nChoose one of: '+names, (catById(cer.catId)||{}).name || '');
         if(cel && cel.trim()){
           var tc = (state.categories||[]).filter(function(c){ return c.name.toLowerCase()===cel.trim().toLowerCase(); })[0];
-          if(tc) cer.catId = tc.id;
+          if(tc){ cer.catId = tc.id; }
+          else { toast('No category named “'+cel.trim()+'” — kept '+(catById(cer.catId)||{}).name+'. (Categories can’t be typo-created.)'); saveCatRules(); recomputeCats(); render(); break; }
         }
         saveCatRules(); recomputeCats(); toast('Rule updated'); render(); break;
       }
@@ -1488,17 +1511,7 @@
         if(who && who.trim()){
           who = who.trim();
           var isDomain = who.charAt(0)==='@';
-          var scope = isDomain ? 'domain' : 'sender';
-          var value = isDomain ? who.slice(1) : who;
-          var lname = window.prompt('…with label:');
-          if(lname && lname.trim()){
-            var lab = (state.labels||[]).filter(function(x){ return x.name.toLowerCase()===lname.trim().toLowerCase(); })[0];
-            if(!lab){ lab = { id:slug(lname)+'-'+(Date.now()%1000), name:lname.trim(), color:CUSTOM_COLORS[state.labels.length % CUSTOM_COLORS.length] }; state.labels.push(lab); saveLabels(); }
-            var rule = { scope:scope, value:value, labelId:lab.id, action:'add' };
-            learnRule(rule); recomputeLabels();
-            var n = state.messages.filter(function(m){ return ruleMatches(rule, m); }).length;
-            toast('Rule added · '+n+' mail'+(n===1?'':'s')+' tagged');
-          }
+          pendingRule = { scope: isDomain?'domain':'sender', value: isDomain?who.slice(1):who, action:'add' };   // then PICK the label
         }
         render(); break;
       }
