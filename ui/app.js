@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.25-19';
+  var BUILD = '2026.07.25-20';
   var CHANGELOG = [
+    { v:'2026.07.25-20', notes:['Removed the leftover demo example tasks from the live app (an earlier version had saved them)'] },
     { v:'2026.07.25-19', notes:['FIXED: fixing a mail\u2019s category/label now sticks \u2014 it no longer snaps back to the old one when rules re-run', 'The \u21bb button (cockpit + archive) instantly re-sorts everything with your current rules'] },
     { v:'2026.07.25-18', notes:['Tasks & agenda now stay after a refresh (saved on your device)', 'Settings: a short “What is an AI rule?” explainer at the top of Label rules'] },
     { v:'2026.07.25-17', notes:['One-time actions on search results — search (with AI), then Tag all / Archive all once, without a saved rule', '“Save as rule” turns your AI search into a permanent rule if you want', 'Your last search is remembered when you reopen Search'] },
@@ -1904,6 +1905,8 @@
     state.messages.forEach(function(m){ state.originalLabels[m.id] = (m.labels||[]).slice(); state.originalCat[m.id] = m.cat; });
     // tasks persist across reloads; seed a couple of examples only in the demo.
     var savedTasks = loadTasks();
+    // clean up demo example tasks that an earlier version may have persisted in the live app
+    if(savedTasks && API_OK){ savedTasks = savedTasks.filter(function(t){ return t.id!=='seed1' && t.id!=='seed2'; }); }
     state.tasks = savedTasks || (API_OK ? [] : [
       { id:'seed1', text:'Send the revised Q3 revenue slide', due:'Today · 12:00', done:false, msgId:'m1' },
       { id:'seed2', text:'Approve the vendor invoice before month-end', due:'', done:false, msgId:'m20' }
