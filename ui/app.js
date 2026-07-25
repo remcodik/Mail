@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.25-2';
+  var BUILD = '2026.07.25-3';
   var CHANGELOG = [
+    { v:'2026.07.25-3', notes:['Grouping now also works in the Archive (filed mail)', 'Same-tracking mail merges even with other mail in between', 'The most recent status (delivered ▸ pickup ▸ in transit) shows on top'] },
     { v:'2026.07.25-2', notes:['Deliveries & purchases group by tracking or order number — works on existing mail too', 'Always show carrier · #tracking · pickup point on delivery mail', 'Reorder/toggle in Settings keeps your scroll position (no jump to top)'] },
     { v:'2026.07.25', notes:['Mail list & detail show the date, not just the time', 'Show original email with images (safe, sandboxed)', 'Back from a filed mail returns to the Archive', 'Rename/delete categories; rename/recolor/delete labels', 'Import older mail from a date is always available', 'This version panel + “refresh to newest” button'] },
     { v:'2026.07.24', notes:['Firestore storage so you stay signed in on free hosting', 'Keep-warm ping to avoid cold starts', 'New cockpit-style app icon'] },
@@ -261,6 +262,21 @@
     else if(order) bits.push('order '+esc(order));
     if(pickup) bits.push('📍 '+esc(pickup)+(code?' · '+esc(code):''));
     return bits.join(' · ');
+  }
+  // Which member represents the group: the most-advanced status (delivered >
+  // ready for pickup > in transit > ordered), so the newest state shows on top.
+  function _statusRank(m){
+    var t = _grpText(m).toLowerCase();
+    if(/afgeleverd|bezorgd|delivered/.test(t)) return 5;
+    if(/afhaalpunt|klaargezet|opgehaald|ready for pickup|pickup/.test(t)) return 4;
+    if(/onderweg|verzonden|out for delivery|shipped|in transit/.test(t)) return 3;
+    if(/besteld|bestelling|ontvangen|order (confirmed|received)|confirmed/.test(t)) return 1;
+    return 2;
+  }
+  function pickRep(members){
+    return members.filter(function(x){ return x.groupLatest; })[0]
+      || members.slice().sort(function(a,b){ return _statusRank(b)-_statusRank(a); })[0]
+      || members[0];
   }
 
   // ---- category rules (correction loop, mirrors labels) ----
@@ -501,7 +517,7 @@
       if(seen[m.group]) return;
       seen[m.group] = true;
       var members = msgs.filter(function(x){ return x.group===m.group; });
-      var rep = members.filter(function(x){ return x.groupLatest; })[0] || members[0];
+      var rep = pickRep(members);
       var others = members.filter(function(x){ return x !== rep; });
       if(!others.length){ out.push(cardHTML(rep)); return; }
       var open = expandedGroups[m.group];
@@ -736,6 +752,26 @@
   function archivedMsgs(){ return state.messages.filter(function(m){ return m.archived && !m.snoozed && inSel(m); }); }
   function snoozedMsgs(){ return state.messages.filter(function(m){ return m.snoozed && inSel(m); }); }
   function archiveRow(m){ return '<div class="arow">'+cardHTML(m)+'<div class="btnrow"><button class="btn" data-act="restore" data-id="'+m.id+'">Move to cockpit</button><button class="btn danger" data-act="delete" data-id="'+m.id+'">Delete</button></div></div>'; }
+  // same grouping as the cockpit, but keeps each member's Move/Delete buttons
+  function groupedArchiveList(ms){
+    var seen = {}, out = [];
+    ms.forEach(function(m){
+      if(!m.group){ out.push(archiveRow(m)); return; }
+      if(seen[m.group]) return;
+      seen[m.group] = true;
+      var members = ms.filter(function(x){ return x.group===m.group; });
+      var rep = pickRep(members);
+      var others = members.filter(function(x){ return x !== rep; });
+      if(!others.length){ out.push(archiveRow(rep)); return; }
+      var open = expandedGroups[m.group];
+      out.push('<div class="grp">' + archiveRow(rep)
+        + '<div class="grp-actions"><button class="grp-toggle" data-act="expandgroup" data-g="'+m.group+'">'
+        +   (open ? '▴ Hide earlier' : '▾ '+others.length+' earlier update'+(others.length===1?'':'s')+' · same delivery') + '</button></div>'
+        + (open ? '<div class="grp-more">'+others.map(archiveRow).join('')+'</div>' : '')
+        + '</div>');
+    });
+    return out.join('');
+  }
   function viewArchive(spec){
     if(spec) return viewArchiveCat(spec);
     var arc = archivedMsgs(), sn = snoozedMsgs();
@@ -756,7 +792,7 @@
   }
   function viewArchiveCat(cid){
     var c = catById(cid); var ms = archivedMsgs().filter(function(m){ return m.cat===cid; });
-    var body = '<div class="list">'+(ms.length ? ms.map(archiveRow).join('') : '<div class="empty">Empty.</div>')
+    var body = '<div class="list">'+(ms.length ? groupedArchiveList(ms) : '<div class="empty">Empty.</div>')
       + (ms.length ? '<button class="btn danger wide" data-act="delcat" data-cat="'+cid+'" style="margin-top:4px">Delete all '+ms.length+' in '+(c?esc(c.name):cid)+'</button>' : '')+'</div>';
     return { top:'<button class="back" data-nav="#/archive">'+svg('<path d="M15 18l-6-6 6-6"/>',16)+' Archive</button><h1>'+(c?esc(c.name):cid)+' · filed</h1>', withBack:true, body:body, nav:'archive' };
   }
