@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.25-18';
+  var BUILD = '2026.07.25-19';
   var CHANGELOG = [
+    { v:'2026.07.25-19', notes:['FIXED: fixing a mail\u2019s category/label now sticks \u2014 it no longer snaps back to the old one when rules re-run', 'The \u21bb button (cockpit + archive) instantly re-sorts everything with your current rules'] },
     { v:'2026.07.25-18', notes:['Tasks & agenda now stay after a refresh (saved on your device)', 'Settings: a short “What is an AI rule?” explainer at the top of Label rules'] },
     { v:'2026.07.25-17', notes:['One-time actions on search results — search (with AI), then Tag all / Archive all once, without a saved rule', '“Save as rule” turns your AI search into a permanent rule if you want', 'Your last search is remembered when you reopen Search'] },
     { v:'2026.07.25-16', notes:['Search (with AI): find mail literally, or tap ✨AI to search by meaning in any language', 'Sync now: ↻ button on the cockpit pulls new Gmail and re-applies your rules', 'Make a rule from an email (prefilled) via the email detail', 'Pause/resume any rule with its On/Off switch — no need to delete'] },
@@ -471,6 +472,7 @@
     var i = m.labels.indexOf(labelId);
     var adding = i < 0;
     if(adding) m.labels.push(labelId); else m.labels.splice(i, 1);  // this email only
+    state.originalLabels[msgId] = m.labels.slice();   // new baseline so a recompute keeps it
     var l = labelById(labelId);
     toast((adding ? 'Labelled “' : 'Removed “') + (l?l.name:labelId) + '” on this email');
     // propose generalising it — you approve, adjust the scope, or decline
@@ -500,6 +502,7 @@
   function setCat(msgId, catId){
     var m = msgById(msgId); if(!m || m.cat===catId) return;
     m.cat = catId;   // this email only
+    state.originalCat[msgId] = catId;   // make it the new baseline so a recompute keeps it
     var c = catById(catId);
     toast('Moved to '+(c?c.name:catId));
     pendingCatProposal = { sender:m.from, domain:m.domain, subject:m.subject, catId:catId, catName:(c?c.name:catId), msgId:msgId, scope:'sender' };
@@ -1010,7 +1013,10 @@
       + (tiles ? '<div class="tilegrid">'+tiles+'</div>' : '<div class="empty">Archive is empty.</div>')
       + (arc.length ? '<div style="padding:12px 14px"><button class="btn danger wide" data-act="emptyarchive">Empty archive ('+arc.length+')</button></div>' : '')
       + snoozeSec;
-    return { top:'<div class="brand">'+BRANDMARK+' MailAI · Archive</div><h1>Archive</h1><div class="sub">'+arc.length+' filed'+(sn.length?(' · '+sn.length+' snoozed'):'')+'</div>', body:body, nav:'archive' };
+    return { top:'<div class="brand">'+BRANDMARK+' MailAI · Archive'
+        + '<span class="topbtns"><button class="iconbtn" data-nav="#/search" aria-label="Search">'+svg('<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',18)+'</button>'
+        + '<button class="iconbtn" data-act="syncnow" aria-label="Refresh">'+svg('<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>',18)+'</button></span></div>'
+        + '<h1>Archive</h1><div class="sub">'+arc.length+' filed'+(sn.length?(' · '+sn.length+' snoozed'):'')+'</div>', body:body, nav:'archive' };
   }
   function viewArchiveCat(cid){
     var c = catById(cid); var ms = archivedMsgs().filter(function(m){ return m.cat===cid; });
@@ -1118,9 +1124,10 @@
   }
   function runSearchDebounced(){ if(srchTimer) clearTimeout(srchTimer); srchTimer = setTimeout(runSearch, 250); }
   function syncNow(){
-    if(!API_OK){ toast('Demo mode — nothing to sync'); return; }
+    recomputeAll(); render();      // instant: re-apply your rules to the mail we already have
+    if(!API_OK){ evaluateAiRules(); toast('Re-sorted with your rules'); return; }
     var accts = (state.accounts||[]).map(function(a){ return a.id; });
-    if(!accts.length){ toast('Connect a mail account first'); return; }
+    if(!accts.length){ evaluateAiRules(); toast('Re-sorted with your rules'); return; }
     toast(SPARK+'Syncing your mail…');
     Promise.all(accts.map(function(aid){
       return fetch('/api/accounts/'+encodeURIComponent(aid)+'/sync', { method:'POST', credentials:'same-origin' })
