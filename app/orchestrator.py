@@ -100,6 +100,34 @@ def process_account(user_id: str, account_id: str, max_results: int = 25) -> int
     return processed
 
 
+def backfill_account(user_id: str, account_id: str, since: str = "2026/06/01",
+                     max_results: int = 50) -> int:
+    """Import received mail since a date and file it to the Archive, categorised
+    only (fast/cheap — no summaries/labels/drafts). Idempotent, so it can be
+    re-run to continue where it left off. Returns count imported."""
+    token = store.get_token(user_id, account_id)
+    if not token:
+        raise RuntimeError(f"no OAuth token for account {account_id}")
+    client = GmailClient(user_id, account_id, token)
+    valid = {c["id"] for c in store.categories(user_id)}
+    query = f"after:{since} -in:sent -in:chats -in:trash"   # received mail since the date
+    processed = 0
+    for mid in client.list_message_ids(query=query, max_results=max_results):
+        if store.has_message(user_id, mid):
+            continue
+        email = client.get_message(mid)
+        raw_cat = intelligence.classify_email(email)
+        cat = _MAP.get(raw_cat, "fyi")
+        if cat not in valid:
+            cat = "fyi"
+        store.upsert_message(user_id, {
+            **email, "cat": cat, "chip": _cat_name(user_id, cat),
+            "summary": email.get("snippet", ""), "labels": [], "archived": True,
+        })
+        processed += 1
+    return processed
+
+
 def sync_all(user_id: str, max_results: int = 25) -> dict[str, int]:
     """Sync every connected account for a user, keeping them separated."""
     return {a["id"]: process_account(user_id, a["id"], max_results)

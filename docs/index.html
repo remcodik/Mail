@@ -1290,6 +1290,7 @@ a{color:inherit}
         + '<div class="seghead">Cockpit</div>'
         + '<div class="rule" style="color:var(--ink-2)">New mail lands in the cockpit. <b>File everything</b> to start clean — archived mail stays under its labels and in the Archive tab, and you can move any of it back to the cockpit anytime.</div>'
         + '<button class="btn wide danger" data-act="emptycockpit" style="border-style:dashed">File everything to Archive (empty cockpit)</button>'
+        + (API_OK ? '<button class="btn wide" data-act="backfill" style="border-style:dashed;color:var(--accent-ink)">⤵ Import older mail to Archive…</button>' : '')
         + '<div class="seghead">Show in Gmail</div>'
         + '<div class="catrow"><span class="grip"></span><span class="cdot" style="background:#EA4335">'+svg('<path d="M3 6l9 6 9-6"/><rect x="3" y="5" width="18" height="14" rx="2"/>',13)+'</span>'
         +   '<span><span class="cnm">Mirror categories &amp; labels to Gmail</span><br>'
@@ -1589,6 +1590,23 @@ a{color:inherit}
       case 'expandgroup': { var g=el.getAttribute('data-g'); expandedGroups[g] = !expandedGroups[g]; render(); break; }
       case 'archgroup': { archiveGroup(el.getAttribute('data-g')); render(); break; }
       case 'emptycockpit': { if(window.confirm('File all cockpit mail to the Archive? You can move any of it back anytime.')){ emptyCockpit(); } location.hash = '#/'; break; }
+      case 'backfill': {
+        var since = window.prompt('Import received mail since (YYYY-MM-DD) — filed to Archive for testing:', '2026-06-01');
+        if(!since || !since.trim()) break;
+        var cnt = parseInt(window.prompt('How many at most? (fewer = faster)', '50'), 10) || 50;
+        toast('Importing since '+since.trim()+'… this can take a minute');
+        var accts = (state.accounts||[]).map(function(a){ return a.id; });
+        Promise.all(accts.map(function(aid){
+          return fetch('/api/accounts/'+encodeURIComponent(aid)+'/backfill', { method:'POST', credentials:'same-origin',
+            headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ since: since.trim(), max_results: cnt }) })
+            .then(function(r){ return r.ok ? r.json() : { processed:0 }; }).catch(function(){ return { processed:0 }; });
+        })).then(function(rs){
+          var total = rs.reduce(function(s,r){ return s + (r.processed||0); }, 0);
+          toast('Imported '+total+' mail to Archive');
+          load();
+        });
+        break;
+      }
       // account management
       case 'acctcolor': { var ac=acctById(id); if(ac){ var ci2=ACCT_COLORS.indexOf(ac.color); ac.color=ACCT_COLORS[(ci2+1)%ACCT_COLORS.length]; } render(); break; }
       case 'acctrename': { var ar=acctById(id); if(ar){ var an=window.prompt('Rename account:', ar.name); if(an&&an.trim()) ar.name=an.trim(); } render(); break; }

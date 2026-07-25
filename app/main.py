@@ -226,6 +226,22 @@ def sync_account(request: Request, account_id: str) -> dict:
     return {"ok": True, "processed": process_account(uid, account_id)}
 
 
+@app.post("/api/accounts/{account_id}/backfill")
+def backfill(request: Request, account_id: str,
+             since: str = Body("2026-06-01"), max_results: int = Body(50)) -> dict:
+    """Import received mail since a date into the Archive (live mode). Idempotent."""
+    uid = _uid(request)
+    if not settings.is_live:
+        return {"ok": True, "processed": 0, "note": "demo mode — nothing to import"}
+    from .orchestrator import backfill_account
+    since_q = str(since).replace("-", "/")   # accept YYYY-MM-DD, Gmail wants YYYY/MM/DD
+    try:
+        n = backfill_account(uid, account_id, since_q, int(max_results))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"import failed: {e}")
+    return {"ok": True, "processed": n}
+
+
 # ---------------- static SPA (mounted last so /api wins) ----------------
 if os.path.isdir(UI_DIR):
     app.mount("/", StaticFiles(directory=UI_DIR, html=True), name="ui")
