@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.25-17';
+  var BUILD = '2026.07.25-18';
   var CHANGELOG = [
+    { v:'2026.07.25-18', notes:['Tasks & agenda now stay after a refresh (saved on your device)', 'Settings: a short “What is an AI rule?” explainer at the top of Label rules'] },
     { v:'2026.07.25-17', notes:['One-time actions on search results — search (with AI), then Tag all / Archive all once, without a saved rule', '“Save as rule” turns your AI search into a permanent rule if you want', 'Your last search is remembered when you reopen Search'] },
     { v:'2026.07.25-16', notes:['Search (with AI): find mail literally, or tap ✨AI to search by meaning in any language', 'Sync now: ↻ button on the cockpit pulls new Gmail and re-applies your rules', 'Make a rule from an email (prefilled) via the email detail', 'Pause/resume any rule with its On/Off switch — no need to delete'] },
     { v:'2026.07.25-15', notes:['Live preview in the New rule builder — see how many mails it catches (and example subjects) as you type, semantic for AI rules'] },
@@ -100,6 +101,12 @@
   var MERGES_KEY = 'mailai-merges-v1';
   function loadMerges(){ try { return JSON.parse(localStorage.getItem(MERGES_KEY) || '{}') || {}; } catch(e){ return {}; } }
   function saveMerges(){ try { localStorage.setItem(MERGES_KEY, JSON.stringify(state.merges || {})); } catch(e){} }
+  // tasks & agenda meetings survive reloads
+  var TASKS_KEY = 'mailai-tasks-v1', MEET_KEY = 'mailai-meetings-v1';
+  function loadTasks(){ try { return JSON.parse(localStorage.getItem(TASKS_KEY) || 'null'); } catch(e){ return null; } }
+  function saveTasks(){ try { localStorage.setItem(TASKS_KEY, JSON.stringify(state.tasks || [])); } catch(e){} }
+  function loadMeetings(){ try { return JSON.parse(localStorage.getItem(MEET_KEY) || 'null'); } catch(e){ return null; } }
+  function saveMeetings(){ try { localStorage.setItem(MEET_KEY, JSON.stringify(state.meetings || [])); } catch(e){} }
   // custom categories & labels (adds, renames, colours, deletes) survive reloads
   var CATS_KEY = 'mailai-cats-v1', LABELS_KEY = 'mailai-labels-v1';
   function saveCats(){ try { localStorage.setItem(CATS_KEY, JSON.stringify(state.categories || [])); } catch(e){} }
@@ -1144,7 +1151,10 @@
       return '<details class="setsec" data-sec="'+id+'"'+(settingsOpen[id]?' open':'')+'>'
         + '<summary class="setsum">'+title+'</summary><div class="setbody">'+inner+'</div></details>';
     }
-    var ruleInner = '<div class="rule" style="color:var(--ink-2);display:block;line-height:1.7">'+SPARK+'<b>Three ways to make a rule:</b><br>'
+    var ruleInner = '<div class="rule" style="display:block;line-height:1.7;background:color-mix(in srgb,var(--accent) 7%,var(--surface));border-color:color-mix(in srgb,var(--accent) 25%,var(--line))">'
+      +   '<b>'+SPARK+'What is an AI rule?</b><br>'
+      +   '<span style="color:var(--ink-2)">You write, in plain words, <b>what</b> a rule should catch — e.g. <i>“facturen en betalingen”</i>. Claude then judges <b>every mail by meaning</b>, so synonyms, other languages and typos all work (no exact keywords needed). AI rules <b>re-check your mail each time you open the app</b>. Want to act just once instead? Use '+SPARK+' Search → <b>Do once</b>.</span></div>'
+      + '<div class="rule" style="color:var(--ink-2);display:block;line-height:1.7">'+SPARK+'<b>Three ways to make a rule:</b><br>'
       +   '• <b>'+SPARK+'AI rule</b> — describe in plain words what to tag, e.g. <i>“facturen en betalingen”</i>. Claude reads the meaning, so synonyms, other languages and typos all work.<br>'
       +   '• <b>Sender / @domain</b> — always tag everything from one sender or a whole domain.<br>'
       +   '• <b>✨ Suggest</b> — I look at what you’ve already labelled and propose a rule you can edit before saving.<br><br>'
@@ -1303,6 +1313,7 @@
     var view = root.querySelector('.view'); if(view) view.scrollTop = keepScroll;
     if(document.getElementById('rb-preview')) rbUpdatePreview();   // seed the rule preview
     if(document.getElementById('searchresults')) runSearch();      // seed search state
+    if(state){ saveTasks(); saveMeetings(); }   // persist tasks & agenda across reloads
     _lastHash = h;
   }
 
@@ -1884,17 +1895,18 @@
     // remember the AI's original assignments so rules can be applied AND undone
     state.originalLabels = {}; state.originalCat = {};
     state.messages.forEach(function(m){ state.originalLabels[m.id] = (m.labels||[]).slice(); state.originalCat[m.id] = m.cat; });
-    // a couple of example tasks so the screen isn't empty; each linked to its mail.
-    state.tasks = [
+    // tasks persist across reloads; seed a couple of examples only in the demo.
+    var savedTasks = loadTasks();
+    state.tasks = savedTasks || (API_OK ? [] : [
       { id:'seed1', text:'Send the revised Q3 revenue slide', due:'Today · 12:00', done:false, msgId:'m1' },
       { id:'seed2', text:'Approve the vendor invoice before month-end', due:'', done:false, msgId:'m20' }
-    ];
+    ]);
     // learned rules survive reloads (localStorage) and re-apply on load
     state.labelRules = loadLearned();
     state.catRules = loadCatRules();
     state.mirrorGmail = (data.settings && data.settings.mirror_gmail) || loadMirror();
     state.lang = (data.settings && data.settings.lang) || loadLang();
-    state.meetings = [];
+    state.meetings = loadMeetings() || [];
     var calPrefs = loadCalPrefs();
     state.calendars = DEMO_CALENDARS.map(function(c){
       var p = calPrefs && calPrefs.filter(function(x){ return x.id===c.id; })[0];
