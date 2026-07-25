@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.25-4';
+  var BUILD = '2026.07.25-5';
   var CHANGELOG = [
+    { v:'2026.07.25-5', notes:['Swipe left/right between Cockpit · Tasks · Archive · Settings', 'Swiping on a card still archives/snoozes as before'] },
     { v:'2026.07.25-4', notes:['“Merge with another delivery…” to manually group mail the app couldn’t link (e.g. a pickup notice with no tracking number)', 'Remove a mail from its group again; both are remembered'] },
     { v:'2026.07.25-3', notes:['Grouping now also works in the Archive (filed mail)', 'Same-tracking mail merges even with other mail in between', 'The most recent status (delivered ▸ pickup ▸ in transit) shows on top'] },
     { v:'2026.07.25-2', notes:['Deliveries & purchases group by tracking or order number — works on existing mail too', 'Always show carrier · #tracking · pickup point on delivery mail', 'Reorder/toggle in Settings keeps your scroll position (no jump to top)'] },
@@ -1370,8 +1371,10 @@
   // ---------- events ----------
   var swipeGuard = null;   // {card, t} — swallow only the ghost click on the swiped card
   function cardIdOf(node){ var c = node.closest && node.closest('.card'); if(!c) return null; var nv=c.getAttribute('data-nav')||''; return nv.indexOf('#/m/')===0 ? nv.slice(4) : null; }
+  var navGuard = 0;   // timestamp of a tab-swipe, to swallow the ghost click after it
   document.addEventListener('click', function(e){
     if(swipeGuard && (Date.now()-swipeGuard.t)<700 && e.target.closest && e.target.closest('.card')===swipeGuard.card){ swipeGuard=null; e.preventDefault(); return; }
+    if(navGuard && (Date.now()-navGuard)<500){ navGuard=0; e.preventDefault(); return; }   // swallow click after a tab-swipe
     var navEl = e.target.closest('[data-nav]');
     var actEl = e.target.closest('[data-act]');
     if(actEl){ e.preventDefault(); handleAct(actEl.getAttribute('data-act'), actEl); return; }
@@ -1379,28 +1382,55 @@
   });
   window.addEventListener('hashchange', render);
 
-  // swipe an email card: left = archive, right = snooze
-  var sw = null;
+  // swipe the main screens left/right (Cockpit ⇄ Tasks ⇄ Archive ⇄ Settings)
+  var MAIN_TABS = ['#/', '#/tasks', '#/archive', '#/settings'];
+  function curTabIndex(){ return MAIN_TABS.indexOf(location.hash || '#/'); }
+  function overlayOpen(){ return !!document.querySelector('.proposal'); }   // a chooser bar is up
+
+  // swipe: on a card → archive/snooze; on the background of a main tab → change tab
+  var sw = null, nav = null;
   document.addEventListener('touchstart', function(e){
     var c = e.target.closest('.card'); var id = c && cardIdOf(c);
     sw = id ? { c:c, id:id, x:e.touches[0].clientX, y:e.touches[0].clientY, dx:0, moved:false } : null;
+    nav = (!sw && curTabIndex() >= 0 && !overlayOpen())
+      ? { x:e.touches[0].clientX, y:e.touches[0].clientY, dx:0, moved:false } : null;
   }, { passive:true });
   document.addEventListener('touchmove', function(e){
-    if(!sw) return;
-    var dx = e.touches[0].clientX - sw.x, dy = e.touches[0].clientY - sw.y;
-    if(!sw.moved && Math.abs(dx) < Math.abs(dy)){ sw = null; return; }   // vertical scroll — bail
-    sw.moved = true; sw.dx = dx;
-    sw.c.style.transition = 'none';
-    sw.c.style.transform = 'translateX(' + dx + 'px)';
-    sw.c.style.opacity = String(Math.max(0.35, 1 - Math.abs(dx) / 240));
+    if(sw){
+      var dx = e.touches[0].clientX - sw.x, dy = e.touches[0].clientY - sw.y;
+      if(!sw.moved && Math.abs(dx) < Math.abs(dy)){ sw = null; return; }   // vertical scroll — bail
+      sw.moved = true; sw.dx = dx;
+      sw.c.style.transition = 'none';
+      sw.c.style.transform = 'translateX(' + dx + 'px)';
+      sw.c.style.opacity = String(Math.max(0.35, 1 - Math.abs(dx) / 240));
+      return;
+    }
+    if(nav){
+      var ndx = e.touches[0].clientX - nav.x, ndy = e.touches[0].clientY - nav.y;
+      if(!nav.moved && Math.abs(ndx) < Math.abs(ndy) + 6){ nav = null; return; }   // vertical → let it scroll
+      nav.moved = true; nav.dx = ndx;
+    }
   }, { passive:true });
   document.addEventListener('touchend', function(){
-    if(!sw) return; var s = sw; sw = null;
-    if(!s.moved) return;
-    swipeGuard = { card: s.c, t: Date.now() };
-    if(s.dx < -70){ var sm=msgById(s.id); if(sm && sm.group){ archiveGroup(sm.group); } else { archive(s.id, 'Archived', true); } render(); }
-    else if(s.dx > 70){ pendingSnooze = s.id; render(); }   // open the snooze chooser
-    else { s.c.style.transition = 'transform .2s, opacity .2s'; s.c.style.transform = ''; s.c.style.opacity = ''; }
+    if(sw){
+      var s = sw; sw = null;
+      if(!s.moved) return;
+      swipeGuard = { card: s.c, t: Date.now() };
+      if(s.dx < -70){ var sm=msgById(s.id); if(sm && sm.group){ archiveGroup(sm.group); } else { archive(s.id, 'Archived', true); } render(); }
+      else if(s.dx > 70){ pendingSnooze = s.id; render(); }   // open the snooze chooser
+      else { s.c.style.transition = 'transform .2s, opacity .2s'; s.c.style.transform = ''; s.c.style.opacity = ''; }
+      return;
+    }
+    if(nav){
+      var n = nav; nav = null;
+      if(n.moved && Math.abs(n.dx) > 60){
+        var i = curTabIndex();
+        if(i >= 0){
+          var ni = n.dx < 0 ? i + 1 : i - 1;
+          if(ni >= 0 && ni < MAIN_TABS.length){ navGuard = Date.now(); location.hash = MAIN_TABS[ni]; }
+        }
+      }
+    }
   });
 
   // ---------- data bootstrap (API with fixtures fallback) ----------
