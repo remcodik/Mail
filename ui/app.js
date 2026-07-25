@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.25-6';
+  var BUILD = '2026.07.25-7';
   var CHANGELOG = [
+    { v:'2026.07.25-7', notes:['Label rules are now fully editable — tap ✎ to change what a rule matches (incl. the ones I generate), tap → tag to flip it, and see a live count of matching mail', 'New AI rules: describe in plain language what to tag (e.g. “invoices, payments”)', '“Suggest a rule from my mail” proposes a rule from your own labelling'] },
     { v:'2026.07.25-6', notes:['Archive category tiles follow the same order as the Cockpit/Settings'] },
     { v:'2026.07.25-5', notes:['Swipe left/right between Cockpit · Tasks · Archive · Settings', 'Swiping on a card still archives/snoozes as before'] },
     { v:'2026.07.25-4', notes:['“Merge with another delivery…” to manually group mail the app couldn’t link (e.g. a pickup notice with no tracking number)', 'Remove a mail from its group again; both are remembered'] },
@@ -73,8 +74,8 @@
 
   // ---------- labels + learning loop ----------
   function labelById(id){ return (state.labels||[]).filter(function(l){ return l.id===id; })[0]; }
-  function ruleWho(r){ return r.scope==='domain' ? ('@'+r.value) : r.scope==='subject' ? ('“'+r.value+'” in subject') : r.value; }
-  function rulePrefix(r){ return r.scope==='subject' ? 'Mail with ' : 'Mail from '; }
+  function ruleWho(r){ return r.scope==='ai' ? ('“'+(r.value||'')+'”') : r.scope==='domain' ? ('@'+r.value) : r.scope==='subject' ? ('“'+r.value+'” in subject') : r.value; }
+  function rulePrefix(r){ return r.scope==='ai' ? 'Mail about ' : r.scope==='subject' ? 'Mail with ' : 'Mail from '; }
   function labelChips(m){
     if(!m.labels || !m.labels.length) return '';
     return m.labels.map(function(id){ var l=labelById(id); return l ? '<span class="lbl mini" style="--lc:'+l.color+'">'+esc(l.name)+'</span>' : ''; }).join('');
@@ -197,7 +198,35 @@
     } catch(e){ return []; }
   }
   function saveLearned(){ try { localStorage.setItem(LEARN_KEY, JSON.stringify(state.labelRules||[])); } catch(e){} }
-  function ruleMatches(rule, m){ return rule.scope==='domain' ? m.domain===rule.value : rule.scope==='subject' ? (m.subject||'').toLowerCase().indexOf((rule.value||'').toLowerCase())>=0 : m.from===rule.value; }
+  // plain-language "AI rule": matches when a significant word from the description
+  // appears in the mail (a light on-device approximation of the AI labeler).
+  var _STOP = { with:1, from:1, that:1, this:1, mail:1, email:1, about:1, over:1, your:1, been:1, will:1, they:1, them:1, when:1, which:1, then:1 };
+  function _aiRuleMatch(desc, m){
+    var text = ((m.subject||'')+' '+(m.snippet||'')+' '+(m.summary||'')+' '+(m.from||'')).toLowerCase();
+    var words = (desc||'').toLowerCase().split(/[^a-z0-9]+/)
+      .filter(function(w){ return w.length>3 && !_STOP[w]; })
+      .map(function(w){ return w.replace(/s$/, ''); });   // light stem so plural/singular match
+    return words.some(function(w){ return w.length>2 && text.indexOf(w)>=0; });
+  }
+  function ruleMatches(rule, m){
+    return rule.scope==='ai' ? _aiRuleMatch(rule.value, m)
+      : rule.scope==='domain' ? m.domain===rule.value
+      : rule.scope==='subject' ? (m.subject||'').toLowerCase().indexOf((rule.value||'').toLowerCase())>=0
+      : m.from===rule.value;
+  }
+  // one row per rule: what it matches · which label · live count · edit/flip/delete
+  function ruleRowHTML(r, i){
+    var l = labelById(r.labelId);
+    var n = (state.messages||[]).filter(function(m){ return ruleMatches(r, m); }).length;
+    return '<div class="rule rule-row"><span>'
+      + (r.scope==='ai' ? '<span class="rbadge">'+SPARK+'AI</span> ' : '')
+      + rulePrefix(r) + '<b>' + esc(ruleWho(r)) + '</b> '
+      + '<button class="ruleflip" data-act="ruleflip" data-i="'+i+'">' + (r.action==='remove' ? '✗ don’t tag' : '→ tag') + '</button> '
+      + '<b style="color:'+(l?l.color:'#888')+'">'+(l?esc(l.name):esc(r.labelId))+'</b>'
+      + ' <span class="ccount">· '+n+' mail'+(n===1?'':'s')+'</span></span>'
+      + '<button class="rule-x" data-act="editrule" data-i="'+i+'" aria-label="edit rule">✎</button>'
+      + '<button class="rule-x" data-act="delrule" data-i="'+i+'" aria-label="remove rule">✕</button></div>';
+  }
   function learnRule(rule){
     state.labelRules = (state.labelRules||[]).filter(function(r){ return !(r.scope===rule.scope && r.value===rule.value && r.labelId===rule.labelId); });
     state.labelRules.push(rule);
@@ -922,8 +951,11 @@
             + '<button class="rule-x" data-act="lbldeldef" data-id="'+l.id+'" aria-label="delete '+esc(l.name)+'">✕</button></div>'; }).join('')
         + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="newlabeldef">+ Add a label</button>'
         + '<div class="seghead">Label rules · learned + yours</div>'
-        + ((state.labelRules&&state.labelRules.length) ? state.labelRules.map(function(r,i){ var l=labelById(r.labelId); return '<div class="rule rule-row"><span>'+rulePrefix(r)+'<b>'+esc(ruleWho(r))+'</b> '+(r.action==='add'?'→ tag':'✗ don’t tag')+' <b style="color:'+(l?l.color:'#888')+'">'+(l?esc(l.name):esc(r.labelId))+'</b></span><button class="rule-x" data-act="delrule" data-i="'+i+'" aria-label="remove rule">✕</button></div>'; }).join('') : '<div class="rule" style="color:var(--ink-3)">No rules yet — fix a label on any email, or add one below.</div>')
-        + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addrulelabel">+ Add a label rule</button>'
+        + '<div class="rule" style="color:var(--ink-2)">'+SPARK+'Every rule is editable — tap ✎ to change what it matches, tap <b>→ tag</b> to flip it, and the <b>· N mails</b> count shows its effect live. Rules I generate from your corrections show up here too.</div>'
+        + ((state.labelRules&&state.labelRules.length) ? state.labelRules.map(ruleRowHTML).join('') : '<div class="rule" style="color:var(--ink-3)">No rules yet — fix a label on any email, or add one below.</div>')
+        + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addrulelabel">+ Add a rule (sender / @domain)</button>'
+        + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addairule">'+SPARK+' Add an AI rule (describe in words)</button>'
+        + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="suggestrule">✨ Suggest a rule from my mail</button>'
         + '<div class="seghead">Category rules · learned from “wrong category” fixes</div>'
         + ((state.catRules&&state.catRules.length) ? state.catRules.map(function(r,i){ var c=catById(r.catId); return '<div class="rule rule-row"><span>'+rulePrefix(r)+'<b>'+esc(ruleWho(r))+'</b> → <b style="color:'+(c?c.color:'#888')+'">'+(c?esc(c.name):esc(r.catId))+'</b></span><button class="rule-x" data-act="delcatrule" data-i="'+i+'" aria-label="remove rule">✕</button></div>'; }).join('') : '<div class="rule" style="color:var(--ink-3)">No category rules yet — use “Category · tap to fix” on any email.</div>')
         + '<div class="seghead">Rules</div>'
@@ -1190,6 +1222,57 @@
       }
       case 'dismissrule': { pendingProposal = null; toast('Kept it to just this email'); render(); break; }
       case 'delrule': { var ri=parseInt(el.getAttribute('data-i'),10); if(state.labelRules){ var rrm=state.labelRules.splice(ri,1)[0]; saveLearned(); recomputeLabels(); toast('Rule removed', function(){ state.labelRules.splice(ri,0,rrm); saveLearned(); recomputeLabels(); render(); }); } render(); break; }
+      case 'editrule': {
+        var ei=parseInt(el.getAttribute('data-i'),10); var er=(state.labelRules||[])[ei]; if(!er) break;
+        var promptxt = er.scope==='ai' ? 'Describe the mail this rule should tag (plain language):'
+          : er.scope==='domain' ? 'Tag mail from domain (without the @):'
+          : er.scope==='subject' ? 'Tag mail whose subject contains:' : 'Tag mail from sender:';
+        var ev = window.prompt(promptxt, er.value); if(ev===null) break;
+        if(!ev.trim()){ toast('Rule unchanged'); break; }
+        er.value = ev.trim();
+        // optionally move it to a different label
+        var el2 = window.prompt('Label to apply (leave as-is to keep):', (labelById(er.labelId)||{}).name || '');
+        if(el2 && el2.trim()){
+          var lab2 = (state.labels||[]).filter(function(x){ return x.name.toLowerCase()===el2.trim().toLowerCase(); })[0];
+          if(!lab2){ lab2 = { id:slug(el2)+'-'+(Date.now()%1000), name:el2.trim(), color:CUSTOM_COLORS[state.labels.length % CUSTOM_COLORS.length] }; state.labels.push(lab2); }
+          er.labelId = lab2.id;
+        }
+        saveLearned(); recomputeLabels(); toast('Rule updated'); render(); break;
+      }
+      case 'ruleflip': {
+        var fi=parseInt(el.getAttribute('data-i'),10); var fr=(state.labelRules||[])[fi];
+        if(fr){ fr.action = fr.action==='remove' ? 'add' : 'remove'; saveLearned(); recomputeLabels(); }
+        render(); break;
+      }
+      case 'addairule': {
+        var desc=window.prompt('Describe the mail to auto-label, in your own words\n(e.g. “invoices, payments or subscription bills”):');
+        if(!desc || !desc.trim()) break;
+        var alname=window.prompt('…and tag it with which label?');
+        if(!alname || !alname.trim()) break;
+        var alab=(state.labels||[]).filter(function(x){ return x.name.toLowerCase()===alname.trim().toLowerCase(); })[0];
+        if(!alab){ alab={ id:slug(alname)+'-'+(Date.now()%1000), name:alname.trim(), color:CUSTOM_COLORS[state.labels.length % CUSTOM_COLORS.length] }; state.labels.push(alab); }
+        learnRule({ scope:'ai', value:desc.trim(), labelId:alab.id, action:'add' });
+        recomputeLabels();
+        var an=(state.messages||[]).filter(function(m){ return ruleMatches({scope:'ai',value:desc.trim()}, m); }).length;
+        toast('AI rule added · '+an+' mail'+(an===1?'':'s')+' tagged'); render(); break;
+      }
+      case 'suggestrule': {
+        // mine your own labelled mail for the strongest sender-domain → label pattern
+        var best=null;
+        (state.labels||[]).forEach(function(l){
+          var counts={};
+          (state.messages||[]).forEach(function(m){ if((m.labels||[]).indexOf(l.id)>=0 && m.domain){ counts[m.domain]=(counts[m.domain]||0)+1; } });
+          Object.keys(counts).forEach(function(dom){
+            var exists=(state.labelRules||[]).some(function(r){ return r.scope==='domain' && r.value===dom && r.labelId===l.id; });
+            if(!exists && counts[dom]>=2 && (!best || counts[dom]>best.n)){ best={ dom:dom, labelId:l.id, name:l.name, n:counts[dom] }; }
+          });
+        });
+        if(!best){ toast('No clear pattern yet — tag a few more mails and I’ll spot one'); break; }
+        var sv=window.prompt('Suggested: tag mail from @'+best.dom+' as “'+best.name+'” ('+best.n+' mails match).\nEdit the domain, or OK to add:', best.dom);
+        if(sv===null) break;
+        learnRule({ scope:'domain', value:sv.trim(), labelId:best.labelId, action:'add' });
+        recomputeLabels(); toast('Rule added from suggestion'); render(); break;
+      }
       // category correction
       case 'fixcat': { setCat(id, el.getAttribute('data-cat')); render(); break; }
       case 'catscope': { if(pendingCatProposal){ var cv2=el.getAttribute('data-v'); if(cv2==='subject'){ var ck=window.prompt('Apply to mail whose subject contains:', pendingCatProposal.subjectWord||guessKeyword(pendingCatProposal.subject)); if(ck&&ck.trim()){ pendingCatProposal.scope='subject'; pendingCatProposal.subjectWord=ck.trim(); } } else pendingCatProposal.scope=cv2; } render(); break; }
