@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.25-5';
+  var BUILD = '2026.07.25-6';
   var CHANGELOG = [
+    { v:'2026.07.25-6', notes:['Archive category tiles follow the same order as the Cockpit/Settings'] },
     { v:'2026.07.25-5', notes:['Swipe left/right between Cockpit · Tasks · Archive · Settings', 'Swiping on a card still archives/snoozes as before'] },
     { v:'2026.07.25-4', notes:['“Merge with another delivery…” to manually group mail the app couldn’t link (e.g. a pickup notice with no tracking number)', 'Remove a mail from its group again; both are remembered'] },
     { v:'2026.07.25-3', notes:['Grouping now also works in the Archive (filed mail)', 'Same-tracking mail merges even with other mail in between', 'The most recent status (delivered ▸ pickup ▸ in transit) shows on top'] },
@@ -837,7 +838,12 @@
     if(spec) return viewArchiveCat(spec);
     var arc = archivedMsgs(), sn = snoozedMsgs();
     var cats = {}; arc.forEach(function(m){ cats[m.cat] = (cats[m.cat]||0)+1; });
-    var tiles = Object.keys(cats).map(function(cid){
+    // follow the same category order as the cockpit/Settings (unknown cats last)
+    var catOrder = state.categories.map(function(c){ return c.id; });
+    var tiles = Object.keys(cats).sort(function(a,b){
+      var ia = catOrder.indexOf(a), ib = catOrder.indexOf(b);
+      return (ia<0?999:ia) - (ib<0?999:ib);
+    }).map(function(cid){
       var c = catById(cid) || { name:cid, color:'var(--c-junk)', id:cid };
       return '<button class="tile" style="--tc:'+c.color+'" data-nav="#/archive/'+cid+'"><span class="ticon">'+svg(iconFor(c),15)+'</span>'
         + '<span class="tcount">'+cats[cid]+'</span><span class="tname">'+esc(c.name)+'</span><span class="tsub">tap to review</span></button>';
