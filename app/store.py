@@ -178,14 +178,32 @@ class Store:
 
 
 def make_store() -> "Store":
-    """In-memory by default; durable SQLite when MAILAI_DB is set."""
+    """Pick a persistence backend from the environment, falling back to
+    in-memory. Priority: Firestore (survives ephemeral hosts like Render free)
+    > SQLite (needs a durable disk) > in-memory (data lost on restart)."""
     import os
-    path = os.getenv("MAILAI_DB")
-    if not path:
-        return Store()
     from .config import settings
-    from .persistence import SqlitePersistence
-    return Store(persistence=SqlitePersistence(path, settings.session_secret))
+
+    fb = os.getenv("FIREBASE_CREDENTIALS")
+    if fb:
+        try:
+            from .persistence import FirestorePersistence, _firebase_credentials
+            info = _firebase_credentials(fb)
+            return Store(persistence=FirestorePersistence(
+                settings.session_secret, info,
+                collection=os.getenv("FIREBASE_COLLECTION", "mailai_tenants"),
+                project_id=os.getenv("FIREBASE_PROJECT_ID") or info.get("project_id"),
+            ))
+        except Exception as e:  # bad key/lib missing: don't crash, fall through
+            import logging
+            logging.getLogger("mailai").warning("Firestore disabled: %s", e)
+
+    path = os.getenv("MAILAI_DB")
+    if path:
+        from .persistence import SqlitePersistence
+        return Store(persistence=SqlitePersistence(path, settings.session_secret))
+
+    return Store()
 
 
 store = make_store()
