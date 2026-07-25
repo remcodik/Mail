@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.25-8';
+  var BUILD = '2026.07.25-9';
   var CHANGELOG = [
+    { v:'2026.07.25-9', notes:['FIXED: “Move to cockpit”, delete and snooze now stick after a refresh (they weren’t saved to the server before)', 'Category rules are now editable too — tap ✎ to change what they match, with a live · N mails count'] },
     { v:'2026.07.25-8', notes:['FIXED: custom categories & label edits now survive a refresh', 'Removed the confusing fixed example rules (“boss”, “klm.com”) — every rule shown is real and editable/deletable now', 'Settings explains how to make AI rules and how to change any rule'] },
     { v:'2026.07.25-7', notes:['Label rules are now fully editable — tap ✎ to change what a rule matches (incl. the ones I generate), tap → tag to flip it, and see a live count of matching mail', 'New AI rules: describe in plain language what to tag (e.g. “invoices, payments”)', '“Suggest a rule from my mail” proposes a rule from your own labelling'] },
     { v:'2026.07.25-6', notes:['Archive category tiles follow the same order as the Cockpit/Settings'] },
@@ -986,7 +987,7 @@
         + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="suggestrule">✨ Suggest a rule from my mail</button>'
         + '<div class="seghead">Category rules · learned from “wrong category” fixes</div>'
         + '<div class="rule" style="color:var(--ink-2)">'+SPARK+'These appear when you use “Category · tap to fix” on an email and approve the rule. Tap <b>✕</b> to remove one.</div>'
-        + ((state.catRules&&state.catRules.length) ? state.catRules.map(function(r,i){ var c=catById(r.catId); return '<div class="rule rule-row"><span>'+rulePrefix(r)+'<b>'+esc(ruleWho(r))+'</b> → <b style="color:'+(c?c.color:'#888')+'">'+(c?esc(c.name):esc(r.catId))+'</b></span><button class="rule-x" data-act="delcatrule" data-i="'+i+'" aria-label="remove rule">✕</button></div>'; }).join('') : '<div class="rule" style="color:var(--ink-3)">No category rules yet.</div>')
+        + ((state.catRules&&state.catRules.length) ? state.catRules.map(function(r,i){ var c=catById(r.catId); var cn=(state.messages||[]).filter(function(m){ return ruleMatches(r,m); }).length; return '<div class="rule rule-row"><span>'+rulePrefix(r)+'<b>'+esc(ruleWho(r))+'</b> → <b style="color:'+(c?c.color:'#888')+'">'+(c?esc(c.name):esc(r.catId))+'</b> <span class="ccount">· '+cn+' mail'+(cn===1?'':'s')+'</span></span><button class="rule-x" data-act="editcatrule" data-i="'+i+'" aria-label="edit rule">✎</button><button class="rule-x" data-act="delcatrule" data-i="'+i+'" aria-label="remove rule">✕</button></div>'; }).join('') : '<div class="rule" style="color:var(--ink-3)">No category rules yet.</div>')
         + '<div class="ai-note" style="padding:8px 2px">'+SPARK+'I also learn from every correction automatically — your last 10 fixes guide how new mail is sorted.</div>'
         + '<div class="seghead">Version</div>'
         + '<div class="rule" style="color:var(--ink-2)">You’re on <b>v'+BUILD+'</b>. If a change isn’t showing, tap refresh — it clears the cache and reloads the newest version.</div>'
@@ -1117,14 +1118,14 @@
   function archive(id, word, undoable){ var m=msgById(id); if(!m) return; m.archived=true; m.snoozed=false; apiPost('/api/messages/'+id+'/archive');
     var msg=(word||'Archived')+' · '+m.from;
     if(undoable) toast(msg, function(){ m.archived=false; render(); }); else toast(msg); }
-  function snoozeMsg(id, label, key){ var m=msgById(id); if(m){ m.snoozed=true; m.snoozeUntil=label||''; m.snoozeBucket=SNOOZE_ORDER[key]||9; toast('Snoozed'+(label?' · '+label:'')+' · '+m.from, function(){ m.snoozed=false; m.snoozeUntil=''; m.snoozeBucket=0; render(); }); } }
+  function snoozeMsg(id, label, key){ var m=msgById(id); if(m){ m.snoozed=true; m.snoozeUntil=label||''; m.snoozeBucket=SNOOZE_ORDER[key]||9; apiPost('/api/messages/'+id+'/snooze', { until:m.snoozeUntil, bucket:m.snoozeBucket }); toast('Snoozed'+(label?' · '+label:'')+' · '+m.from, function(){ m.snoozed=false; m.snoozeUntil=''; m.snoozeBucket=0; apiPost('/api/messages/'+id+'/restore'); render(); }); } }
   function removeMsg(id){ var idx=-1, m=null; for(var i=0;i<state.messages.length;i++){ if(state.messages[i].id===id){ idx=i; m=state.messages[i]; state.messages.splice(i,1); break; } }
-    if(m) toast('Deleted · '+m.from, function(){ state.messages.splice(idx,0,m); render(); }); }
-  function restoreMsg(id){ var m=msgById(id); if(m){ m.archived=false; m.snoozed=false; toast('Moved to cockpit · '+m.from); } }
-  function archiveGroup(gid){ var hit=[]; state.messages.forEach(function(m){ if(m.group===gid && isActive(m) && inSel(m)){ m.archived=true; hit.push(m); } });
-    toast('Filed '+hit.length+' update'+(hit.length===1?'':'s'), function(){ hit.forEach(function(m){ m.archived=false; }); render(); }); }
-  function emptyCockpit(){ var hit=[]; state.messages.forEach(function(m){ if(isActive(m) && inSel(m)){ m.archived=true; hit.push(m); } });
-    toast('Filed '+hit.length+' mail to Archive · cockpit clear', function(){ hit.forEach(function(m){ m.archived=false; }); render(); }); }
+    if(m){ apiPost('/api/messages/'+id+'/delete'); toast('Deleted · '+m.from, function(){ state.messages.splice(idx,0,m); render(); }); } }
+  function restoreMsg(id){ var m=msgById(id); if(m){ m.archived=false; m.snoozed=false; apiPost('/api/messages/'+id+'/restore'); toast('Moved to cockpit · '+m.from); } }
+  function archiveGroup(gid){ var hit=[]; state.messages.forEach(function(m){ if(m.group===gid && isActive(m) && inSel(m)){ m.archived=true; apiPost('/api/messages/'+m.id+'/archive'); hit.push(m); } });
+    toast('Filed '+hit.length+' update'+(hit.length===1?'':'s'), function(){ hit.forEach(function(m){ m.archived=false; apiPost('/api/messages/'+m.id+'/restore'); }); render(); }); }
+  function emptyCockpit(){ var hit=[]; state.messages.forEach(function(m){ if(isActive(m) && inSel(m)){ m.archived=true; apiPost('/api/messages/'+m.id+'/archive'); hit.push(m); } });
+    toast('Filed '+hit.length+' mail to Archive · cockpit clear', function(){ hit.forEach(function(m){ m.archived=false; apiPost('/api/messages/'+m.id+'/restore'); }); render(); }); }
   function slug(s){ return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,24) || ('cat'+Date.now()); }
 
   function handleAct(act, el){
@@ -1316,6 +1317,19 @@
       }
       case 'dismisscatrule': { pendingCatProposal = null; toast('Kept it to just this email'); render(); break; }
       case 'delcatrule': { var ci=parseInt(el.getAttribute('data-i'),10); if(state.catRules){ var crm=state.catRules.splice(ci,1)[0]; saveCatRules(); recomputeCats(); toast('Rule removed', function(){ state.catRules.splice(ci,0,crm); saveCatRules(); recomputeCats(); render(); }); } render(); break; }
+      case 'editcatrule': {
+        var cei=parseInt(el.getAttribute('data-i'),10); var cer=(state.catRules||[])[cei]; if(!cer) break;
+        var cpt = cer.scope==='domain' ? 'Match mail from domain (without the @):'
+          : cer.scope==='subject' ? 'Match mail whose subject contains:' : 'Match mail from sender:';
+        var cev = window.prompt(cpt, cer.value); if(cev===null) break;
+        if(cev.trim()) cer.value = cev.trim();
+        var cel = window.prompt('Put matching mail in which category (leave as-is to keep):', (catById(cer.catId)||{}).name || '');
+        if(cel && cel.trim()){
+          var tc = (state.categories||[]).filter(function(c){ return c.name.toLowerCase()===cel.trim().toLowerCase(); })[0];
+          if(tc) cer.catId = tc.id;
+        }
+        saveCatRules(); recomputeCats(); toast('Rule updated'); render(); break;
+      }
       // newsletter unsubscribe (confirm)
       case 'unsubconfirm': { var us=pendingUnsub; pendingUnsub=null; if(us){ archive(us,'Unsubscribed'); } if(location.hash==='#/m/'+us){ back(); } else render(); break; }
       case 'unsubcancel': { pendingUnsub = null; render(); break; }
@@ -1395,12 +1409,13 @@
         toast(woke ? ('Time moved on · woke '+woke+' back to the cockpit') : 'Clock advanced · nothing due yet');
         render(); break;
       }
-      case 'unsnooze': { var um=msgById(id); if(um){ um.snoozed=false; um.snoozeUntil=''; toast('Woke · '+um.from); } render(); break; }
+      case 'unsnooze': { var um=msgById(id); if(um){ um.snoozed=false; um.snoozeUntil=''; apiPost('/api/messages/'+id+'/restore'); toast('Woke · '+um.from); } render(); break; }
       case 'emptyarchive': {
         var gone = state.messages.filter(function(m){ return m.archived && !m.snoozed; });
         if(gone.length && window.confirm('Delete all '+gone.length+' filed mail? (You can Undo right after.)')){
+          gone.forEach(function(m){ apiPost('/api/messages/'+m.id+'/delete'); });
           state.messages = state.messages.filter(function(m){ return !(m.archived && !m.snoozed); });
-          toast('Archive emptied · '+gone.length, function(){ gone.forEach(function(m){ if(!msgById(m.id)) state.messages.push(m); }); render(); });
+          toast('Archive emptied · '+gone.length, function(){ gone.forEach(function(m){ if(!msgById(m.id)){ state.messages.push(m); apiPost('/api/messages/'+m.id+'/restore'); } }); render(); });
         }
         render(); break;
       }
@@ -1408,8 +1423,9 @@
         var dc = el.getAttribute('data-cat'); var cat2 = catById(dc);
         var goneC = state.messages.filter(function(m){ return m.archived && !m.snoozed && m.cat===dc; });
         if(goneC.length && window.confirm('Delete all '+goneC.length+' filed '+(cat2?cat2.name:dc)+' mail?')){
+          goneC.forEach(function(m){ apiPost('/api/messages/'+m.id+'/delete'); });
           state.messages = state.messages.filter(function(m){ return !(m.archived && !m.snoozed && m.cat===dc); });
-          toast('Deleted '+goneC.length+' · '+(cat2?cat2.name:dc), function(){ goneC.forEach(function(m){ if(!msgById(m.id)) state.messages.push(m); }); render(); });
+          toast('Deleted '+goneC.length+' · '+(cat2?cat2.name:dc), function(){ goneC.forEach(function(m){ if(!msgById(m.id)){ state.messages.push(m); apiPost('/api/messages/'+m.id+'/restore'); } }); render(); });
         }
         location.hash = '#/archive'; break;
       }

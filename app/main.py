@@ -106,6 +106,31 @@ def archive(request: Request, message_id: str) -> dict:
     return {"ok": True}
 
 
+@app.post("/api/messages/{message_id}/restore")
+def restore(request: Request, message_id: str) -> dict:
+    uid = _uid(request)
+    if not store.restore_message(uid, message_id):
+        raise HTTPException(status_code=404, detail="message not found")
+    return {"ok": True}
+
+
+@app.post("/api/messages/{message_id}/delete")
+def delete_message(request: Request, message_id: str) -> dict:
+    uid = _uid(request)
+    if not store.delete_message(uid, message_id):
+        raise HTTPException(status_code=404, detail="message not found")
+    return {"ok": True}
+
+
+@app.post("/api/messages/{message_id}/snooze")
+def snooze(request: Request, message_id: str,
+           until: str = Body("", embed=True), bucket: int = Body(9, embed=True)) -> dict:
+    uid = _uid(request)
+    if not store.snooze_message(uid, message_id, until, int(bucket)):
+        raise HTTPException(status_code=404, detail="message not found")
+    return {"ok": True}
+
+
 @app.post("/api/categories/{category_id}/visibility")
 def set_visibility(request: Request, category_id: str, visible: bool = Body(embed=True)) -> dict:
     uid = _uid(request)

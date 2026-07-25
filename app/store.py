@@ -134,6 +134,40 @@ class Store:
                     return True
         return False
 
+    def restore_message(self, user_id: str, message_id: str) -> bool:
+        """Move a filed mail back into the cockpit (un-archive)."""
+        with self._lock:
+            for m in self._bucket(user_id)["messages"]:
+                if m["id"] == message_id:
+                    m["archived"] = False
+                    m["snoozed"] = False
+                    self._persist(user_id)
+                    return True
+        return False
+
+    def delete_message(self, user_id: str, message_id: str) -> bool:
+        """Remove a message everywhere for this user."""
+        with self._lock:
+            msgs = self._bucket(user_id)["messages"]
+            for i, m in enumerate(msgs):
+                if m["id"] == message_id:
+                    del msgs[i]
+                    self._persist(user_id)
+                    return True
+        return False
+
+    def snooze_message(self, user_id: str, message_id: str, until: str, bucket: int) -> bool:
+        """Hide a mail until it's due; persists the wake label + bucket."""
+        with self._lock:
+            for m in self._bucket(user_id)["messages"]:
+                if m["id"] == message_id:
+                    m["snoozed"] = True
+                    m["snoozeUntil"] = until
+                    m["snoozeBucket"] = bucket
+                    self._persist(user_id)
+                    return True
+        return False
+
     def set_category_visible(self, user_id: str, category_id: str, visible: bool) -> bool:
         with self._lock:
             for c in self._bucket(user_id)["categories"]:
