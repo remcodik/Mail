@@ -132,6 +132,29 @@ def set_lang(request: Request, lang: str = Body(embed=True)) -> dict:
     return {"ok": True, "lang": lang}
 
 
+@app.get("/api/messages/{message_id}/html")
+def message_html(request: Request, message_id: str) -> dict:
+    """Fetch a message's rich HTML body on demand (live only). Kept out of the
+    stored blob so persistence stays small; the UI loads it when you tap
+    'Show images'. Demo/no-token falls back to the stored plain-text body."""
+    uid = _uid(request)
+    msg = next((m for m in store.messages(uid, include_archived=True) if m["id"] == message_id), None)
+    if not msg:
+        raise HTTPException(status_code=404, detail="message not found")
+    if settings.is_live:
+        token = store.get_token(uid, msg.get("account"))
+        if token:
+            try:
+                from .gmail_client import GmailClient
+                html = GmailClient(uid, msg["account"], token).get_html(message_id)
+                return {"ok": True, "html": html}
+            except Exception:
+                pass  # fall back to stored text below
+    import html as _h
+    text = msg.get("body") or msg.get("snippet") or ""
+    return {"ok": True, "html": "<pre style='white-space:pre-wrap;font:inherit'>" + _h.escape(text) + "</pre>"}
+
+
 @app.post("/api/messages/{message_id}/labels")
 def fix_label(request: Request, message_id: str, label_id: str = Body(embed=True)) -> dict:
     """Add/remove a label on a message and learn from it (applies to same-sender mail)."""

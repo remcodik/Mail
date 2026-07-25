@@ -53,8 +53,23 @@ class GmailClient:
             "snippet": raw.get("snippet", ""),
             "body": _extract_body(raw.get("payload", {})),
             "time": _short_time(headers.get("date", "")),
+            "date": _short_date(headers.get("date", "")),
             "gmail_labels": raw.get("labelIds", []),
         }
+
+    def get_html(self, message_id: str) -> str:
+        """Fetch a message's rich HTML body on demand (not stored — kept out of
+        the per-user blob so storage stays small). Falls back to the plain text
+        wrapped in <pre> if the mail has no HTML part."""
+        svc = self._service()
+        raw = svc.users().messages().get(userId="me", id=message_id, format="full").execute()
+        payload = raw.get("payload", {})
+        html = _extract_html(payload)
+        if html:
+            return html
+        text = _extract_body(payload)
+        import html as _h
+        return "<pre style='white-space:pre-wrap;font:inherit'>" + _h.escape(text) + "</pre>"
 
     # --- actions (suggestion-only; called after explicit user confirmation) ---
     def archive(self, message_id: str) -> None:
@@ -145,9 +160,32 @@ def _extract_body(payload: dict) -> str:
     return walk(payload)[:4000]
 
 
+def _extract_html(payload: dict) -> str:
+    """Return the first text/html part, base64-decoded. Empty if none."""
+    import base64
+    def walk(part):
+        if part.get("mimeType") == "text/html" and part.get("body", {}).get("data"):
+            return base64.urlsafe_b64decode(part["body"]["data"]).decode("utf-8", "replace")
+        for p in part.get("parts", []) or []:
+            t = walk(p)
+            if t:
+                return t
+        return ""
+    return walk(payload)
+
+
 def _short_time(date_header: str) -> str:
     from email.utils import parsedate_to_datetime
     try:
         return parsedate_to_datetime(date_header).strftime("%H:%M")
+    except Exception:
+        return ""
+
+
+def _short_date(date_header: str) -> str:
+    """Compact day+month for the mail list, e.g. '25 Jul'."""
+    from email.utils import parsedate_to_datetime
+    try:
+        return parsedate_to_datetime(date_header).strftime("%d %b").lstrip("0")
     except Exception:
         return ""
