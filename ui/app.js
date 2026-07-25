@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.25-3';
+  var BUILD = '2026.07.25-4';
   var CHANGELOG = [
+    { v:'2026.07.25-4', notes:['“Merge with another delivery…” to manually group mail the app couldn’t link (e.g. a pickup notice with no tracking number)', 'Remove a mail from its group again; both are remembered'] },
     { v:'2026.07.25-3', notes:['Grouping now also works in the Archive (filed mail)', 'Same-tracking mail merges even with other mail in between', 'The most recent status (delivered ▸ pickup ▸ in transit) shows on top'] },
     { v:'2026.07.25-2', notes:['Deliveries & purchases group by tracking or order number — works on existing mail too', 'Always show carrier · #tracking · pickup point on delivery mail', 'Reorder/toggle in Settings keeps your scroll position (no jump to top)'] },
     { v:'2026.07.25', notes:['Mail list & detail show the date, not just the time', 'Show original email with images (safe, sandboxed)', 'Back from a filed mail returns to the Archive', 'Rename/delete categories; rename/recolor/delete labels', 'Import older mail from a date is always available', 'This version panel + “refresh to newest” button'] },
@@ -82,6 +83,10 @@
   var MIRROR_KEY = 'mailai-mirror-gmail-v1';
   function loadMirror(){ try { return localStorage.getItem(MIRROR_KEY) === '1'; } catch(e){ return false; } }
   function saveMirror(){ try { localStorage.setItem(MIRROR_KEY, state.mirrorGmail ? '1' : '0'); } catch(e){} }
+  // manual "merge with…" links: { messageId: groupId } — persisted, wins over auto-grouping
+  var MERGES_KEY = 'mailai-merges-v1';
+  function loadMerges(){ try { return JSON.parse(localStorage.getItem(MERGES_KEY) || '{}') || {}; } catch(e){ return {}; } }
+  function saveMerges(){ try { localStorage.setItem(MERGES_KEY, JSON.stringify(state.merges || {})); } catch(e){} }
   // category → the "main" Gmail label (exactly one); labels → extra Gmail labels.
   function gmailLabelNames(m){
     var c = catById(m.cat);
@@ -248,6 +253,30 @@
       var k = groupKeyOf(m);
       if(k) m.group = k;
     });
+    // manual "merge with…" links win over auto-grouping
+    var mm = state.merges || {};
+    (state.messages||[]).forEach(function(m){ if(mm[m.id]) m.group = mm[m.id]; });
+  }
+  // link two mails (and everything already in either's group) into one group
+  function mergeMessages(aId, bId){
+    var a = msgById(aId), b = msgById(bId);
+    if(!a || !b || aId===bId) return;
+    if(!state.merges) state.merges = {};
+    var gid = 'man:' + bId;                       // stable target id
+    var groups = {}; if(a.group) groups[a.group]=1; if(b.group) groups[b.group]=1;
+    var ids = {}; ids[aId]=1; ids[bId]=1;
+    (state.messages||[]).forEach(function(m){ if(m.group && groups[m.group]) ids[m.id]=1; });
+    var before = {};
+    Object.keys(ids).forEach(function(k){ before[k] = state.merges[k]; state.merges[k] = gid; });
+    saveMerges(); recomputeAll();
+    toast('Samengevoegd · '+Object.keys(ids).length+' mails', function(){
+      Object.keys(ids).forEach(function(k){ if(before[k]===undefined) delete state.merges[k]; else state.merges[k]=before[k]; });
+      saveMerges(); recomputeAll(); render();
+    });
+  }
+  function unmergeMessage(id){
+    if(state.merges && state.merges[id]!==undefined){ var prev=state.merges[id]; delete state.merges[id]; saveMerges(); recomputeAll();
+      toast('Uit groep gehaald', function(){ state.merges[id]=prev; saveMerges(); recomputeAll(); render(); }); }
   }
   // A compact, always-present line: carrier · #tracking · pickup + code
   function groupInfoLine(m){
@@ -392,6 +421,27 @@
   }
   // a few plausible slots for the demo proposal
   var MEETING_OPTS = [['tue15','Tue · 15:00'], ['wed10','Wed · 10:00'], ['thu14','Thu · 14:00']];
+  var pendingMerge = null;   // messageId awaiting a merge target
+  function mergeBar(){
+    if(!pendingMerge) return '';
+    var src = msgById(pendingMerge); if(!src) return '';
+    // candidates: other delivery/purchase mail not already in the same group;
+    // one entry per existing group (its representative) + each ungrouped mail
+    var seen = {}, cands = [];
+    (state.messages||[]).forEach(function(m){
+      if(m.id===src.id) return;
+      if(m.cat!=='delivery' && m.cat!=='purchase') return;
+      if(src.group && m.group===src.group) return;
+      if(m.group){ if(seen[m.group]) return; seen[m.group]=1; m = pickRep((state.messages||[]).filter(function(x){return x.group===m.group;})); }
+      cands.push(m);
+    });
+    var rows = cands.slice(0,15).map(function(m){
+      return '<button class="pseg" style="text-align:left" data-act="mergepick" data-id="'+m.id+'">'+esc(m.from)+' — '+esc((m.subject||'').slice(0,42))+'</button>';
+    }).join('') || '<div class="ptext" style="opacity:.7">No other deliveries to merge with.</div>';
+    return '<div class="proposal"><div class="ptext">'+SPARK+' Merge <b>'+esc(src.from)+' — '+esc((src.subject||'').slice(0,30))+'</b> with which delivery?</div>'
+      + '<div class="pacts" style="flex-direction:column;align-items:stretch;gap:6px">'+rows
+      + '<button class="btn ghost" data-act="mergecancel">Cancel</button></div></div>';
+  }
   var pendingMeeting = null;   // {msgId, to} awaiting a slot choice
   function meetingBar(){
     if(!pendingMeeting) return '';
@@ -713,6 +763,16 @@
       }).join('')+'</div>');
     }
     parts.push('<button class="btn wide" data-act="newtask" data-id="'+m.id+'" style="border-style:dashed;color:var(--accent-ink)">+ Create task from this email</button>');
+    // manual grouping (option B): merge this delivery/purchase with another, or split it off
+    if(m.cat==='delivery' || m.cat==='purchase'){
+      var inManual = state.merges && state.merges[m.id]!==undefined;
+      var mates = m.group ? (state.messages||[]).filter(function(x){ return x.group===m.group && x.id!==m.id; }).length : 0;
+      parts.push('<button class="btn wide" data-act="merge" data-id="'+m.id+'" style="border-style:dashed;color:var(--accent-ink)">'
+        + svg('<path d="M7 4v6a4 4 0 0 0 4 4h6"/><path d="M17 10l4 4-4 4"/>',13)+' Merge with another delivery…</button>');
+      if(inManual || mates){
+        parts.push('<button class="btn wide" data-act="unmerge" data-id="'+m.id+'" style="border-style:dashed">Remove this mail from its group</button>');
+      }
+    }
     // scheduling: propose a meeting/appointment for the agenda (parallel to tasks)
     if(looksScheduley(m)){
       parts.push('<div class="ai-note" style="padding:2px 4px">'+SPARK+'Looks like scheduling — want an appointment on your agenda?</div>');
@@ -961,7 +1021,7 @@
     var html = '<div class="topbar'+(v.withBack?' with-back':'')+'">'+v.top+'</div>'
       + (v.tabs||'')
       + (v.bare ? v.body : '<div class="view">'+v.body+'</div>')
-      + proposalBar() + catProposalBar() + unsubBar() + snoozeBar() + followupBar() + meetingBar()
+      + proposalBar() + catProposalBar() + unsubBar() + snoozeBar() + followupBar() + meetingBar() + mergeBar()
       + tabbar(v.nav);
     root.innerHTML = html;
     localize(root);   // switch UI chrome to Dutch when selected
@@ -1102,6 +1162,10 @@
           .catch(function(){ el.disabled = false; el.textContent = 'Retry — show images'; });
         break;
       }
+      case 'merge': { pendingMerge = id; toast('Kies de bezorging om mee samen te voegen'); render(); break; }
+      case 'mergecancel': { pendingMerge = null; render(); break; }
+      case 'mergepick': { var msrc = pendingMerge; pendingMerge = null; if(msrc && id){ mergeMessages(msrc, id); } render(); break; }
+      case 'unmerge': { unmergeMessage(id); render(); break; }
       case 'fixlabel': { fixLabel(id, el.getAttribute('data-label')); render(); break; }
       case 'scope': { if(pendingProposal){ var sv=el.getAttribute('data-v'); if(sv==='subject'){ var kw=window.prompt('Apply to mail whose subject contains:', pendingProposal.subjectWord||guessKeyword(pendingProposal.subject)); if(kw&&kw.trim()){ pendingProposal.scope='subject'; pendingProposal.subjectWord=kw.trim(); } } else pendingProposal.scope=sv; } render(); break; }
       case 'applyrule': {
@@ -1369,6 +1433,7 @@
     });
     state.events = DEMO_EVENTS.slice();
     state.demoNow = 0;
+    state.merges = loadMerges();   // manual "merge with…" links
     applyCatOrder();   // restore a saved cockpit category order
     recomputeAll();
     render();
