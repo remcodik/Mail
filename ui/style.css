@@ -219,6 +219,9 @@ a{color:inherit}
 .rule{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:11px 12px;font-size:12.5px;margin-bottom:8px}
 .rule-row{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .rule-x{background:transparent;border:0;color:var(--ink-3);font-size:15px;line-height:1;padding:2px 6px;flex:none}
+.rbadge{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:800;color:var(--accent-ink);background:color-mix(in srgb,var(--accent) 14%,transparent);border-radius:6px;padding:1px 5px;vertical-align:middle}
+.rbadge svg{width:10px;height:10px}
+.ruleflip{background:transparent;border:1px dashed var(--line);border-radius:7px;color:var(--accent-ink);font-size:11px;font-weight:700;padding:1px 6px;cursor:pointer}
 .rule-x:active{color:var(--c-urgent)}
 .lbledit .lbl.cat::before{content:""}
 
