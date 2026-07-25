@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.25-16';
+  var BUILD = '2026.07.25-17';
   var CHANGELOG = [
+    { v:'2026.07.25-17', notes:['One-time actions on search results — search (with AI), then Tag all / Archive all once, without a saved rule', '“Save as rule” turns your AI search into a permanent rule if you want', 'Your last search is remembered when you reopen Search'] },
     { v:'2026.07.25-16', notes:['Search (with AI): find mail literally, or tap ✨AI to search by meaning in any language', 'Sync now: ↻ button on the cockpit pulls new Gmail and re-applies your rules', 'Make a rule from an email (prefilled) via the email detail', 'Pause/resume any rule with its On/Off switch — no need to delete'] },
     { v:'2026.07.25-15', notes:['Live preview in the New rule builder — see how many mails it catches (and example subjects) as you type, semantic for AI rules'] },
     { v:'2026.07.25-14', notes:['New full-screen “New rule” builder — clear 3-step form with dropdowns', 'Couple a rule to a label OR a category from one dropdown (existing ones + “New label…”)', 'Match type is a dropdown: AI / sender / @domain / subject, with help per choice'] },
@@ -547,7 +548,8 @@
   function rulePickBar(){
     if(!pendingRule) return '';
     var pr = pendingRule;
-    var what = pr.editIndex!=null ? 'Move this rule to which label?' : 'Tag matching mail with — pick a label:';
+    var what = pr.applyOnce ? ('Tag these '+pr.applyOnce.length+' found mails with — one time:')
+      : pr.editIndex!=null ? 'Move this rule to which label?' : 'Tag matching mail with — pick a label:';
     var chips = (state.labels||[]).map(function(l){
       return '<button class="pseg" data-act="rulepick" data-id="'+l.id+'" style="text-align:left"><span class="cdotmini" style="background:'+l.color+'"></span>'+esc(l.name)+'</button>';
     }).join('');
@@ -1079,7 +1081,7 @@
       top: '<button class="back" data-nav="#/">'+svg('<path d="M15 18l-6-6 6-6"/>',16)+' Cockpit</button><h1>Search</h1>',
       withBack: true,
       body: '<div class="view pad">'
-        + '<div class="srchbar"><input id="srchq" class="srchi" type="search" placeholder="Search sender, subject, words…" autocomplete="off" autofocus>'
+        + '<div class="srchbar"><input id="srchq" class="srchi" type="search" placeholder="Search sender, subject, words…" autocomplete="off" autofocus value="'+esc(lastSearchQuery)+'">'
         +   '<button class="btn pri" data-act="searchai" style="white-space:nowrap">'+SPARK+' AI</button></div>'
         + '<div class="srchhint">Type to search your mail. Tap '+SPARK+'<b>AI</b> to let Claude find it by <b>meaning</b> — e.g. “mijn vakantie boeking” or “unpaid bills”, in any language.</div>'
         + '<div id="searchresults" class="list"></div>'
@@ -1087,13 +1089,24 @@
       bare: true, nav: 'cockpit'
     };
   }
-  var srchTimer = null;
+  var srchTimer = null, lastSearchQuery = '', srchResults = [];
+  // one-time actions on the current result set (a search → act once, no saved rule)
+  function searchActions(n){
+    if(!n) return '';
+    return '<div class="srchacts"><span class="srchacts-h">Do once with these '+n+':</span>'
+      + '<button class="btn" data-act="bulklabel">🏷 Tag all</button>'
+      + '<button class="btn" data-act="bulkarchive">📥 Archive all</button>'
+      + '<button class="btn" data-act="bulkrule">'+SPARK+' Save as rule</button></div>';
+  }
   function runSearch(){
     var qi = document.getElementById('srchq'); var box = document.getElementById('searchresults'); if(!box) return;
-    var q = ((qi&&qi.value)||'').trim().toLowerCase();
-    if(!q){ box.innerHTML = '<div class="empty" style="padding:16px 0">Start typing to search your mail…</div>'; return; }
+    if(qi) lastSearchQuery = qi.value || '';
+    var q = lastSearchQuery.trim().toLowerCase();
+    if(!q){ srchResults = []; box.innerHTML = '<div class="empty" style="padding:16px 0">Start typing to search your mail…</div>'; return; }
     var res = (state.messages||[]).filter(function(m){ return ((m.from||'')+' '+(m.subject||'')+' '+(m.snippet||'')+' '+(m.summary||'')+' '+(m.body||'')).toLowerCase().indexOf(q)>=0; });
+    srchResults = res.map(function(m){ return m.id; });
     box.innerHTML = '<div class="srchcount">'+res.length+' result'+(res.length===1?'':'s')+'</div>'
+      + searchActions(res.length)
       + (res.length ? res.map(cardHTML).join('') : '<div class="empty" style="padding:16px 0">No exact matches — tap '+SPARK+'<b>AI</b> to search by meaning.</div>');
   }
   function runSearchDebounced(){ if(srchTimer) clearTimeout(srchTimer); srchTimer = setTimeout(runSearch, 250); }
@@ -1490,7 +1503,15 @@
         } else { lab = labelById(lid); }
         pendingRule = null;
         if(lab){
-          if(pr.editIndex!=null){ var rr=state.labelRules[pr.editIndex]; if(rr){ rr.labelId=lab.id; saveLearned(); recomputeLabels(); toast('Label changed to “'+lab.name+'”'); } }
+          if(pr.applyOnce){
+            var oc=0; pr.applyOnce.forEach(function(mid){ var mm=msgById(mid); if(!mm) return;
+              if(!mm.labels) mm.labels=[]; if(mm.labels.indexOf(lab.id)<0) mm.labels.push(lab.id);
+              if(!state.originalLabels[mid]) state.originalLabels[mid]=[];
+              if(state.originalLabels[mid].indexOf(lab.id)<0) state.originalLabels[mid].push(lab.id);
+              apiPost('/api/messages/'+mid+'/labels', { label_id: lab.id }); oc++; });
+            recomputeLabels(); toast('Tagged '+oc+' mail with “'+lab.name+'” · one-time');
+          }
+          else if(pr.editIndex!=null){ var rr=state.labelRules[pr.editIndex]; if(rr){ rr.labelId=lab.id; saveLearned(); recomputeLabels(); toast('Label changed to “'+lab.name+'”'); } }
           else { learnRule({ scope:pr.scope, value:pr.value, labelId:lab.id, action:pr.action }); recomputeLabels();
             var an=(state.messages||[]).filter(function(m){ return ruleMatches({scope:pr.scope,value:pr.value}, m); }).length;
             toast(pr.scope==='ai' ? 'AI rule added · checking your mail…' : ('Rule added · '+an+' mail'+(an===1?'':'s')+' tagged'));
@@ -1611,6 +1632,19 @@
       }
       case 'rulefrommail': { var rfm=msgById(id); if(rfm){ rbPrefill = { kind: rfm.domain?'domain':'sender', value: rfm.domain||rfm.from }; location.hash='#/newrule'; } break; }
       case 'syncnow': syncNow(); break;
+      case 'bulklabel': { if(!srchResults.length){ toast('No results to tag'); break; } pendingRule = { applyOnce: srchResults.slice() }; render(); break; }
+      case 'bulkarchive': {
+        if(!srchResults.length){ toast('No results to archive'); break; }
+        var ids2 = srchResults.slice();
+        if(!window.confirm('Archive all '+ids2.length+' found mails?')) break;
+        ids2.forEach(function(mid){ var mm=msgById(mid); if(mm && !mm.archived){ mm.archived=true; apiPost('/api/messages/'+mid+'/archive'); } });
+        toast('Archived '+ids2.length+' mail', function(){ ids2.forEach(function(mid){ var mm=msgById(mid); if(mm){ mm.archived=false; apiPost('/api/messages/'+mid+'/restore'); } }); runSearch(); });
+        runSearch(); break;
+      }
+      case 'bulkrule': {
+        if(!lastSearchQuery.trim()){ toast('Type a search first'); break; }
+        rbPrefill = { kind:'ai', value:lastSearchQuery.trim() }; location.hash='#/newrule'; break;
+      }
       case 'searchai': {
         var sq=((document.getElementById('srchq')||{}).value||'').trim(); var sbox=document.getElementById('searchresults');
         if(!sq || !sbox) break;
@@ -1620,7 +1654,8 @@
         fetch('/api/labels/ai-match', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ description:sq, items:sitems }) })
           .then(function(x){ return x.ok ? x.json() : null; })
           .then(function(d){ var ids=(d&&d.ids)||[]; var res=(state.messages||[]).filter(function(m){ return ids.indexOf(m.id)>=0; });
-            var cur=document.getElementById('searchresults'); if(cur) cur.innerHTML = '<div class="srchcount">'+SPARK+'AI found '+res.length+' by meaning</div>'+(res.length?res.map(cardHTML).join(''):'<div class="empty" style="padding:16px 0">Nothing matched by meaning.</div>'); })
+            srchResults = res.map(function(m){ return m.id; });
+            var cur=document.getElementById('searchresults'); if(cur) cur.innerHTML = '<div class="srchcount">'+SPARK+'AI found '+res.length+' by meaning</div>'+searchActions(res.length)+(res.length?res.map(cardHTML).join(''):'<div class="empty" style="padding:16px 0">Nothing matched by meaning.</div>'); })
           .catch(function(){ toast('AI search failed'); runSearch(); });
         break;
       }
