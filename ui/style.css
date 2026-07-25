@@ -222,6 +222,14 @@ a{color:inherit}
 .rbadge{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:800;color:var(--accent-ink);background:color-mix(in srgb,var(--accent) 14%,transparent);border-radius:6px;padding:1px 5px;vertical-align:middle}
 .rbadge svg{width:10px;height:10px}
 .ruleflip{background:transparent;border:1px dashed var(--line);border-radius:7px;color:var(--accent-ink);font-size:11px;font-weight:700;padding:1px 6px;cursor:pointer}
+.setsec{border:1px solid var(--line);border-radius:13px;margin:0 0 10px;background:var(--surface);overflow:hidden}
+.setsum{cursor:pointer;list-style:none;padding:14px 14px;font-weight:700;font-size:14px;display:flex;align-items:center;gap:7px}
+.setsum::-webkit-details-marker{display:none}
+.setsum::after{content:"▾";margin-left:auto;color:var(--ink-3);font-size:12px;transition:transform .15s}
+.setsec[open]>.setsum::after{transform:rotate(180deg)}
+.setsec[open]>.setsum{border-bottom:1px solid var(--line)}
+.setbody{padding:12px 13px 13px}
+.setbody>.catrow:first-child,.setbody>.rule:first-child{margin-top:0}
 .rule-x:active{color:var(--c-urgent)}
 .lbledit .lbl.cat::before{content:""}
 
