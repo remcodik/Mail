@@ -29,9 +29,10 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.25-12';
+  var BUILD = '2026.07.25-13';
   var CHANGELOG = [
-    { v:'2026.07.25-12', notes:['AI rules are now truly semantic (live) — Claude reads the meaning, so “factuur” finds English invoices, synonyms and typos work', 'Falls back to on-device keyword match in the offline demo'] },
+    { v:'2026.07.25-13', notes:['Category rules can now be AI too — describe in plain words what belongs in a category and Claude sorts it there (semantic, live)', 'Pick the category from a list; edit AI category rules with ✎'] },
+    { v:'2026.07.25-12', notes:['AI label rules are now truly semantic (live) — Claude reads the meaning, so “factuur” finds English invoices, synonyms and typos work', 'Falls back to on-device keyword match in the offline demo'] },
     { v:'2026.07.25-11', notes:['You now PICK a rule’s label from a list instead of typing it — a typo can’t silently create a duplicate label anymore', 'Tap the label ▾ on any rule to move it to another label', 'Category-rule editing warns if you type a category that doesn’t exist'] },
     { v:'2026.07.25-10', notes:['Settings reorganised into collapsible sections — Label rules on top (open), everything else tidied below and folded away', 'Sections you open stay open while you work'] },
     { v:'2026.07.25-9', notes:['FIXED: “Move to cockpit”, delete and snooze now stick after a refresh (they weren’t saved to the server before)', 'Category rules are now editable too — tap ✎ to change what they match, with a live · N mails count'] },
@@ -244,7 +245,8 @@
   // handles synonyms, other languages and typos. Live only; no-op in demo.
   function evaluateAiRules(){
     if(!API_OK) return;
-    var aiRules = (state.labelRules||[]).filter(function(r){ return r.scope==='ai'; });
+    var aiRules = (state.labelRules||[]).filter(function(r){ return r.scope==='ai'; })
+      .concat((state.catRules||[]).filter(function(r){ return r.scope==='ai'; }));
     if(!aiRules.length) return;
     var items = (state.messages||[]).map(function(m){ return { id:m.id, text:((m.subject||'')+' — '+(m.snippet||'')).slice(0,200) }; });
     Promise.all(aiRules.map(function(r){
@@ -253,7 +255,7 @@
         .then(function(x){ return x.ok ? x.json() : null; })
         .then(function(d){ if(d && d.ids){ var s={}; d.ids.forEach(function(id){ s[id]=1; }); r._aiIds = s; } })
         .catch(function(){});
-    })).then(function(){ recomputeLabels(); render(); });
+    })).then(function(){ recomputeAll(); render(); });
   }
   // one row per rule: what it matches · which label · live count · edit/flip/delete
   function ruleRowHTML(r, i){
@@ -387,8 +389,13 @@
   // ---- category rules (correction loop, mirrors labels) ----
   var CATRULE_KEY = 'mailai-catrules-v1';
   function loadCatRules(){ try { return JSON.parse(localStorage.getItem(CATRULE_KEY)) || []; } catch(e){ return []; } }
-  function saveCatRules(){ try { localStorage.setItem(CATRULE_KEY, JSON.stringify(state.catRules||[])); } catch(e){} }
-  function catRuleMatches(rule, m){ return rule.scope==='domain' ? m.domain===rule.value : rule.scope==='subject' ? (m.subject||'').toLowerCase().indexOf((rule.value||'').toLowerCase())>=0 : m.from===rule.value; }
+  function saveCatRules(){ try { localStorage.setItem(CATRULE_KEY, JSON.stringify((state.catRules||[]).map(function(r){ var o={}; for(var k in r){ if(k!=='_aiIds') o[k]=r[k]; } return o; }))); } catch(e){} }
+  function catRuleMatches(rule, m){
+    return rule.scope==='ai' ? (rule._aiIds ? !!rule._aiIds[m.id] : _aiRuleMatch(rule.value, m))
+      : rule.scope==='domain' ? m.domain===rule.value
+      : rule.scope==='subject' ? (m.subject||'').toLowerCase().indexOf((rule.value||'').toLowerCase())>=0
+      : m.from===rule.value;
+  }
   function applyCatRule(rule){ state.messages.forEach(function(m){ if(catRuleMatches(rule, m)) m.cat = rule.catId; }); }
   function learnCatRule(rule){ state.catRules = (state.catRules||[]).filter(function(r){ return !(r.scope===rule.scope && r.value===rule.value); }); state.catRules.push(rule); saveCatRules(); }
 
@@ -509,6 +516,16 @@
       + '<div class="pacts" style="flex-wrap:wrap">'+chips
       + '<button class="pseg" data-act="rulepick" data-id="__new__" style="border-style:dashed">+ New label…</button>'
       + '<button class="btn ghost" data-act="rulepickcancel">Cancel</button></div></div>';
+  }
+  var pendingCatRule = null;   // an AI category rule waiting for its category
+  function catPickBar(){
+    if(!pendingCatRule) return '';
+    var chips = (state.categories||[]).map(function(c){
+      return '<button class="pseg" data-act="catrulepick" data-id="'+c.id+'" style="text-align:left"><span class="cdotmini" style="background:'+c.color+'"></span>'+esc(c.name)+'</button>';
+    }).join('');
+    return '<div class="proposal"><div class="ptext">'+SPARK+' Put matching mail in which category?</div>'
+      + '<div class="pacts" style="flex-wrap:wrap">'+chips
+      + '<button class="btn ghost" data-act="catrulepickcancel">Cancel</button></div></div>';
   }
   var pendingMerge = null;   // messageId awaiting a merge target
   function mergeBar(){
@@ -992,8 +1009,12 @@
       + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addairule">'+SPARK+' Add an AI rule (describe in words)</button>'
       + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addrulelabel">+ Add a sender / @domain rule</button>'
       + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="suggestrule">✨ Suggest a rule from my mail</button>';
-    var catRuleInner = '<div class="rule" style="color:var(--ink-2)">'+SPARK+'These appear when you use “Category · tap to fix” on an email and approve the rule. Tap <b>✎</b> to edit or <b>✕</b> to remove.</div>'
-      + ((state.catRules&&state.catRules.length) ? state.catRules.map(function(r,i){ var c=catById(r.catId); var cn=(state.messages||[]).filter(function(m){ return ruleMatches(r,m); }).length; return '<div class="rule rule-row"><span>'+rulePrefix(r)+'<b>'+esc(ruleWho(r))+'</b> → <b style="color:'+(c?c.color:'#888')+'">'+(c?esc(c.name):esc(r.catId))+'</b> <span class="ccount">· '+cn+' mail'+(cn===1?'':'s')+'</span></span><button class="rule-x" data-act="editcatrule" data-i="'+i+'" aria-label="edit rule">✎</button><button class="rule-x" data-act="delcatrule" data-i="'+i+'" aria-label="remove rule">✕</button></div>'; }).join('') : '<div class="rule" style="color:var(--ink-3)">No category rules yet.</div>')
+    var catRuleInner = '<div class="rule" style="color:var(--ink-2);display:block;line-height:1.7">'+SPARK+'Send mail to a category by rule. Two ways:<br>'
+      +   '• <b>'+SPARK+'AI category rule</b> — describe in plain words what belongs in a category (e.g. <i>“rekeningen en betaalverzoeken”</i>); Claude reads the meaning (synonyms/languages/typos).<br>'
+      +   '• <b>From a correction</b> — use “Category · tap to fix” on an email and approve the rule.<br>'
+      +   'Tap <b>✎</b> to edit, <b>✕</b> to remove. The <b>· N mails</b> count shows the effect.</div>'
+      + ((state.catRules&&state.catRules.length) ? state.catRules.map(function(r,i){ var c=catById(r.catId); var cn=(state.messages||[]).filter(function(m){ return catRuleMatches(r,m); }).length; return '<div class="rule rule-row"><span>'+(r.scope==='ai'?'<span class="rbadge">'+SPARK+'AI</span> ':'')+rulePrefix(r)+'<b>'+esc(ruleWho(r))+'</b> → <b style="color:'+(c?c.color:'#888')+'">'+(c?esc(c.name):esc(r.catId))+'</b> <span class="ccount">· '+cn+' mail'+(cn===1?'':'s')+'</span></span><button class="rule-x" data-act="editcatrule" data-i="'+i+'" aria-label="edit rule">✎</button><button class="rule-x" data-act="delcatrule" data-i="'+i+'" aria-label="remove rule">✕</button></div>'; }).join('') : '<div class="rule" style="color:var(--ink-3)">No category rules yet.</div>')
+      + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addaicatrule">'+SPARK+' Add an AI category rule (describe in words)</button>'
       + '<div class="ai-note" style="padding:8px 2px">'+SPARK+'I also learn from every correction automatically — your last 10 fixes guide how new mail is sorted.</div>';
     var catsInner = '<div class="rule" style="color:var(--ink-2)">Reorder with ▲▼, show/hide with the toggle, ✎ rename, ✕ delete. This order drives the cockpit tiles and the Archive.</div>'
       + rows + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addcat">+ Add a category</button>';
@@ -1125,7 +1146,7 @@
     var html = '<div class="topbar'+(v.withBack?' with-back':'')+'">'+v.top+'</div>'
       + (v.tabs||'')
       + (v.bare ? v.body : '<div class="view">'+v.body+'</div>')
-      + proposalBar() + catProposalBar() + unsubBar() + snoozeBar() + followupBar() + meetingBar() + mergeBar() + rulePickBar()
+      + proposalBar() + catProposalBar() + unsubBar() + snoozeBar() + followupBar() + meetingBar() + mergeBar() + rulePickBar() + catPickBar()
       + tabbar(v.nav);
     root.innerHTML = html;
     localize(root);   // switch UI chrome to Dutch when selected
@@ -1368,12 +1389,28 @@
       }
       case 'dismisscatrule': { pendingCatProposal = null; toast('Kept it to just this email'); render(); break; }
       case 'delcatrule': { var ci=parseInt(el.getAttribute('data-i'),10); if(state.catRules){ var crm=state.catRules.splice(ci,1)[0]; saveCatRules(); recomputeCats(); toast('Rule removed', function(){ state.catRules.splice(ci,0,crm); saveCatRules(); recomputeCats(); render(); }); } render(); break; }
+      case 'addaicatrule': {
+        var cdesc = window.prompt('Describe the mail for a category, in your own words\n(e.g. “rekeningen en betaalverzoeken”). Claude reads the meaning.');
+        if(!cdesc || !cdesc.trim()) break;
+        pendingCatRule = { value:cdesc.trim() };   // then PICK the category
+        render(); break;
+      }
+      case 'catrulepick': {
+        var pcr = pendingCatRule; pendingCatRule = null; if(!pcr){ render(); break; }
+        var ccid = el.getAttribute('data-id'); if(catById(ccid)){
+          learnCatRule({ scope:'ai', value:pcr.value, catId:ccid });
+          recomputeCats(); toast('AI category rule added · checking your mail…'); evaluateAiRules();
+        }
+        render(); break;
+      }
+      case 'catrulepickcancel': { pendingCatRule = null; render(); break; }
       case 'editcatrule': {
         var cei=parseInt(el.getAttribute('data-i'),10); var cer=(state.catRules||[])[cei]; if(!cer) break;
-        var cpt = cer.scope==='domain' ? 'Match mail from domain (without the @):'
+        var cpt = cer.scope==='ai' ? 'Describe the mail for this category (plain language):'
+          : cer.scope==='domain' ? 'Match mail from domain (without the @):'
           : cer.scope==='subject' ? 'Match mail whose subject contains:' : 'Match mail from sender:';
         var cev = window.prompt(cpt, cer.value); if(cev===null) break;
-        if(cev.trim()) cer.value = cev.trim();
+        if(cev.trim()){ cer.value = cev.trim(); if(cer.scope==='ai') delete cer._aiIds; }
         var names = (state.categories||[]).map(function(c){ return c.name; }).join(', ');
         var cel = window.prompt('Put matching mail in which category (leave as-is to keep)?\nChoose one of: '+names, (catById(cer.catId)||{}).name || '');
         if(cel && cel.trim()){
@@ -1381,7 +1418,7 @@
           if(tc){ cer.catId = tc.id; }
           else { toast('No category named “'+cel.trim()+'” — kept '+(catById(cer.catId)||{}).name+'. (Categories can’t be typo-created.)'); saveCatRules(); recomputeCats(); render(); break; }
         }
-        saveCatRules(); recomputeCats(); toast('Rule updated'); render(); break;
+        saveCatRules(); recomputeCats(); toast('Rule updated'); if(cer.scope==='ai') evaluateAiRules(); render(); break;
       }
       // newsletter unsubscribe (confirm)
       case 'unsubconfirm': { var us=pendingUnsub; pendingUnsub=null; if(us){ archive(us,'Unsubscribed'); } if(location.hash==='#/m/'+us){ back(); } else render(); break; }
