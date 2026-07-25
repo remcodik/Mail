@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.25-14';
+  var BUILD = '2026.07.25-15';
   var CHANGELOG = [
+    { v:'2026.07.25-15', notes:['Live preview in the New rule builder — see how many mails it catches (and example subjects) as you type, semantic for AI rules'] },
     { v:'2026.07.25-14', notes:['New full-screen “New rule” builder — clear 3-step form with dropdowns', 'Couple a rule to a label OR a category from one dropdown (existing ones + “New label…”)', 'Match type is a dropdown: AI / sender / @domain / subject, with help per choice'] },
     { v:'2026.07.25-13', notes:['Category rules can now be AI too — describe in plain words what belongs in a category and Claude sorts it there (semantic, live)', 'Pick the category from a list; edit AI category rules with ✎'] },
     { v:'2026.07.25-12', notes:['AI label rules are now truly semantic (live) — Claude reads the meaning, so “factuur” finds English invoices, synonyms and typos work', 'Falls back to on-device keyword match in the offline demo'] },
@@ -258,6 +259,40 @@
         .catch(function(){});
     })).then(function(){ recomputeAll(); render(); });
   }
+  // ---- live preview for the rule builder (updates as you type) ----
+  var rbPvTimer = null, rbPvCache = {};
+  function rbMatchList(kind, val){
+    if(kind==='ai') return (state.messages||[]).filter(function(m){ return _aiRuleMatch(val, m); });
+    var v = (kind==='domain' && val.charAt(0)==='@') ? val.slice(1) : val;
+    var rule = { scope:kind, value:v };
+    return (state.messages||[]).filter(function(m){ return ruleMatches(rule, m); });
+  }
+  function rbShow(list){
+    var pv = document.getElementById('rb-preview'); if(!pv) return;
+    var n = list.length;
+    var ex = list.slice(0,3).map(function(m){ return '<div class="rb-pv-ex"><b>'+esc(m.from)+'</b> — '+esc((m.subject||'').slice(0,52))+'</div>'; }).join('');
+    pv.innerHTML = '<div class="rb-pv-count">'+n+' mail'+(n===1?'':'s')+' match right now</div>'
+      + (n ? ex : '<div class="rb-pv-empty">No matches yet — try other words.</div>');
+  }
+  function rbUpdatePreview(){
+    var kEl=document.getElementById('rb-kind'), vEl=document.getElementById('rb-val'), pv=document.getElementById('rb-preview');
+    if(!pv || !kEl || !vEl) return;
+    var kind=kEl.value, val=(vEl.value||'').trim();
+    if(!val){ pv.innerHTML='<span class="rb-pv-empty">Type above to see matching mail…</span>'; return; }
+    if(kind==='ai' && API_OK){
+      if(rbPvCache[val]){ rbShow(rbPvCache[val]); return; }
+      pv.innerHTML = '<span class="rb-pv-empty">'+SPARK+'Reading your mail…</span>';
+      var items=(state.messages||[]).map(function(m){ return { id:m.id, text:((m.subject||'')+' — '+(m.snippet||'')).slice(0,200) }; });
+      fetch('/api/labels/ai-match',{ method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ description:val, items:items }) })
+        .then(function(x){ return x.ok ? x.json() : null; })
+        .then(function(d){ var ids=d&&d.ids; var list = ids ? (state.messages||[]).filter(function(m){ return ids.indexOf(m.id)>=0; }) : rbMatchList('ai',val);
+          rbPvCache[val]=list; var cur=document.getElementById('rb-val'); if(cur && (cur.value||'').trim()===val) rbShow(list); })
+        .catch(function(){ rbShow(rbMatchList('ai',val)); });
+    } else {
+      rbShow(rbMatchList(kind, val));
+    }
+  }
+  function rbDebouncedPreview(){ if(rbPvTimer) clearTimeout(rbPvTimer); rbPvTimer=setTimeout(rbUpdatePreview, 500); }
   // one row per rule: what it matches · which label · live count · edit/flip/delete
   function ruleRowHTML(r, i){
     var l = labelById(r.labelId);
@@ -1008,6 +1043,10 @@
         +   '<textarea class="rb-txt" id="rb-val" rows="3" placeholder="'+k0[3]+'"></textarea>'
         +   '<div class="rb-hint" id="rb-hint">'+k0[4]+'</div>'
         + '</div></div>'
+        + '<div class="rb-card rb-pvcard"><div class="rb-num">👁</div><div class="rb-body">'
+        +   '<div class="rb-lbl">Preview — what this catches right now</div>'
+        +   '<div class="rb-preview" id="rb-preview"><span class="rb-pv-empty">Type above to see matching mail…</span></div>'
+        + '</div></div>'
         + '<div class="rb-card"><div class="rb-num">3</div><div class="rb-body">'
         +   '<div class="rb-lbl">Where should matching mail go?</div>'
         +   '<select class="rb-sel" id="rb-target">'
@@ -1662,8 +1701,10 @@
       var k = RB_KINDS.filter(function(x){ return x[0]===e.target.value; })[0]; if(!k) return;
       var vl=document.getElementById('rb-vlbl'), tv=document.getElementById('rb-val'), hn=document.getElementById('rb-hint');
       if(vl) vl.textContent = k[2]; if(tv) tv.placeholder = k[3]; if(hn) hn.innerHTML = k[4];
+      rbUpdatePreview();
     }
   });
+  document.addEventListener('input', function(e){ if(e.target && e.target.id === 'rb-val'){ rbDebouncedPreview(); } });
 
   // swipe the main screens left/right (Cockpit ⇄ Tasks ⇄ Archive ⇄ Settings)
   var MAIN_TABS = ['#/', '#/tasks', '#/archive', '#/settings'];
