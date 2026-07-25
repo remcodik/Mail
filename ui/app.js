@@ -425,7 +425,7 @@
   // ---------- screen: category list ----------
   function cardHTML(m){
     return '<button class="card" data-nav="#/m/'+m.id+'"><span class="av" style="background:'+m.av+'">'+esc(m.initials)+'</span>'
-      + '<span><span class="top"><span class="from">'+esc(m.from)+'</span><span class="time">'+esc(m.time)+'</span></span>'
+      + '<span><span class="top"><span class="from">'+esc(m.from)+'</span><span class="time">'+esc((m.date?m.date+' · ':'')+(m.time||''))+'</span></span>'
       + '<span class="subj">'+esc(m.subject)+'</span><span class="snip">'+esc(m.snippet)+'</span>'
       + (m.ai ? '<span class="ai-note">'+SPARK+esc(m.ai)+'</span>' : '')
       + '<span class="chip-wrap" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:7px"><span class="chip" style="--cc:'+catById(m.cat).color+'">'+esc(m.chip||catById(m.cat).name)+'</span>'+acctTag(m)+labelChips(m)+'</span></span></button>';
@@ -594,7 +594,9 @@
     parts.push('<div class="panel ai"><p class="h">'+SPARK+' AI summary</p><p>'+esc(m.summary || m.snippet)+'</p></div>');
     var bodyText = m.body || m.snippet || '';
     parts.push('<details class="panel mailpanel" open><summary class="h">Full email</summary>'
-      + '<div class="mailbody">'+esc(bodyText).replace(/\n/g,'<br>')+'</div></details>');
+      + '<div class="mailbody" id="mailbody-'+m.id+'">'+esc(bodyText).replace(/\n/g,'<br>')+'</div>'
+      + '<button class="btn wide" data-act="showhtml" data-id="'+m.id+'" style="margin-top:8px;border-style:dashed;color:var(--accent-ink)">'
+      + svg('<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/>',13)+' Show original with images</button></details>');
     // labels — AI-assigned, tap to fix (the app learns from the change)
     var lblEditor = (state.labels||[]).map(function(l){
       var on = (m.labels||[]).indexOf(l.id) >= 0;
@@ -652,12 +654,17 @@
       parts.push('<div class="btnrow"><button class="btn" data-act="archive" data-id="'+m.id+'">Archive (file it)</button>'
         + '<button class="btn danger" data-act="delete" data-id="'+m.id+'">Delete</button></div>');
     }
+    // back goes where the mail actually lives: the Archive if it's filed,
+    // otherwise its cockpit category.
+    var backNav = m.archived ? '#/archive/'+m.cat : '#/c/'+m.cat;
+    var backLabel = m.archived ? (cat.name+' · filed') : cat.name;
+    var whenStr = (m.date?m.date+' · ':'')+(m.time||'');
     return {
-      top: '<button class="back" data-nav="#/c/'+m.cat+'">'+svg('<path d="M15 18l-6-6 6-6"/>',16)+' '+esc(cat.name)+'</button>'
-         + '<h1>'+esc(m.subject)+'</h1><div class="sub"><b>'+esc(m.from)+'</b> · '+esc(m.time)+' '+acctTag(m)+'</div>',
+      top: '<button class="back" data-nav="'+backNav+'">'+svg('<path d="M15 18l-6-6 6-6"/>',16)+' '+esc(backLabel)+'</button>'
+         + '<h1>'+esc(m.subject)+'</h1><div class="sub"><b>'+esc(m.from)+'</b> · '+esc(whenStr)+' '+acctTag(m)+'</div>',
       withBack: true,
       body: '<div class="detail">'+parts.join('')+'</div>',
-      nav: 'cockpit'
+      nav: m.archived ? 'archive' : 'cockpit'
     };
   }
 
@@ -712,6 +719,8 @@
         + '<span class="cdot" style="background:'+c.color+'">'+svg(iconFor(c),13)+'</span>'
         + '<span><span class="cnm">'+esc(c.name)+'</span>'+(c.builtin?'':' <span class="ccount">· custom</span>')+'<br>'
         + '<span class="ccount">'+msgsIn(c.id).length+' mails'+(c.visible?'':' · hidden')+'</span></span>'
+        + '<button class="rule-x" data-act="catrenamedef" data-id="'+c.id+'" aria-label="rename '+esc(c.name)+'">✎</button>'
+        + (c.builtin?'':'<button class="rule-x" data-act="catdeldef" data-id="'+c.id+'" aria-label="delete '+esc(c.name)+'">✕</button>')
         + '<button class="toggle'+(c.visible?'':' off')+'" data-act="togglecat" data-id="'+c.id+'" aria-label="toggle '+esc(c.name)+'"></button></div>';
     }).join('');
     return {
@@ -721,7 +730,7 @@
         + '<div class="seghead">Cockpit</div>'
         + '<div class="rule" style="color:var(--ink-2)">New mail lands in the cockpit. <b>File everything</b> to start clean — archived mail stays under its labels and in the Archive tab, and you can move any of it back to the cockpit anytime.</div>'
         + '<button class="btn wide danger" data-act="emptycockpit" style="border-style:dashed">File everything to Archive (empty cockpit)</button>'
-        + (API_OK ? '<button class="btn wide" data-act="backfill" style="border-style:dashed;color:var(--accent-ink)">⤵ Import older mail to Archive…</button>' : '')
+        + ((API_OK || (state.accounts&&state.accounts.length)) ? '<button class="btn wide" data-act="backfill" style="border-style:dashed;color:var(--accent-ink)">⤵ Import older mail to Archive (from a date)…</button>' : '')
         + '<div class="seghead">Show in Gmail</div>'
         + '<div class="catrow"><span class="grip"></span><span class="cdot" style="background:#EA4335">'+svg('<path d="M3 6l9 6 9-6"/><rect x="3" y="5" width="18" height="14" rx="2"/>',13)+'</span>'
         +   '<span><span class="cnm">Mirror categories &amp; labels to Gmail</span><br>'
@@ -739,7 +748,11 @@
         + '<div class="seghead">Cockpit categories · toggle to show/hide</div>'+rows
         + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addcat">+ Add a category</button>'
         + '<div class="seghead">Labels · AI-assigned, you correct</div>'
-        + (state.labels||[]).map(function(l){ return '<div class="catrow"><span class="grip">#</span><span class="cdot" style="background:'+l.color+'"></span><span><span class="cnm">'+esc(l.name)+'</span><br><span class="ccount">'+labelCount(l.id)+' mails</span></span></div>'; }).join('')
+        + (state.labels||[]).map(function(l){ return '<div class="catrow"><span class="grip">#</span>'
+            + '<button class="cdot" data-act="lblrecolor" data-id="'+l.id+'" style="background:'+l.color+';border:0;cursor:pointer" aria-label="recolor '+esc(l.name)+'"></button>'
+            + '<span><span class="cnm">'+esc(l.name)+'</span><br><span class="ccount">'+labelCount(l.id)+' mails</span></span>'
+            + '<button class="rule-x" data-act="lblrenamedef" data-id="'+l.id+'" aria-label="rename '+esc(l.name)+'">✎</button>'
+            + '<button class="rule-x" data-act="lbldeldef" data-id="'+l.id+'" aria-label="delete '+esc(l.name)+'">✕</button></div>'; }).join('')
         + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="newlabeldef">+ Add a label</button>'
         + '<div class="seghead">Label rules · learned + yours</div>'
         + ((state.labelRules&&state.labelRules.length) ? state.labelRules.map(function(r,i){ var l=labelById(r.labelId); return '<div class="rule rule-row"><span>'+rulePrefix(r)+'<b>'+esc(ruleWho(r))+'</b> '+(r.action==='add'?'→ tag':'✗ don’t tag')+' <b style="color:'+(l?l.color:'#888')+'">'+(l?esc(l.name):esc(r.labelId))+'</b></span><button class="rule-x" data-act="delrule" data-i="'+i+'" aria-label="remove rule">✕</button></div>'; }).join('') : '<div class="rule" style="color:var(--ink-3)">No rules yet — fix a label on any email, or add one below.</div>')
@@ -953,6 +966,32 @@
         }
         render(); break;
       }
+      case 'showhtml': {
+        var box = document.getElementById('mailbody-'+id);
+        if(!box) break;
+        el.disabled = true; el.textContent = 'Loading…';
+        fetch('/api/messages/'+encodeURIComponent(id)+'/html', { credentials:'same-origin' })
+          .then(function(r){ return r.ok ? r.json() : null; })
+          .then(function(d){
+            if(!d || !d.html){ el.textContent = 'Could not load images'; return; }
+            // render in a fully sandboxed iframe: images load, but no scripts,
+            // forms, popups or same-origin access — safe for untrusted mail HTML.
+            var f = document.createElement('iframe');
+            f.className = 'mailframe';
+            f.setAttribute('sandbox', '');
+            f.setAttribute('referrerpolicy', 'no-referrer');
+            f.srcdoc = d.html;
+            box.innerHTML = '';
+            box.appendChild(f);
+            // grow the frame to its content height once loaded
+            f.addEventListener('load', function(){
+              try { f.style.height = Math.min(f.contentWindow.document.body.scrollHeight + 24, 4000) + 'px'; } catch(e){ f.style.height = '600px'; }
+            });
+            if(el.parentNode) el.parentNode.removeChild(el);
+          })
+          .catch(function(){ el.disabled = false; el.textContent = 'Retry — show images'; });
+        break;
+      }
       case 'fixlabel': { fixLabel(id, el.getAttribute('data-label')); render(); break; }
       case 'scope': { if(pendingProposal){ var sv=el.getAttribute('data-v'); if(sv==='subject'){ var kw=window.prompt('Apply to mail whose subject contains:', pendingProposal.subjectWord||guessKeyword(pendingProposal.subject)); if(kw&&kw.trim()){ pendingProposal.scope='subject'; pendingProposal.subjectWord=kw.trim(); } } else pendingProposal.scope=sv; } render(); break; }
       case 'applyrule': {
@@ -1083,6 +1122,41 @@
           toast('Deleted '+goneC.length+' · '+(cat2?cat2.name:dc), function(){ goneC.forEach(function(m){ if(!msgById(m.id)) state.messages.push(m); }); render(); });
         }
         location.hash = '#/archive'; break;
+      }
+      case 'catrenamedef': {
+        var rc = catById(id);
+        if(rc){ var rn = window.prompt('Rename category:', rc.name); if(rn && rn.trim()){ var old=rc.name; rc.name = rn.trim(); state.messages.forEach(function(m){ if(m.cat===rc.id) m.chip = rc.name; }); toast('Renamed “'+old+'” → “'+rc.name+'”'); } }
+        render(); break;
+      }
+      case 'catdeldef': {
+        var xc = catById(id);
+        if(xc && !xc.builtin && window.confirm('Delete category “'+xc.name+'”? Its mail moves to FYI.')){
+          state.categories = state.categories.filter(function(c){ return c.id!==id; });
+          state.messages.forEach(function(m){ if(m.cat===id){ m.cat='fyi'; m.chip=(catById('fyi')||{}).name||'FYI'; } });
+          state.catRules = (state.catRules||[]).filter(function(r){ return r.catId!==id; }); saveCatRules();
+          recomputeAll(); toast('Category “'+xc.name+'” deleted');
+        }
+        render(); break;
+      }
+      case 'lblrecolor': {
+        var lc = labelById(id);
+        if(lc){ var i2 = CUSTOM_COLORS.indexOf(lc.color); lc.color = CUSTOM_COLORS[(i2+1)%CUSTOM_COLORS.length]; }
+        render(); break;
+      }
+      case 'lblrenamedef': {
+        var rl = labelById(id);
+        if(rl){ var ln = window.prompt('Rename label:', rl.name); if(ln && ln.trim()){ rl.name = ln.trim(); toast('Label renamed'); } }
+        render(); break;
+      }
+      case 'lbldeldef': {
+        var xl = labelById(id);
+        if(xl && window.confirm('Delete label “'+xl.name+'”? It’s removed from all mail and its rules.')){
+          state.labels = (state.labels||[]).filter(function(l){ return l.id!==id; });
+          state.messages.forEach(function(m){ if(m.labels){ m.labels = m.labels.filter(function(x){ return x!==id; }); } });
+          state.labelRules = (state.labelRules||[]).filter(function(r){ return r.labelId!==id; }); saveLearned();
+          recomputeLabels(); toast('Label “'+xl.name+'” deleted');
+        }
+        render(); break;
       }
       case 'addrulelabel': {
         var who = window.prompt('Auto-label mail from — a sender name, or @domain (e.g. @acme.com):');
