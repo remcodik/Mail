@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.25-15';
+  var BUILD = '2026.07.25-16';
   var CHANGELOG = [
+    { v:'2026.07.25-16', notes:['Search (with AI): find mail literally, or tap ✨AI to search by meaning in any language', 'Sync now: ↻ button on the cockpit pulls new Gmail and re-applies your rules', 'Make a rule from an email (prefilled) via the email detail', 'Pause/resume any rule with its On/Off switch — no need to delete'] },
     { v:'2026.07.25-15', notes:['Live preview in the New rule builder — see how many mails it catches (and example subjects) as you type, semantic for AI rules'] },
     { v:'2026.07.25-14', notes:['New full-screen “New rule” builder — clear 3-step form with dropdowns', 'Couple a rule to a label OR a category from one dropdown (existing ones + “New label…”)', 'Match type is a dropdown: AI / sender / @domain / subject, with help per choice'] },
     { v:'2026.07.25-13', notes:['Category rules can now be AI too — describe in plain words what belongs in a category and Claude sorts it there (semantic, live)', 'Pick the category from a list; edit AI category rules with ✎'] },
@@ -297,7 +298,8 @@
   function ruleRowHTML(r, i){
     var l = labelById(r.labelId);
     var n = (state.messages||[]).filter(function(m){ return ruleMatches(r, m); }).length;
-    return '<div class="rule rule-row"><span>'
+    return '<div class="rule rule-row'+(r.off?' isoff':'')+'"><span>'
+      + '<button class="ruletog'+(r.off?' off':'')+'" data-act="ruletoggleoff" data-i="'+i+'" aria-label="'+(r.off?'enable':'disable')+' rule">'+(r.off?'Off':'On')+'</button> '
       + (r.scope==='ai' ? '<span class="rbadge">'+SPARK+'AI</span> ' : '')
       + rulePrefix(r) + '<b>' + esc(ruleWho(r)) + '</b> '
       + '<button class="ruleflip" data-act="ruleflip" data-i="'+i+'">' + (r.action==='remove' ? '✗ don’t tag' : '→ tag') + '</button> '
@@ -313,6 +315,7 @@
   }
   function applyRule(rule){
     var n = 0;
+    if(rule.off) return n;   // disabled rules don't apply (kept for later)
     state.messages.forEach(function(m){
       if(!ruleMatches(rule, m)) return;
       if(!m.labels) m.labels = [];
@@ -432,7 +435,7 @@
       : rule.scope==='subject' ? (m.subject||'').toLowerCase().indexOf((rule.value||'').toLowerCase())>=0
       : m.from===rule.value;
   }
-  function applyCatRule(rule){ state.messages.forEach(function(m){ if(catRuleMatches(rule, m)) m.cat = rule.catId; }); }
+  function applyCatRule(rule){ if(rule.off) return; state.messages.forEach(function(m){ if(catRuleMatches(rule, m)) m.cat = rule.catId; }); }
   function learnCatRule(rule){ state.catRules = (state.catRules||[]).filter(function(r){ return !(r.scope===rule.scope && r.value===rule.value); }); state.catRules.push(rule); saveCatRules(); }
 
   // ---- cockpit category order (reorder from Settings; persists) ----
@@ -677,7 +680,9 @@
         + '<span class="tsub">'+hintFor(c)+'</span></button>';
     }).join('');
     return {
-      top: '<div class="brand">'+BRANDMARK+' MailAI · Cockpit</div>'
+      top: '<div class="brand">'+BRANDMARK+' MailAI · Cockpit'
+         + '<span class="topbtns"><button class="iconbtn" data-nav="#/search" aria-label="Search">'+svg('<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',18)+'</button>'
+         + '<button class="iconbtn" data-act="syncnow" aria-label="Sync now">'+svg('<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>',18)+'</button></span></div>'
          + '<h1>Good morning, Remco</h1><div class="sub">'+esc(todayStr())+' · '+esc(selLabel())+' · '+active.length+' active</div>',
       body: acctSwitcher() + labelsRow()
           + '<div class="hero">'
@@ -905,6 +910,7 @@
       }).join('')+'</div>');
     }
     parts.push('<button class="btn wide" data-act="newtask" data-id="'+m.id+'" style="border-style:dashed;color:var(--accent-ink)">+ Create task from this email</button>');
+    parts.push('<button class="btn wide" data-act="rulefrommail" data-id="'+m.id+'" style="border-style:dashed;color:var(--accent-ink)">'+SPARK+' Make a rule from this sender…</button>');
     // manual grouping (option B): merge this delivery/purchase with another, or split it off
     if(m.cat==='delivery' || m.cat==='purchase'){
       var inManual = state.merges && state.merges[m.id]!==undefined;
@@ -1024,9 +1030,13 @@
     ['domain', 'From a whole @domain', 'Domain (without the @)', 'e.g. acme.com', 'Matches every mail from any address at this domain.'],
     ['subject', 'Subject contains a word', 'Word or phrase in the subject', 'e.g. invoice', 'Matches when the subject line contains this text.']
   ];
+  var rbPrefill = null;   // {kind, value} to open the builder pre-filled (from an email)
   function viewRuleBuilder(){
-    var k0 = RB_KINDS[0];
-    var kindOpts = RB_KINDS.map(function(k){ return '<option value="'+k[0]+'">'+k[1]+'</option>'; }).join('');
+    var pfKind = (rbPrefill && rbPrefill.kind) || 'ai';
+    var pfVal = (rbPrefill && rbPrefill.value) || '';
+    rbPrefill = null;
+    var k0 = RB_KINDS.filter(function(k){ return k[0]===pfKind; })[0] || RB_KINDS[0];
+    var kindOpts = RB_KINDS.map(function(k){ return '<option value="'+k[0]+'"'+(k[0]===pfKind?' selected':'')+'>'+k[1]+'</option>'; }).join('');
     var labelOpts = (state.labels||[]).map(function(l){ return '<option value="label:'+l.id+'">🏷 '+esc(l.name)+'</option>'; }).join('');
     var catOpts = (state.categories||[]).map(function(c){ return '<option value="cat:'+c.id+'">📁 '+esc(c.name)+'</option>'; }).join('');
     return {
@@ -1040,7 +1050,7 @@
         + '</div></div>'
         + '<div class="rb-card"><div class="rb-num">2</div><div class="rb-body">'
         +   '<div class="rb-lbl" id="rb-vlbl">'+k0[2]+'</div>'
-        +   '<textarea class="rb-txt" id="rb-val" rows="3" placeholder="'+k0[3]+'"></textarea>'
+        +   '<textarea class="rb-txt" id="rb-val" rows="3" placeholder="'+k0[3]+'">'+esc(pfVal)+'</textarea>'
         +   '<div class="rb-hint" id="rb-hint">'+k0[4]+'</div>'
         + '</div></div>'
         + '<div class="rb-card rb-pvcard"><div class="rb-num">👁</div><div class="rb-body">'
@@ -1062,6 +1072,45 @@
       bare: true,
       nav: 'settings'
     };
+  }
+  // ---------- screen: search (with AI) ----------
+  function viewSearch(){
+    return {
+      top: '<button class="back" data-nav="#/">'+svg('<path d="M15 18l-6-6 6-6"/>',16)+' Cockpit</button><h1>Search</h1>',
+      withBack: true,
+      body: '<div class="view pad">'
+        + '<div class="srchbar"><input id="srchq" class="srchi" type="search" placeholder="Search sender, subject, words…" autocomplete="off" autofocus>'
+        +   '<button class="btn pri" data-act="searchai" style="white-space:nowrap">'+SPARK+' AI</button></div>'
+        + '<div class="srchhint">Type to search your mail. Tap '+SPARK+'<b>AI</b> to let Claude find it by <b>meaning</b> — e.g. “mijn vakantie boeking” or “unpaid bills”, in any language.</div>'
+        + '<div id="searchresults" class="list"></div>'
+        + '</div>',
+      bare: true, nav: 'cockpit'
+    };
+  }
+  var srchTimer = null;
+  function runSearch(){
+    var qi = document.getElementById('srchq'); var box = document.getElementById('searchresults'); if(!box) return;
+    var q = ((qi&&qi.value)||'').trim().toLowerCase();
+    if(!q){ box.innerHTML = '<div class="empty" style="padding:16px 0">Start typing to search your mail…</div>'; return; }
+    var res = (state.messages||[]).filter(function(m){ return ((m.from||'')+' '+(m.subject||'')+' '+(m.snippet||'')+' '+(m.summary||'')+' '+(m.body||'')).toLowerCase().indexOf(q)>=0; });
+    box.innerHTML = '<div class="srchcount">'+res.length+' result'+(res.length===1?'':'s')+'</div>'
+      + (res.length ? res.map(cardHTML).join('') : '<div class="empty" style="padding:16px 0">No exact matches — tap '+SPARK+'<b>AI</b> to search by meaning.</div>');
+  }
+  function runSearchDebounced(){ if(srchTimer) clearTimeout(srchTimer); srchTimer = setTimeout(runSearch, 250); }
+  function syncNow(){
+    if(!API_OK){ toast('Demo mode — nothing to sync'); return; }
+    var accts = (state.accounts||[]).map(function(a){ return a.id; });
+    if(!accts.length){ toast('Connect a mail account first'); return; }
+    toast(SPARK+'Syncing your mail…');
+    Promise.all(accts.map(function(aid){
+      return fetch('/api/accounts/'+encodeURIComponent(aid)+'/sync', { method:'POST', credentials:'same-origin' })
+        .then(function(r){ return r.ok ? r.json() : { processed:0 }; }).catch(function(){ return { processed:0 }; });
+    })).then(function(rs){
+      var total = rs.reduce(function(s,r){ return s + (r.processed||0); }, 0);
+      fetch('/api/inbox', { credentials:'same-origin' }).then(function(r){ return r.ok ? r.json() : null; })
+        .then(function(d){ if(d) boot(d); toast(total ? ('Synced · '+total+' new mail') : 'Up to date'); })
+        .catch(function(){ toast('Sync failed — try again'); });
+    });
   }
   var settingsOpen = null;   // which Settings sections are expanded (persists across re-renders)
   function viewSettings(){
@@ -1094,7 +1143,7 @@
       +   '• <b>'+SPARK+'AI category rule</b> — describe in plain words what belongs in a category (e.g. <i>“rekeningen en betaalverzoeken”</i>); Claude reads the meaning (synonyms/languages/typos).<br>'
       +   '• <b>From a correction</b> — use “Category · tap to fix” on an email and approve the rule.<br>'
       +   'Tap <b>✎</b> to edit, <b>✕</b> to remove. The <b>· N mails</b> count shows the effect.</div>'
-      + ((state.catRules&&state.catRules.length) ? state.catRules.map(function(r,i){ var c=catById(r.catId); var cn=(state.messages||[]).filter(function(m){ return catRuleMatches(r,m); }).length; return '<div class="rule rule-row"><span>'+(r.scope==='ai'?'<span class="rbadge">'+SPARK+'AI</span> ':'')+rulePrefix(r)+'<b>'+esc(ruleWho(r))+'</b> → <b style="color:'+(c?c.color:'#888')+'">'+(c?esc(c.name):esc(r.catId))+'</b> <span class="ccount">· '+cn+' mail'+(cn===1?'':'s')+'</span></span><button class="rule-x" data-act="editcatrule" data-i="'+i+'" aria-label="edit rule">✎</button><button class="rule-x" data-act="delcatrule" data-i="'+i+'" aria-label="remove rule">✕</button></div>'; }).join('') : '<div class="rule" style="color:var(--ink-3)">No category rules yet.</div>')
+      + ((state.catRules&&state.catRules.length) ? state.catRules.map(function(r,i){ var c=catById(r.catId); var cn=(state.messages||[]).filter(function(m){ return catRuleMatches(r,m); }).length; return '<div class="rule rule-row'+(r.off?' isoff':'')+'"><span><button class="ruletog'+(r.off?' off':'')+'" data-act="catruletoggleoff" data-i="'+i+'" aria-label="'+(r.off?'enable':'disable')+' rule">'+(r.off?'Off':'On')+'</button> '+(r.scope==='ai'?'<span class="rbadge">'+SPARK+'AI</span> ':'')+rulePrefix(r)+'<b>'+esc(ruleWho(r))+'</b> → <b style="color:'+(c?c.color:'#888')+'">'+(c?esc(c.name):esc(r.catId))+'</b> <span class="ccount">· '+cn+' mail'+(cn===1?'':'s')+'</span></span><button class="rule-x" data-act="editcatrule" data-i="'+i+'" aria-label="edit rule">✎</button><button class="rule-x" data-act="delcatrule" data-i="'+i+'" aria-label="remove rule">✕</button></div>'; }).join('') : '<div class="rule" style="color:var(--ink-3)">No category rules yet.</div>')
       + '<button class="btn pri wide" data-nav="#/newrule">＋ New rule</button>'
       + '<div class="ai-note" style="padding:8px 2px">'+SPARK+'Tap <b>＋ New rule</b> and choose a <b>category</b> under “Put in a category”. I also learn from every correction automatically.</div>';
     var catsInner = '<div class="rule" style="color:var(--ink-2)">Reorder with ▲▼, show/hide with the toggle, ✎ rename, ✕ delete. This order drives the cockpit tiles and the Archive.</div>'
@@ -1220,6 +1269,7 @@
     else if(h.indexOf('#/label/')===0) v = viewLabel(h.slice(8));
     else if(h.indexOf('#/m/')===0) v = viewDetail(h.slice(4));
     else if(h==='#/newrule') v = viewRuleBuilder();
+    else if(h==='#/search') v = viewSearch();
     else if(h==='#/settings') v = viewSettings();
     else if(h.indexOf('#/archive')===0) v = viewArchive(h==='#/archive' ? '' : h.slice(10));
     else if(h==='#/tasks') v = viewTasks();
@@ -1238,6 +1288,8 @@
     }); }
     // keep position on in-place re-renders, top on navigation
     var view = root.querySelector('.view'); if(view) view.scrollTop = keepScroll;
+    if(document.getElementById('rb-preview')) rbUpdatePreview();   // seed the rule preview
+    if(document.getElementById('searchresults')) runSearch();      // seed search state
     _lastHash = h;
   }
 
@@ -1412,6 +1464,16 @@
         if(fr){ fr.action = fr.action==='remove' ? 'add' : 'remove'; saveLearned(); recomputeLabels(); }
         render(); break;
       }
+      case 'ruletoggleoff': {
+        var ti=parseInt(el.getAttribute('data-i'),10); var tr=(state.labelRules||[])[ti];
+        if(tr){ tr.off = !tr.off; saveLearned(); recomputeLabels(); toast(tr.off ? 'Rule paused' : 'Rule active'); }
+        render(); break;
+      }
+      case 'catruletoggleoff': {
+        var cti=parseInt(el.getAttribute('data-i'),10); var ctr=(state.catRules||[])[cti];
+        if(ctr){ ctr.off = !ctr.off; saveCatRules(); recomputeCats(); toast(ctr.off ? 'Rule paused' : 'Rule active'); }
+        render(); break;
+      }
       case 'addairule': {
         var desc=window.prompt('Describe the mail to auto-label, in your own words\n(e.g. “invoices, payments or subscription bills”):');
         if(!desc || !desc.trim()) break;
@@ -1546,6 +1608,21 @@
           toast('Added to Tasks · linked to this mail');
         }
         render(); break;
+      }
+      case 'rulefrommail': { var rfm=msgById(id); if(rfm){ rbPrefill = { kind: rfm.domain?'domain':'sender', value: rfm.domain||rfm.from }; location.hash='#/newrule'; } break; }
+      case 'syncnow': syncNow(); break;
+      case 'searchai': {
+        var sq=((document.getElementById('srchq')||{}).value||'').trim(); var sbox=document.getElementById('searchresults');
+        if(!sq || !sbox) break;
+        if(!API_OK){ toast('AI search needs the live app'); runSearch(); break; }
+        sbox.innerHTML = '<div class="empty" style="padding:16px 0">'+SPARK+'Claude is reading your mail…</div>';
+        var sitems=(state.messages||[]).map(function(m){ return { id:m.id, text:((m.subject||'')+' — '+(m.snippet||'')).slice(0,200) }; });
+        fetch('/api/labels/ai-match', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ description:sq, items:sitems }) })
+          .then(function(x){ return x.ok ? x.json() : null; })
+          .then(function(d){ var ids=(d&&d.ids)||[]; var res=(state.messages||[]).filter(function(m){ return ids.indexOf(m.id)>=0; });
+            var cur=document.getElementById('searchresults'); if(cur) cur.innerHTML = '<div class="srchcount">'+SPARK+'AI found '+res.length+' by meaning</div>'+(res.length?res.map(cardHTML).join(''):'<div class="empty" style="padding:16px 0">Nothing matched by meaning.</div>'); })
+          .catch(function(){ toast('AI search failed'); runSearch(); });
+        break;
       }
       case 'newtask': {
         var ntx = window.prompt('New task from this email:');
@@ -1704,7 +1781,10 @@
       rbUpdatePreview();
     }
   });
-  document.addEventListener('input', function(e){ if(e.target && e.target.id === 'rb-val'){ rbDebouncedPreview(); } });
+  document.addEventListener('input', function(e){
+    if(e.target && e.target.id === 'rb-val'){ rbDebouncedPreview(); }
+    if(e.target && e.target.id === 'srchq'){ runSearchDebounced(); }
+  });
 
   // swipe the main screens left/right (Cockpit ⇄ Tasks ⇄ Archive ⇄ Settings)
   var MAIN_TABS = ['#/', '#/tasks', '#/archive', '#/settings'];
