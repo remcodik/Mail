@@ -9,3 +9,7 @@ google-api-python-client>=2.100
 google-auth>=2.30
 google-auth-oauthlib>=1.2
 python-dotenv>=1.0
+
+# --- optional durable storage: Firestore (stay signed in on ephemeral hosts) ---
+# Enable by setting FIREBASE_CREDENTIALS; safe to omit if you use MAILAI_DB instead.
+firebase-admin>=6.5
