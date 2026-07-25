@@ -208,6 +208,22 @@ def _mirror_one(uid: str, message_id: str) -> None:
         pass
 
 
+@app.post("/api/labels/ai-match")
+def ai_match(request: Request, description: str = Body(""), items: list = Body(default=[])) -> dict:
+    """Evaluate a plain-language label rule with Claude (semantic match). Returns
+    the ids of the supplied emails that match. Live only; demo returns none so
+    the client falls back to its on-device keyword match."""
+    _uid(request)
+    if not settings.is_live:
+        return {"ids": []}
+    from .intelligence import match_rule_by_description
+    try:
+        ids = match_rule_by_description(str(description), items or [])
+    except Exception:
+        ids = []
+    return {"ids": ids}
+
+
 @app.post("/api/labels")
 def add_label(request: Request, name: str = Body(embed=True)) -> dict:
     uid = _uid(request)
