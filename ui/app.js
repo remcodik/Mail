@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.25';
+  var BUILD = '2026.07.25-2';
   var CHANGELOG = [
+    { v:'2026.07.25-2', notes:['Deliveries & purchases group by tracking or order number — works on existing mail too', 'Always show carrier · #tracking · pickup point on delivery mail', 'Reorder/toggle in Settings keeps your scroll position (no jump to top)'] },
     { v:'2026.07.25', notes:['Mail list & detail show the date, not just the time', 'Show original email with images (safe, sandboxed)', 'Back from a filed mail returns to the Archive', 'Rename/delete categories; rename/recolor/delete labels', 'Import older mail from a date is always available', 'This version panel + “refresh to newest” button'] },
     { v:'2026.07.24', notes:['Firestore storage so you stay signed in on free hosting', 'Keep-warm ping to avoid cold starts', 'New cockpit-style app icon'] },
     { v:'2026.07.23', notes:['Propose meeting for the agenda + Google Calendar link', 'English/Dutch toggle for the whole app', 'Mirror categories & labels to Gmail', 'Undo on rule/label/category changes'] }
@@ -209,7 +210,58 @@
   // recompute from the original AI assignments + current rules (clean add/undo)
   function recomputeLabels(){ state.messages.forEach(function(m){ m.labels = (state.originalLabels[m.id]||[]).slice(); }); (state.labelRules||[]).forEach(applyRule); }
   function recomputeCats(){ state.messages.forEach(function(m){ m.cat = state.originalCat[m.id]; }); (state.catRules||[]).forEach(applyCatRule); }
-  function recomputeAll(){ recomputeLabels(); recomputeCats(); }
+  function recomputeAll(){ recomputeLabels(); recomputeCats(); deriveGroups(); }
+
+  // --- delivery/purchase grouping (works retroactively on stored mail text) ---
+  function _grpText(m){ return ((m.subject||'')+' '+(m.snippet||'')+' '+(m.summary||'')+' '+(m.body||'')); }
+  function _normKey(s){ return String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,''); }
+  function findTracking(t){
+    // carrier-specific formats first (most reliable), then a generic long number
+    var res = [/\b3S[A-Z0-9]{9,}\b/i, /\bJVGL[A-Z0-9]{8,}\b/i, /\b1Z[A-Z0-9]{16}\b/i,
+               /\bJJD[0-9]{12,}\b/i, /\b[0-9]{12,18}\b/];
+    for(var i=0;i<res.length;i++){ var mm=t.match(res[i]); if(mm) return mm[0]; }
+    return '';
+  }
+  function findOrder(t){
+    var mm = t.match(/(?:order|bestel(?:ling|nr|nummer)?|ordernr|order\s*id)\.?\s*[:#]?\s*([A-Z0-9][A-Z0-9\-]{4,})/i);
+    return mm ? mm[1] : '';
+  }
+  function findCarrier(t){
+    var m2 = t.match(/\b(PostNL|DHL|DPD|GLS|UPS|FedEx|bol(?:\.com)?|Amazon|Coolblue|Bpost)\b/i);
+    return m2 ? m2[1] : '';
+  }
+  // The group key: tracking first (same parcel across senders), else order+account
+  // (bridges the pre-tracking phase), matching the agreed rules.
+  function groupKeyOf(m){
+    if(m.cat!=='delivery' && m.cat!=='purchase') return '';
+    var ex = m.extracted || {}, t = _grpText(m);
+    var track = ex.tracking_number || findTracking(t);
+    if(track) return 'trk:'+_normKey(track);
+    var order = ex.order_id || findOrder(t);
+    if(order) return 'ord:'+_normKey(order)+'@'+_normKey(m.email||m.from||'');
+    return '';
+  }
+  function deriveGroups(){
+    (state.messages||[]).forEach(function(m){
+      if(m.group) return;              // keep any seed/backend-assigned group
+      var k = groupKeyOf(m);
+      if(k) m.group = k;
+    });
+  }
+  // A compact, always-present line: carrier · #tracking · pickup + code
+  function groupInfoLine(m){
+    if(m.cat!=='delivery' && m.cat!=='purchase') return '';
+    var ex = m.extracted || {}, t = _grpText(m), bits = [];
+    var carrier = ex.carrier || findCarrier(t);
+    var track = ex.tracking_number || findTracking(t);
+    var order = ex.order_id || (track ? '' : findOrder(t));
+    var pickup = ex.pickup_location || '', code = ex.pickup_code || '';
+    if(carrier) bits.push(esc(carrier));
+    if(track) bits.push('#'+esc(track));
+    else if(order) bits.push('order '+esc(order));
+    if(pickup) bits.push('📍 '+esc(pickup)+(code?' · '+esc(code):''));
+    return bits.join(' · ');
+  }
 
   // ---- category rules (correction loop, mirrors labels) ----
   var CATRULE_KEY = 'mailai-catrules-v1';
@@ -437,6 +489,7 @@
       + '<span><span class="top"><span class="from">'+esc(m.from)+'</span><span class="time">'+esc((m.date?m.date+' · ':'')+(m.time||''))+'</span></span>'
       + '<span class="subj">'+esc(m.subject)+'</span><span class="snip">'+esc(m.snippet)+'</span>'
       + (m.ai ? '<span class="ai-note">'+SPARK+esc(m.ai)+'</span>' : '')
+      + (function(){ var gl=groupInfoLine(m); return gl ? '<span class="grpline">'+svg('<path d="M3 7h13v10H3z"/><path d="M16 10h4l1 3v4h-5z"/><circle cx="7" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/>',11)+' '+gl+'</span>' : ''; })()
       + '<span class="chip-wrap" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:7px"><span class="chip" style="--cc:'+catById(m.cat).color+'">'+esc(m.chip||catById(m.cat).name)+'</span>'+acctTag(m)+labelChips(m)+'</span></span></button>';
   }
   // group related mail (same parcel/order/trip) — show the latest, collapse the rest
@@ -600,7 +653,9 @@
       parts.push('<button class="wallet-btn" data-act="wallet" data-id="'+m.id+'">'+svg('<path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3H4z"/><path d="M4 11h16v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/>',14)+' Add to Apple Wallet</button>');
     }
     // short AI summary (always) + the actual email text below it
-    parts.push('<div class="panel ai"><p class="h">'+SPARK+' AI summary</p><p>'+esc(m.summary || m.snippet)+'</p></div>');
+    parts.push('<div class="panel ai"><p class="h">'+SPARK+' AI summary</p><p>'+esc(m.summary || m.snippet)+'</p>'
+      + (function(){ var gl=groupInfoLine(m); return gl ? '<p class="grpline" style="margin-top:8px">'+svg('<path d="M3 7h13v10H3z"/><path d="M16 10h4l1 3v4h-5z"/><circle cx="7" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/>',12)+' '+gl+'</p>' : ''; })()
+      + '</div>');
     var bodyText = m.body || m.snippet || '';
     parts.push('<details class="panel mailpanel" open><summary class="h">Full email</summary>'
       + '<div class="mailbody" id="mailbody-'+m.id+'">'+esc(bodyText).replace(/\n/g,'<br>')+'</div>'
@@ -850,8 +905,13 @@
       + '</nav>';
   }
 
+  var _lastHash = null;
   function render(){
     var h = location.hash || '#/';
+    // remember scroll so an in-place re-render (toggle, reorder, rename) keeps
+    // your position instead of jumping to the top; only reset on real navigation.
+    var prevView = root.querySelector('.view');
+    var keepScroll = (h === _lastHash) && prevView ? prevView.scrollTop : 0;
     var v;
     if(h.indexOf('#/c/')===0) v = viewCategory(h.slice(4));
     else if(h.indexOf('#/focus/')===0) v = viewFocus(h.slice(8));
@@ -869,8 +929,9 @@
       + tabbar(v.nav);
     root.innerHTML = html;
     localize(root);   // switch UI chrome to Dutch when selected
-    // scroll view to top on nav
-    var view = root.querySelector('.view'); if(view) view.scrollTop = 0;
+    // keep position on in-place re-renders, top on navigation
+    var view = root.querySelector('.view'); if(view) view.scrollTop = keepScroll;
+    _lastHash = h;
   }
 
   // ---------- toast ----------
