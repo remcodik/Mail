@@ -52,23 +52,29 @@ def mirror_to_gmail(client: GmailClient, gmail_message_id: str, label_names: lis
             pass
 
 
-def _repair_dates(user_id: str, client: GmailClient, cap: int = 30) -> int:
-    """Backfill date/time on older stored mail that was saved before these fields
-    existed (so the list/overview shows a date, not just a time). Cheap metadata
-    fetch per message; capped so a sync stays fast. Shrinks to a no-op once done."""
+def _repair_meta(user_id: str, client: GmailClient, cap: int = 25) -> int:
+    """Backfill fields on older stored mail saved before they existed: date/time
+    (so the overview shows a date) and the attachments list (so the 'Get
+    attachments' button can appear). Capped per sync; shrinks to a no-op once
+    everything is filled."""
     fixed = 0
     for m in store.messages(user_id, account=client.account_id, include_archived=True):
-        if m.get("date") and m.get("time"):
+        need_date = not (m.get("date") and m.get("time"))
+        need_att = "attachments" not in m
+        if not (need_date or need_att):
             continue
         try:
-            d, t = client.get_when(m["id"])
+            fresh = client.get_message(m["id"])
         except Exception:
             continue
-        if d or t:
-            store.upsert_message(user_id, {"id": m["id"],
-                                           "date": d or m.get("date", ""),
-                                           "time": t or m.get("time", "")})
-            fixed += 1
+        patch = {"id": m["id"]}
+        if need_date:
+            patch["date"] = m.get("date") or fresh.get("date", "")
+            patch["time"] = m.get("time") or fresh.get("time", "")
+        if need_att:
+            patch["attachments"] = fresh.get("attachments", [])
+        store.upsert_message(user_id, patch)
+        fixed += 1
         if fixed >= cap:
             break
     return fixed
@@ -80,7 +86,7 @@ def process_account(user_id: str, account_id: str, max_results: int = 25) -> int
     if not token:
         raise RuntimeError(f"no OAuth token for account {account_id}")
     client = GmailClient(user_id, account_id, token)
-    _repair_dates(user_id, client)   # give older stored mail a date in the overview
+    _repair_meta(user_id, client)   # backfill date + attachments on older stored mail
     valid = {c["id"] for c in store.categories(user_id)}
     mirror = store.get_settings(user_id).get("mirror_gmail", False)
     # First connect: file all existing mail to the Archive so the cockpit starts
