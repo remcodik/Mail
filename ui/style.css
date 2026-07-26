@@ -161,7 +161,7 @@ a{color:inherit}
 
 /* ---- email cards ---- */
 .list{display:flex;flex-direction:column;gap:9px;padding:8px 14px}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:12px 64px 12px 13px;
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:12px 66px 12px 13px;
   display:grid;grid-template-columns:34px 1fr;gap:11px;text-align:left;width:100%;border-color:var(--line)}
 .card .av{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:13px;color:#fff}
 .card .top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
@@ -192,7 +192,7 @@ a{color:inherit}
 .task .box{width:16px;height:16px;border-radius:5px;border:1.5px solid var(--ink-3);flex:none;margin-top:1px}
 .task .due{color:var(--c-reply);font-size:11px;font-weight:600;font-family:ui-monospace,monospace}
 .reply-body{font-size:12.5px;color:var(--ink-2);line-height:1.5;background:var(--surface-2);border-radius:10px;padding:10px;border:1px solid var(--line)}
-.btnrow{display:flex;gap:7px;margin-top:10px}
+.btnrow{display:flex;gap:9px;margin-top:10px}
 .btn{flex:1;text-align:center;font-size:12.5px;font-weight:650;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
 .btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
 /* sign-in screen (live mode, before a session exists) */
@@ -212,8 +212,8 @@ a{color:inherit}
 .nrow{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:11px 12px}
 .nrow .nm{font-size:12.5px;font-weight:600}
 .nrow .fr{font-size:11px;color:var(--ink-3)}
-.nrow .acts{display:flex;gap:6px}
-.pill{font-size:10.5px;font-weight:700;padding:6px 9px;border-radius:8px;border:1px solid var(--line);color:var(--ink-2);background:var(--surface-2)}
+.nrow .acts{display:flex;gap:9px}
+.pill{font-size:11px;font-weight:700;padding:9px 12px;border-radius:9px;border:1px solid var(--line);color:var(--ink-2);background:var(--surface-2)}
 .pill.unsub{color:var(--c-urgent);border-color:color-mix(in srgb,var(--c-urgent) 35%,var(--line))}
 
 /* waiting */
@@ -294,13 +294,13 @@ a{color:inherit}
 .cardwrap{position:relative}
 .cardwrap.filed .card{padding-right:40px}
 .cardacts{position:absolute;top:0;bottom:0;right:8px;display:flex;flex-direction:column;justify-content:center;
-  align-items:flex-end;gap:6px;z-index:3}
-.cardread{width:19px;height:19px;border-radius:50%;border:1.5px solid var(--line);background:transparent;cursor:pointer;padding:0}
+  align-items:center;gap:10px;z-index:3}
+.cardread{width:23px;height:23px;border-radius:50%;border:1.5px solid var(--line);background:transparent;cursor:pointer;padding:0}
 .cardread.un{background:var(--accent);border-color:var(--accent)}
 .cardread:active{transform:scale(.9)}
-.cardarch,.carddel{display:inline-flex;align-items:center;gap:4px;padding:5px 8px;border-radius:999px;
-  border:1px solid var(--line);background:var(--surface);cursor:pointer;font-size:9px;font-weight:800;
-  text-transform:uppercase;letter-spacing:.02em}
+.cardarch,.carddel{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  width:48px;min-height:42px;padding:6px 2px;border-radius:11px;border:1px solid var(--line);background:var(--surface);
+  cursor:pointer;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.02em}
 .cardarch{color:var(--ink-2)} .carddel{color:var(--neg)}
 .cardarch .calbl,.carddel .calbl{line-height:1}
 .cardarch:active{transform:scale(.94);color:var(--accent-ink);border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--surface))}
@@ -335,8 +335,8 @@ a{color:inherit}
 /* grouped mail (same parcel/order/trip) */
 .grp{display:flex;flex-direction:column}
 .grp-actions{display:flex;border-top:1px dashed var(--line)}
-.grp-toggle{flex:1;font-size:11px;font-weight:700;color:var(--accent-ink);background:transparent;border:0;padding:8px;text-align:center}
-.grp-arch{flex:none;font-size:11px;font-weight:700;color:var(--ink-2);background:transparent;border:0;border-left:1px dashed var(--line);padding:8px 12px}
+.grp-toggle{flex:1;font-size:11.5px;font-weight:700;color:var(--accent-ink);background:transparent;border:0;padding:11px;text-align:center}
+.grp-arch{flex:none;font-size:11.5px;font-weight:700;color:var(--ink-2);background:transparent;border:0;border-left:1px dashed var(--line);padding:11px 14px}
 .grp-more{display:flex;flex-direction:column;gap:9px;margin-top:9px;padding-left:10px;border-left:2px solid var(--line)}
 .grp-more .card{opacity:.82}
 /* archive rows */
