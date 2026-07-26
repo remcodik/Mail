@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short', timeZone:'Europe/Amsterdam' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.26-19';
+  var BUILD = '2026.07.26-20';
   var CHANGELOG = [
+    { v:'2026.07.26-20', notes:['The archive button on each mail in a list now has a clear \u201cFile\u201d label (it was an unlabeled icon), so you can file straight from the overview'] },
     { v:'2026.07.26-19', notes:['The agenda no longer shows demo events (Sprint planning / Dentist / 1:1) in the live app \u2014 Google Calendar sync is a follow-up, so it shows a real empty state instead', 'Keep-warm reworked so the live app stays awake more reliably (GitHub was only pinging every 1\u20133 h instead of every 10 min)'] },
     { v:'2026.07.26-18', notes:['Opening a mail now marks it read automatically, so it clears from New once you\u2019ve looked at it (you can still tap \u201cMark as unread\u201d to keep it)'] },
     { v:'2026.07.26-17', notes:['New \u201cNew\u201d tile at the top of the cockpit \u2014 all your unread mail in one place, newest first, so you can see what just arrived; each mail still stays in its own category', 'FIXED: the category/label strip now keeps its position when you scroll back the other way too'] },
@@ -197,7 +198,7 @@
     'Send':'Versturen','Edit':'Bewerken','Discard':'Weggooien','Delete':'Verwijderen',
     'Archive (file it)':'Archiveren (opbergen)','Restore to inbox':'Terug naar inbox',
     'Move to cockpit':'Naar cockpit','Unsubscribe':'Uitschrijven','+ New':'+ Nieuw',
-    'New':'Nieuw','all caught up':'alles bijgewerkt',
+    'New':'Nieuw','all caught up':'alles bijgewerkt','File':'Archief',
     '+ Create task from this email':'+ Maak een taak van deze e-mail',
     '+ Propose meeting for agenda':'+ Stel afspraak voor agenda voor',
     'Wake now':'Nu wekken','Cancel':'Annuleren','Apply rule':'Regel toepassen',
@@ -828,7 +829,7 @@
     // outside .card so it never triggers the card swipe)
     return '<div class="cardwrap">' + card
       + '<button class="cardread'+(m.isUnread?' un':'')+'" data-act="toggleread" data-id="'+m.id+'" aria-label="'+(m.isUnread?'mark read':'mark unread')+'" title="'+(m.isUnread?'Mark as read':'Mark as unread')+'"></button>'
-      + '<button class="cardarch" data-act="archive" data-id="'+m.id+'" aria-label="archive" title="Archive (file it)">'+svg('<rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/>',14)+'</button></div>';
+      + '<button class="cardarch" data-act="archive" data-id="'+m.id+'" aria-label="archive" title="Archive (file it)">'+svg('<rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/>',13)+'<span class="calbl">File</span></button></div>';
   }
   // group related mail (same parcel/order/trip) — show the latest, collapse the rest
   var expandedGroups = {};
