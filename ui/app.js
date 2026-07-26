@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short', timeZone:'Europe/Amsterdam' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.26-7';
+  var BUILD = '2026.07.26-8';
   var CHANGELOG = [
+    { v:'2026.07.26-8', notes:['Purchases & Invoices tiles show BOTH the count and the \u20ac amount (e.g. \u201c3 mails \u00b7 \u20ac249\u201d)'] },
     { v:'2026.07.26-7', notes:['FIXED: the \u20ac amount on Invoices/Purchases tiles now reads the live detector value (extracted.total), so it no longer shows \u20ac0'] },
     { v:'2026.07.26-6', notes:['Invoice-type categories (Invoices/Facturen\u2026) now show the total \u20ac amount in the cockpit, like Purchases \u2014 amount read from the mail (\u20ac1.234,56 and \u20ac12.99 both understood)'] },
     { v:'2026.07.26-5', notes:['Tiles show two numbers only \u2014 unread big (accent) and total small (grey) \u2014 no words'] },
@@ -702,13 +703,13 @@
       case 'urgent': a = ms.filter(function(m){return m.needsAction;}).length; return '<b>'+a+'</b> need action';
       case 'reply': return '<b>'+n+'</b> drafts ready';
       case 'delivery': a = ms.filter(function(m){return m.pickup;}).length; return a ? '<b>'+a+'</b> ready for pickup' : n+' in transit';
-      case 'purchase': return '€'+catMoney(ms).toFixed(0)+' this week';
+      case 'purchase': return '<b>'+n+'</b> mail'+(n===1?'':'s')+' · €'+catMoney(ms).toFixed(0);
       case 'travel': a = Math.min.apply(null, ms.map(function(m){return m.daysUntil==null?999:m.daysUntil;})); return (a<999) ? 'Trip in <b>'+a+' days</b>' : 'no trips';
       case 'newsletter': a = ms.reduce(function(s,m){return s+(m.unread||0);},0); return a+' unread';
       case 'ticket': return '<b>'+n+'</b> for Wallet';
       case 'waiting': a = ms.filter(function(m){return m.overdue;}).length; return a ? '<b>'+a+'</b> overdue' : n+' waiting';
       default:
-        if(isMoneyCat(cat)){ var money = catMoney(ms); return money>0 ? ('€'+money.toFixed(0)+' total') : (n+' mail'+(n===1?'':'s')); }
+        if(isMoneyCat(cat)){ return '<b>'+n+'</b> mail'+(n===1?'':'s')+' · €'+catMoney(ms).toFixed(0); }
         return n+' mail'+(n===1?'':'s');
     }
   }
