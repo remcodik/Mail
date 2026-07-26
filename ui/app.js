@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short', timeZone:'Europe/Amsterdam' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.26-14';
+  var BUILD = '2026.07.26-15';
   var CHANGELOG = [
+    { v:'2026.07.26-15', notes:['FIXED: tapping the Tickets tile did nothing when a ticket mail had no parsed ticket data \u2014 it now opens the list (those mails show as normal cards)', 'FIXED: the category chip on a list/archive card now always matches the category shown in the email detail (it could go stale after a correction)'] },
     { v:'2026.07.26-14', notes:['Amounts are colour-coded: green \u201cto receive\u201d vs red \u201cto pay\u201d, with a + / \u2013 sign and a small tag', 'In the email detail the \u201cShow original with images\u201d button moved to the top and the full email starts collapsed \u2014 no scrolling to the end', 'The \u201cIn Gmail\u201d info is now a collapsed section (it\u2019s just a mirror of your category/labels)'] },
     { v:'2026.07.26-13', notes:['Mail list cards now have an Archive button (not only in the detail)', 'Cleaner email detail: the suggested reply sits right under the summary, a sticky bar keeps Reply \u00b7 Archive \u00b7 Delete always in reach, and the extra actions fold into \u201cMore actions\u201d', 'Money categories show an Amount panel with a \u201cRe-read (incl. images)\u201d button so you can see what was found'] },
     { v:'2026.07.26-12', notes:['Settings sections now start collapsed \u2014 tap a heading to open it', 'Every category can be deleted now (built-ins too), and a deleted built-in stays gone', 'Amount reading now also fetches remote banner images (e.g. energy \u201cTotaal te ontvangen\u201d) and reads the headline total whether it\u2019s to pay OR to receive'] },
@@ -540,8 +541,9 @@
   function setCat(msgId, catId){
     var m = msgById(msgId); if(!m || m.cat===catId) return;
     m.cat = catId;   // this email only
-    state.originalCat[msgId] = catId;   // make it the new baseline so a recompute keeps it
     var c = catById(catId);
+    m.chip = c ? c.name : catId;   // keep the card chip in sync with the detail category
+    state.originalCat[msgId] = catId;   // make it the new baseline so a recompute keeps it
     toast('Moved to '+(c?c.name:catId));
     pendingCatProposal = { sender:m.from, domain:m.domain, subject:m.subject, catId:catId, catName:(c?c.name:catId), msgId:msgId, scope:'sender' };
   }
@@ -808,7 +810,7 @@
       + '<span class="subj">'+esc(m.subject)+'</span><span class="snip">'+esc(m.snippet)+'</span>'
       + (m.ai ? '<span class="ai-note">'+SPARK+esc(m.ai)+'</span>' : '')
       + (function(){ var gl=groupInfoLine(m); return gl ? '<span class="grpline">'+svg('<path d="M3 7h13v10H3z"/><path d="M16 10h4l1 3v4h-5z"/><circle cx="7" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/>',11)+' '+gl+'</span>' : ''; })()
-      + '<span class="chip-wrap" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:7px"><span class="chip" style="--cc:'+catById(m.cat).color+'">'+esc(m.chip||catById(m.cat).name)+'</span>'+acctTag(m)+labelChips(m)+'</span></span></button>';
+      + '<span class="chip-wrap" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:7px"><span class="chip" style="--cc:'+((catById(m.cat)||{}).color||'#888')+'">'+esc((catById(m.cat)||{}).name || m.chip || m.cat)+'</span>'+acctTag(m)+labelChips(m)+'</span></span></button>';
     // trailing read/unread toggle — a sibling button (valid HTML, and it sits
     // outside .card so it never triggers the card swipe)
     return '<div class="cardwrap">' + card
@@ -853,9 +855,13 @@
   }
   function ticketCardHTML(m){
     var t = m.ticket;
+    // live-classified tickets may not carry a parsed ticket object — fall back to a
+    // normal mail card so the Tickets list still renders (don't crash the view).
+    if(!t || !Array.isArray(t.grid)) return cardHTML(m);
     var grid = t.grid.map(function(kv){ return '<div><div class="k">'+esc(kv[0])+'</div><div class="v">'+esc(kv[1])+'</div></div>'; }).join('');
-    return '<button class="ticket '+t.style+'" data-nav="#/m/'+m.id+'" style="border:0;text-align:left;width:100%">'
-      + '<div class="tt">'+esc(t.tt)+' · '+esc(acctById(m.account).name)+'</div><div class="ev">'+esc(t.ev)+'</div><div class="grid">'+grid+'</div>'
+    var acc = acctById(m.account);
+    return '<button class="ticket '+esc(t.style||'generic')+'" data-nav="#/m/'+m.id+'" style="border:0;text-align:left;width:100%">'
+      + '<div class="tt">'+esc(t.tt||'Ticket')+(acc?' · '+esc(acc.name):'')+'</div><div class="ev">'+esc(t.ev||m.subject||'')+'</div><div class="grid">'+grid+'</div>'
       + (t.code?'<div class="code"></div>':'')+'</button>';
   }
   function viewCategory(id){
