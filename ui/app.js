@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short', timeZone:'Europe/Amsterdam' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.26-17';
+  var BUILD = '2026.07.26-18';
   var CHANGELOG = [
+    { v:'2026.07.26-18', notes:['Opening a mail now marks it read automatically, so it clears from New once you\u2019ve looked at it (you can still tap \u201cMark as unread\u201d to keep it)'] },
     { v:'2026.07.26-17', notes:['New \u201cNew\u201d tile at the top of the cockpit \u2014 all your unread mail in one place, newest first, so you can see what just arrived; each mail still stays in its own category', 'FIXED: the category/label strip now keeps its position when you scroll back the other way too'] },
     { v:'2026.07.26-16', notes:['FIXED: the category/label strip no longer jumps back to the first item every time \u2014 it keeps its sideways scroll position so you can tap straight through to the next one'] },
     { v:'2026.07.26-15', notes:['FIXED: tapping the Tickets tile did nothing when a ticket mail had no parsed ticket data \u2014 it now opens the list (those mails show as normal cards)', 'FIXED: the category chip on a list/archive card now always matches the category shown in the email detail (it could go stale after a correction)'] },
@@ -1437,6 +1438,12 @@
     // remember how far the category-tab / label strips are scrolled sideways, so
     // clicking through them doesn't snap back to the first item on every rebuild.
     STRIPS.forEach(function(sel){ var e = root.querySelector(sel); if(e) _stripX[sel] = e.scrollLeft; });
+    // opening a mail marks it read — but only on the actual open (hash change), so a
+    // deliberate "mark as unread" in the detail still sticks on later re-renders.
+    if(h.indexOf('#/m/')===0 && h!==_lastHash){
+      var om = msgById(h.slice(4));
+      if(om && om.isUnread){ om.isUnread = false; apiPost('/api/messages/'+om.id+'/read', { unread: false }); }
+    }
     var v;
     if(h.indexOf('#/c/')===0) v = viewCategory(h.slice(4));
     else if(h.indexOf('#/focus/')===0) v = viewFocus(h.slice(8));
