@@ -79,6 +79,24 @@ a{color:inherit}
 .proposal .pseg.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .proposal .pacts{display:flex;gap:7px}
 .proposal .pacts .btn{padding:8px}
+/* sticky detail action bar — always in reach above the tab bar */
+.detailbar{flex:none;display:flex;gap:8px;padding:9px 12px;margin:0;border-top:1px solid var(--line);background:color-mix(in srgb,var(--accent) 4%,var(--surface))}
+.detailbar .btn{flex:1;padding:11px 8px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px}
+.detailbar .btn.pri{flex:1.3}
+.detailbar svg{flex:none}
+/* collapsible "More actions" on the detail */
+.moreacts>summary{cursor:pointer;list-style:none}
+.moreacts>summary::-webkit-details-marker{display:none}
+.moreacts>summary::after{content:'▾';float:right;color:var(--ink-3);font-size:12px}
+.moreacts[open]>summary::after{content:'▴'}
+.moregrid{display:flex;flex-direction:column;gap:8px;margin-top:11px}
+.moregrid .btn{margin:0}
+.amtline{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap}
+.amtval{font-size:22px;font-weight:800;letter-spacing:-.02em}
+.amtval.none{font-size:14px;font-weight:600;color:var(--ink-3)}
+.amtline .btn{padding:8px 11px;font-size:12.5px}
+.panel.reply.flash{animation:replyflash .9s ease}
+@keyframes replyflash{0%,100%{box-shadow:none}35%{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 45%,transparent)}}
 /* swipe target */
 .card{touch-action:pan-y;will-change:transform}
 
@@ -258,9 +276,11 @@ a{color:inherit}
 .card.unread .from{font-weight:800;color:var(--ink)}
 .lblfiled{margin-left:6px;font-size:9.5px;font-weight:700;color:var(--ink-3)}
 .cardwrap{position:relative}
-.cardread{position:absolute;top:50%;right:13px;transform:translateY(-50%);width:19px;height:19px;border-radius:50%;border:1.5px solid var(--line);background:transparent;cursor:pointer;padding:0;z-index:3}
+.cardread{position:absolute;top:14px;right:13px;width:19px;height:19px;border-radius:50%;border:1.5px solid var(--line);background:transparent;cursor:pointer;padding:0;z-index:3}
 .cardread.un{background:var(--accent);border-color:var(--accent)}
-.cardread:active{transform:translateY(-50%) scale(.9)}
+.cardread:active{transform:scale(.9)}
+.cardarch{position:absolute;bottom:12px;right:9px;width:27px;height:27px;border-radius:8px;display:grid;place-items:center;border:1px solid var(--line);background:var(--surface);color:var(--ink-3);cursor:pointer;padding:0;z-index:3}
+.cardarch:active{transform:scale(.9);color:var(--accent-ink);border-color:var(--accent)}
 .tile{position:relative}
 .srchacts{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-bottom:12px;padding:10px;background:color-mix(in srgb,var(--accent) 6%,var(--surface));border:1px solid var(--line);border-radius:11px}
 .srchacts-h{font-size:11.5px;font-weight:700;color:var(--ink-2);width:100%}
