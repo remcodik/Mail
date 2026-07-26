@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short', timeZone:'Europe/Amsterdam' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.26-6';
+  var BUILD = '2026.07.26-7';
   var CHANGELOG = [
+    { v:'2026.07.26-7', notes:['FIXED: the \u20ac amount on Invoices/Purchases tiles now reads the live detector value (extracted.total), so it no longer shows \u20ac0'] },
     { v:'2026.07.26-6', notes:['Invoice-type categories (Invoices/Facturen\u2026) now show the total \u20ac amount in the cockpit, like Purchases \u2014 amount read from the mail (\u20ac1.234,56 and \u20ac12.99 both understood)'] },
     { v:'2026.07.26-5', notes:['Tiles show two numbers only \u2014 unread big (accent) and total small (grey) \u2014 no words'] },
     { v:'2026.07.26-4', notes:['One clean unread indicator per mail (removed the duplicate dot), and the read/unread circle no longer overlaps the text'] },
@@ -679,9 +680,15 @@
     else s = s.replace(/[.,\s]/g,'');                                   // integer
     var n = parseFloat(s); return isNaN(n) ? 0 : n;
   }
-  // the amount on a mail: the detector's total, else the largest € figure in its text
+  // the amount on a mail: the detector's total (top-level in demo, inside
+  // `extracted` when live), else the largest € figure in the mail text
   function amountOf(m){
-    if(m.total) return m.total;
+    var ex = m.extracted || {};
+    var cand = m.total != null ? m.total : (ex.total != null ? ex.total : (ex.amount != null ? ex.amount : (ex.bedrag != null ? ex.bedrag : ex.price)));
+    if(cand != null && cand !== ''){
+      var v0 = (typeof cand === 'number') ? cand : _parseAmt(String(cand).replace(/[^\d.,]/g, ''));
+      if(v0 > 0) return v0;
+    }
     var t = (m.subject||'')+' '+(m.snippet||'')+' '+(m.summary||'')+' '+(m.body||'');
     var re = /(?:€|eur)\s*(\d[\d.,]*\d|\d)/gi, best=0, mm;
     while((mm = re.exec(t))){ var v = _parseAmt(mm[1]); if(v > best) best = v; }
