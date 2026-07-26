@@ -85,6 +85,36 @@ class GmailClient:
         self._service().users().messages().modify(
             userId="me", id=message_id, body={"removeLabelIds": [label_id]}).execute()
 
+    def get_amount_images(self, message_id: str, max_images: int = 3, max_bytes: int = 3_000_000) -> list[dict]:
+        """Fetch a few inline/attached images from a mail (receipts/invoices),
+        as standard-base64 for Claude vision. Skips huge images; capped in count."""
+        import base64
+        svc = self._service()
+        raw = svc.users().messages().get(userId="me", id=message_id, format="full").execute()
+        out: list[dict] = []
+
+        def walk(part):
+            if len(out) >= max_images:
+                return
+            mime = part.get("mimeType", "")
+            body = part.get("body", {})
+            if mime in ("image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"):
+                data = body.get("data")
+                if not data and body.get("attachmentId"):
+                    att = svc.users().messages().attachments().get(
+                        userId="me", messageId=message_id, id=body["attachmentId"]).execute()
+                    data = att.get("data")
+                if data:
+                    rawb = base64.urlsafe_b64decode(data)
+                    if len(rawb) <= max_bytes:
+                        out.append({"mime": "image/jpeg" if mime == "image/jpg" else mime,
+                                    "data": base64.b64encode(rawb).decode()})
+            for p in part.get("parts", []) or []:
+                walk(p)
+
+        walk(raw.get("payload", {}))
+        return out
+
     def set_unread(self, message_id: str, unread: bool) -> None:
         body = {"addLabelIds": ["UNREAD"]} if unread else {"removeLabelIds": ["UNREAD"]}
         self._service().users().messages().modify(userId="me", id=message_id, body=body).execute()

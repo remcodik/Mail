@@ -176,6 +176,31 @@ def set_lang(request: Request, lang: str = Body(embed=True)) -> dict:
     return {"ok": True, "lang": lang}
 
 
+@app.post("/api/messages/{message_id}/amount")
+def message_amount(request: Request, message_id: str) -> dict:
+    """Detect the € total for a receipt/invoice mail — text first, then its
+    images via vision — and cache it on the message. Live only."""
+    uid = _uid(request)
+    msg = next((m for m in store.messages(uid, include_archived=True) if m["id"] == message_id), None)
+    if not msg:
+        raise HTTPException(status_code=404, detail="message not found")
+    amount = 0.0
+    if settings.is_live:
+        token = store.get_token(uid, msg.get("account"))
+        if token:
+            try:
+                from .gmail_client import GmailClient
+                from .intelligence import read_amount
+                client = GmailClient(uid, msg["account"], token)
+                text = (msg.get("subject", "") + " " + msg.get("snippet", "") + " " + msg.get("body", ""))
+                images = client.get_amount_images(message_id)
+                amount = read_amount(text, images)
+            except Exception:
+                amount = 0.0
+    store.set_money(uid, message_id, amount)
+    return {"ok": True, "amount": amount}
+
+
 @app.get("/api/messages/{message_id}/html")
 def message_html(request: Request, message_id: str) -> dict:
     """Fetch a message's rich HTML body on demand (live only). Kept out of the

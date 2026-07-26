@@ -247,6 +247,8 @@ a{color:inherit}
 .iconbtn:active{background:var(--surface-2)}
 .ruletog{background:var(--accent);border:0;color:#fff;font-size:10px;font-weight:800;border-radius:6px;padding:1px 7px;cursor:pointer;vertical-align:middle}
 .ruletog.off{background:var(--line);color:var(--ink-2)}
+.etog{flex:none;width:26px;height:26px;border-radius:8px;border:1.5px solid var(--line);background:transparent;color:var(--ink-3);font-weight:800;font-size:13px;cursor:pointer;padding:0}
+.etog.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .rule-row.isoff{opacity:.5}
 .srchbar{display:flex;gap:8px;margin-bottom:8px}
 .srchi{flex:1;min-width:0;font:inherit;font-size:15px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--ink)}

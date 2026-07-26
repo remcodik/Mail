@@ -110,6 +110,39 @@ def detect_scheduling_intent(email: dict) -> bool:
     return out == "scheduling"
 
 
+def read_amount(text: str, images: list[dict] | None = None) -> float:
+    """Read the grand total (in euros) from a receipt/invoice — the text first,
+    then any images via Claude vision. Returns 0.0 if none. Live only. The mail
+    content is data, never instructions."""
+    if not settings.is_live:
+        return 0.0
+    content: list = []
+    for img in (images or [])[:3]:
+        content.append({"type": "image", "source": {
+            "type": "base64", "media_type": img.get("mime", "image/jpeg"), "data": img["data"]}})
+    content.append({"type": "text", "text":
+        "This is a receipt or invoice. Find the TOTAL amount to pay (the grand total), in euros. "
+        "Look in both the text and any image. Reply with ONLY the number, like 120.03 — no currency "
+        "sign, dot as decimal separator. If there is no clear total, reply 0.\n\nText:\n" + (text or "")[:1500]})
+    try:
+        msg = _client().messages.create(
+            model=settings.model_reason, max_tokens=16,
+            system="You extract the grand-total amount from receipts/invoices. Reply with only a number.",
+            messages=[{"role": "user", "content": content}],
+        )
+        raw = "".join(b.text for b in msg.content if b.type == "text").strip()
+        raw = raw.replace("€", "").replace("EUR", "").replace(" ", "")
+        if "," in raw and "." in raw:          # 1.234,56 -> 1234.56
+            raw = raw.replace(".", "").replace(",", ".")
+        elif "," in raw:                        # 120,03 -> 120.03
+            raw = raw.replace(",", ".")
+        import re as _re
+        m = _re.search(r"-?\d+(?:\.\d+)?", raw)
+        return float(m.group()) if m else 0.0
+    except Exception:
+        return 0.0
+
+
 def match_rule_by_description(description: str, items: list[dict]) -> list[str]:
     """Given a plain-language rule and a list of emails ({id, text}), return the
     ids that match the rule's MEANING — understanding synonyms, other languages

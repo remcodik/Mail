@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short', timeZone:'Europe/Amsterdam' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.26-9';
+  var BUILD = '2026.07.26-10';
   var CHANGELOG = [
+    { v:'2026.07.26-10', notes:['Per-category € toggle in Settings \u2014 turn on \u201cshow amount\u201d for any category (e.g. Te betalen)', 'Reads amounts from receipt/invoice IMAGES too (Claude vision) when there is no amount in the text'] },
     { v:'2026.07.26-9', notes:['Amount recognition now understands the word \u201cEuro/EUR\u201d and amounts written after the number (e.g. \u201cEuro 120,03\u201d) \u2014 fixes Invoices totals'] },
     { v:'2026.07.26-8', notes:['Purchases & Invoices tiles show BOTH the count and the \u20ac amount (e.g. \u201c3 mails \u00b7 \u20ac249\u201d)'] },
     { v:'2026.07.26-7', notes:['FIXED: the \u20ac amount on Invoices/Purchases tiles now reads the live detector value (extracted.total), so it no longer shows \u20ac0'] },
@@ -685,6 +686,7 @@
   // the amount on a mail: the detector's total (top-level in demo, inside
   // `extracted` when live), else the largest € figure in the mail text
   function amountOf(m){
+    if(typeof m.money === 'number' && m.money > 0) return m.money;   // vision/backend-detected
     var ex = m.extracted || {};
     var cand = m.total != null ? m.total : (ex.total != null ? ex.total : (ex.amount != null ? ex.amount : (ex.bedrag != null ? ex.bedrag : ex.price)));
     if(cand != null && cand !== ''){
@@ -698,7 +700,24 @@
     return best;
   }
   function catMoney(ms){ return ms.reduce(function(s,m){ return s + amountOf(m); }, 0); }
-  function isMoneyCat(cat){ return /invoice|factu|rekening|\bbill|betaling|payment/i.test(cat.name||''); }
+  // for money-tiles: when a mail has no € in its text, ask the backend to read it
+  // (incl. from images via vision) and cache it. Batched + capped to limit cost.
+  var _amtChecked = {};
+  function fetchAmounts(){
+    if(!API_OK) return;
+    var moneyCats = {}; (state.categories||[]).forEach(function(c){ if(wantsMoney(c)) moneyCats[c.id] = 1; });
+    var todo = (state.messages||[]).filter(function(m){ return moneyCats[m.cat] && m.money==null && !_amtChecked[m.id] && amountOf(m)===0; }).slice(0,8);
+    if(!todo.length) return;
+    todo.forEach(function(m){ _amtChecked[m.id] = 1; });
+    Promise.all(todo.map(function(m){
+      return fetch('/api/messages/'+encodeURIComponent(m.id)+'/amount', { method:'POST', credentials:'same-origin' })
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .then(function(d){ if(d) m.money = d.amount || 0; }).catch(function(){});
+    })).then(function(){ render(); });
+  }
+  function isMoneyCat(cat){ return /invoice|factu|rekening|\bbill|betaal|betaling|payment|te betalen/i.test(cat.name||''); }
+  // a tile shows the € total when: it's Purchases, the user turned it on, or the name looks money-ish
+  function wantsMoney(cat){ return !!cat && (cat.id==='purchase' || cat.showMoney || (cat.showMoney!==false && isMoneyCat(cat))); }
   function hintFor(cat){
     var ms = msgsIn(cat.id), n = ms.length, a;
     switch(cat.id){
@@ -711,7 +730,7 @@
       case 'ticket': return '<b>'+n+'</b> for Wallet';
       case 'waiting': a = ms.filter(function(m){return m.overdue;}).length; return a ? '<b>'+a+'</b> overdue' : n+' waiting';
       default:
-        if(isMoneyCat(cat)){ return '<b>'+n+'</b> mail'+(n===1?'':'s')+' · €'+catMoney(ms).toFixed(0); }
+        if(wantsMoney(cat)){ return '<b>'+n+'</b> mail'+(n===1?'':'s')+' · €'+catMoney(ms).toFixed(0); }
         return n+' mail'+(n===1?'':'s');
     }
   }
@@ -1198,6 +1217,7 @@
         + '<span class="cdot" style="background:'+c.color+'">'+svg(iconFor(c),13)+'</span>'
         + '<span><span class="cnm">'+esc(c.name)+'</span>'+(c.builtin?'':' <span class="ccount">· custom</span>')+'<br>'
         + '<span class="ccount">'+msgsIn(c.id).length+' mails'+(c.visible?'':' · hidden')+'</span></span>'
+        + '<button class="etog'+(wantsMoney(c)?' on':'')+'" data-act="togglemoney" data-id="'+c.id+'" aria-label="show amount on '+esc(c.name)+'" title="Show € total on this tile">€</button>'
         + '<button class="rule-x" data-act="catrenamedef" data-id="'+c.id+'" aria-label="rename '+esc(c.name)+'">✎</button>'
         + (c.builtin?'':'<button class="rule-x" data-act="catdeldef" data-id="'+c.id+'" aria-label="delete '+esc(c.name)+'">✕</button>')
         + '<button class="toggle'+(c.visible?'':' off')+'" data-act="togglecat" data-id="'+c.id+'" aria-label="toggle '+esc(c.name)+'"></button></div>';
@@ -1466,6 +1486,7 @@
         render(); break;
       }
       case 'togglecat': { var cat=catById(id); if(cat){ cat.visible=!cat.visible; apiPost('/api/categories/'+id+'/visibility',{visible:cat.visible}); saveCats(); } render(); break; }
+      case 'togglemoney': { var mcat=catById(id); if(mcat){ mcat.showMoney = !wantsMoney(mcat); saveCats(); toast(mcat.showMoney?'Showing € total on '+mcat.name:'Hidden € total on '+mcat.name); if(mcat.showMoney) fetchAmounts(); } render(); break; }
       case 'catup': moveCat(id, -1); break;
       case 'catdown': moveCat(id, 1); break;
       case 'togglemirror': { state.mirrorGmail=!state.mirrorGmail; saveMirror(); apiPost('/api/settings/mirror',{enabled:state.mirrorGmail}); toast(state.mirrorGmail?'Gmail sync on · these show as labels in Gmail':'Gmail sync off'); render(); break; }
@@ -1979,6 +2000,7 @@
     recomputeAll();
     render();
     evaluateAiRules();   // refine AI rules with Claude's semantic match (live)
+    fetchAmounts();      // detect € totals for money-tiles that have none (incl. images)
     // pull genuinely new Gmail once per session, in the background, after showing cached mail
     if(API_OK && !_autoSynced){ _autoSynced = true; setTimeout(syncNow, 800); }
   }

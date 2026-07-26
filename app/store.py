@@ -156,6 +156,16 @@ class Store:
                     return True
         return False
 
+    def set_money(self, user_id: str, message_id: str, amount: float) -> bool:
+        """Cache a detected € amount on a message so tiles can sum it."""
+        with self._lock:
+            for m in self._bucket(user_id)["messages"]:
+                if m["id"] == message_id:
+                    m["money"] = float(amount)
+                    self._persist(user_id)
+                    return True
+        return False
+
     def set_unread(self, user_id: str, message_id: str, unread: bool) -> bool:
         with self._lock:
             for m in self._bucket(user_id)["messages"]:
