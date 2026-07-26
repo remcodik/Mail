@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short', timeZone:'Europe/Amsterdam' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.26-20';
+  var BUILD = '2026.07.26-21';
   var CHANGELOG = [
+    { v:'2026.07.26-21', notes:['The \u201cFile\u201d button no longer shows on mail that\u2019s already in the Archive (it\u2019s already filed there \u2014 use Move to cockpit / Delete)'] },
     { v:'2026.07.26-20', notes:['The archive button on each mail in a list now has a clear \u201cFile\u201d label (it was an unlabeled icon), so you can file straight from the overview'] },
     { v:'2026.07.26-19', notes:['The agenda no longer shows demo events (Sprint planning / Dentist / 1:1) in the live app \u2014 Google Calendar sync is a follow-up, so it shows a real empty state instead', 'Keep-warm reworked so the live app stays awake more reliably (GitHub was only pinging every 1\u20133 h instead of every 10 min)'] },
     { v:'2026.07.26-18', notes:['Opening a mail now marks it read automatically, so it clears from New once you\u2019ve looked at it (you can still tap \u201cMark as unread\u201d to keep it)'] },
@@ -827,9 +828,13 @@
       + '<span class="chip-wrap" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:7px"><span class="chip" style="--cc:'+((catById(m.cat)||{}).color||'#888')+'">'+esc((catById(m.cat)||{}).name || m.chip || m.cat)+'</span>'+acctTag(m)+labelChips(m)+'</span></span></button>';
     // trailing read/unread toggle — a sibling button (valid HTML, and it sits
     // outside .card so it never triggers the card swipe)
-    return '<div class="cardwrap">' + card
+    // "File" only for live (not-yet-filed) mail — in the Archive it's already
+    // filed and the row has its own Move-to-cockpit / Delete actions.
+    var arch = m.archived ? '' :
+      '<button class="cardarch" data-act="archive" data-id="'+m.id+'" aria-label="archive" title="Archive (file it)">'+svg('<rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/>',13)+'<span class="calbl">File</span></button>';
+    return '<div class="cardwrap'+(m.archived?' filed':'')+'">' + card
       + '<button class="cardread'+(m.isUnread?' un':'')+'" data-act="toggleread" data-id="'+m.id+'" aria-label="'+(m.isUnread?'mark read':'mark unread')+'" title="'+(m.isUnread?'Mark as read':'Mark as unread')+'"></button>'
-      + '<button class="cardarch" data-act="archive" data-id="'+m.id+'" aria-label="archive" title="Archive (file it)">'+svg('<rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/>',13)+'<span class="calbl">File</span></button></div>';
+      + arch + '</div>';
   }
   // group related mail (same parcel/order/trip) — show the latest, collapse the rest
   var expandedGroups = {};
