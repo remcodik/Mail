@@ -185,13 +185,14 @@ def message_amount(request: Request, message_id: str) -> dict:
     if not msg:
         raise HTTPException(status_code=404, detail="message not found")
     amount = 0.0
+    direction = ""
     if settings.is_live:
         token = store.get_token(uid, msg.get("account"))
         if token:
             try:
                 import re
                 from .gmail_client import GmailClient
-                from .intelligence import read_amount, find_amount_in_text
+                from .intelligence import read_amount, find_amount_in_text, amount_direction
                 client = GmailClient(uid, msg["account"], token)
                 text = msg.get("subject", "") + " " + msg.get("snippet", "") + " " + msg.get("body", "")
                 html = ""
@@ -206,11 +207,12 @@ def message_amount(request: Request, message_id: str) -> dict:
                     if len(images) < 3 and html:                           # many totals live in a remote banner image
                         images += client.fetch_html_images(html, max_images=3 - len(images))
                     amount = read_amount(text, images)
+                direction = amount_direction(text)     # money to receive ('in') or pay ('out')
             except Exception:
                 amount = 0.0
     if amount > 0:                                     # don't cache 0 — let a later, better pass retry
         store.set_money(uid, message_id, amount)
-    return {"ok": True, "amount": amount}
+    return {"ok": True, "amount": amount, "direction": direction}
 
 
 @app.get("/api/messages/{message_id}/html")
