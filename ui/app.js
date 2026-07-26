@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short', timeZone:'Europe/Amsterdam' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.25-22';
+  var BUILD = '2026.07.25-23';
   var CHANGELOG = [
+    { v:'2026.07.25-23', notes:['Mark read/unread straight from the mail list (and archive) \u2014 the circle on each card, no need to open it', 'Cockpit & archive tiles show an unread badge and a \u201c\u00b7 N new\u201d count'] },
     { v:'2026.07.25-22', notes:['Dates and times now show in Amsterdam time (Europe/Amsterdam)'] },
     { v:'2026.07.25-21', notes:['Unread mail stands out (bold + accent bar + dot); Mark as read / unread in any mail (cockpit & archive)', 'Label chips & Settings now show a “filed” count so you see archived mail under a label', 'New Gmail is pulled automatically in the background when you open the app (plus the manual \u21bb)'] },
     { v:'2026.07.25-20', notes:['Removed the leftover demo example tasks from the live app (an earlier version had saved them)'] },
@@ -688,10 +689,11 @@
     var needYou = active.filter(function(m){ return m.needsAction || m.cat==='reply' || (m.cat==='waiting'&&m.overdue); }).length;
     var autoHandled = active.length - needYou;
     var tiles = visibleCats().map(function(c){
-      var n = msgsIn(c.id).length;
+      var ms = msgsIn(c.id), n = ms.length, unr = ms.filter(function(m){ return m.isUnread; }).length;
       return '<button class="tile" style="--tc:'+c.color+'" data-nav="#/c/'+c.id+'">'
+        + (unr ? '<span class="tbadge">'+unr+'</span>' : '')
         + '<span class="ticon">'+svg(iconFor(c),15)+'</span>'
-        + '<span class="tcount">'+n+'</span>'
+        + '<span class="tcount">'+n+(unr?'<span class="tcount-un"> · '+unr+' new</span>':'')+'</span>'
         + '<span class="tname">'+esc(c.name)+'</span>'
         + '<span class="tsub">'+hintFor(c)+'</span></button>';
     }).join('');
@@ -714,12 +716,16 @@
 
   // ---------- screen: category list ----------
   function cardHTML(m){
-    return '<button class="card'+(m.isUnread?' unread':'')+'" data-nav="#/m/'+m.id+'"><span class="av" style="background:'+m.av+'">'+esc(m.initials)+'</span>'
+    var card = '<button class="card'+(m.isUnread?' unread':'')+'" data-nav="#/m/'+m.id+'"><span class="av" style="background:'+m.av+'">'+esc(m.initials)+'</span>'
       + '<span><span class="top"><span class="from">'+(m.isUnread?'<span class="unreaddot"></span>':'')+esc(m.from)+'</span><span class="time">'+esc((m.date?m.date+' · ':'')+(m.time||''))+'</span></span>'
       + '<span class="subj">'+esc(m.subject)+'</span><span class="snip">'+esc(m.snippet)+'</span>'
       + (m.ai ? '<span class="ai-note">'+SPARK+esc(m.ai)+'</span>' : '')
       + (function(){ var gl=groupInfoLine(m); return gl ? '<span class="grpline">'+svg('<path d="M3 7h13v10H3z"/><path d="M16 10h4l1 3v4h-5z"/><circle cx="7" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/>',11)+' '+gl+'</span>' : ''; })()
       + '<span class="chip-wrap" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:7px"><span class="chip" style="--cc:'+catById(m.cat).color+'">'+esc(m.chip||catById(m.cat).name)+'</span>'+acctTag(m)+labelChips(m)+'</span></span></button>';
+    // trailing read/unread toggle — a sibling button (valid HTML, and it sits
+    // outside .card so it never triggers the card swipe)
+    return '<div class="cardwrap">' + card
+      + '<button class="cardread'+(m.isUnread?' un':'')+'" data-act="toggleread" data-id="'+m.id+'" aria-label="'+(m.isUnread?'mark read':'mark unread')+'" title="'+(m.isUnread?'Mark as read':'Mark as unread')+'"></button></div>';
   }
   // group related mail (same parcel/order/trip) — show the latest, collapse the rest
   var expandedGroups = {};
@@ -1010,8 +1016,9 @@
       return (ia<0?999:ia) - (ib<0?999:ib);
     }).map(function(cid){
       var c = catById(cid) || { name:cid, color:'var(--c-junk)', id:cid };
-      return '<button class="tile" style="--tc:'+c.color+'" data-nav="#/archive/'+cid+'"><span class="ticon">'+svg(iconFor(c),15)+'</span>'
-        + '<span class="tcount">'+cats[cid]+'</span><span class="tname">'+esc(c.name)+'</span><span class="tsub">tap to review</span></button>';
+      var unr = arc.filter(function(m){ return m.cat===cid && m.isUnread; }).length;
+      return '<button class="tile" style="--tc:'+c.color+'" data-nav="#/archive/'+cid+'">'+(unr?'<span class="tbadge">'+unr+'</span>':'')+'<span class="ticon">'+svg(iconFor(c),15)+'</span>'
+        + '<span class="tcount">'+cats[cid]+(unr?'<span class="tcount-un"> · '+unr+' new</span>':'')+'</span><span class="tname">'+esc(c.name)+'</span><span class="tsub">tap to review</span></button>';
     }).join('');
     var snoozeSec = sn.length ? '<div class="seghead" style="padding-left:14px">Snoozed · '+sn.length+'</div><div class="list" style="padding-top:0">'
       + '<button class="btn wide" data-act="advancetime" style="border-style:dashed;color:var(--accent-ink)">⏭ Advance demo clock (wake due snoozes)</button>'
