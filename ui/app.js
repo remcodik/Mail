@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short', timeZone:'Europe/Amsterdam' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.26-18';
+  var BUILD = '2026.07.26-19';
   var CHANGELOG = [
+    { v:'2026.07.26-19', notes:['The agenda no longer shows demo events (Sprint planning / Dentist / 1:1) in the live app \u2014 Google Calendar sync is a follow-up, so it shows a real empty state instead', 'Keep-warm reworked so the live app stays awake more reliably (GitHub was only pinging every 1\u20133 h instead of every 10 min)'] },
     { v:'2026.07.26-18', notes:['Opening a mail now marks it read automatically, so it clears from New once you\u2019ve looked at it (you can still tap \u201cMark as unread\u201d to keep it)'] },
     { v:'2026.07.26-17', notes:['New \u201cNew\u201d tile at the top of the cockpit \u2014 all your unread mail in one place, newest first, so you can see what just arrived; each mail still stays in its own category', 'FIXED: the category/label strip now keeps its position when you scroll back the other way too'] },
     { v:'2026.07.26-16', notes:['FIXED: the category/label strip no longer jumps back to the first item every time \u2014 it keeps its sideways scroll position so you can tap straight through to the next one'] },
@@ -1398,7 +1399,10 @@
     var chips = '<div class="calchips">'
       + cals.map(function(c){ return '<button class="calchip'+(c.on?' on':'')+'" data-act="togglecal" data-id="'+c.id+'"><span class="cdotmini" style="background:'+c.color+'"></span>'+esc(c.name)+'</button>'; }).join('')
       + '<button class="calchip add" data-act="addcal">+ Add calendar</button></div>';
-    var events = evs.length ? evs.map(eventRow).join('') : '<div class="empty" style="padding:10px 0">No events in the calendars you’re viewing.</div>';
+    var emptyMsg = (API_OK && !cals.length)
+      ? 'Google Calendar isn’t connected yet — that’s a follow-up. For now, use <b>Open Google Calendar</b> above, or add meetings MailAI proposes from your mail.'
+      : 'No events in the calendars you’re viewing.';
+    var events = evs.length ? evs.map(eventRow).join('') : '<div class="empty" style="padding:10px 0">'+emptyMsg+'</div>';
     var mtg = meetings.length ? '<div class="agendasub">Proposed by MailAI</div>' + meetings.map(meetingRow).join('') : '';
     return head + chips + events + mtg;
   }
@@ -2083,12 +2087,14 @@
     state.mirrorGmail = (data.settings && data.settings.mirror_gmail) || loadMirror();
     state.lang = (data.settings && data.settings.lang) || loadLang();
     state.meetings = loadMeetings() || [];
+    // Agenda: the sample calendars/events are demo-only. In the live app there's
+    // no Google Calendar connection yet (a follow-up), so don't show fake events.
     var calPrefs = loadCalPrefs();
-    state.calendars = DEMO_CALENDARS.map(function(c){
+    state.calendars = API_OK ? [] : DEMO_CALENDARS.map(function(c){
       var p = calPrefs && calPrefs.filter(function(x){ return x.id===c.id; })[0];
       return { id:c.id, name:c.name, color:c.color, on: p ? !!p.on : c.on };
     });
-    state.events = DEMO_EVENTS.slice();
+    state.events = API_OK ? [] : DEMO_EVENTS.slice();
     state.demoNow = 0;
     state.merges = loadMerges();   // manual "merge with…" links
     applyCustomDefs(data.categories);   // re-apply saved custom categories/labels
