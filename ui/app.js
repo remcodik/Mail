@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short', timeZone:'Europe/Amsterdam' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.26-15';
+  var BUILD = '2026.07.26-16';
   var CHANGELOG = [
+    { v:'2026.07.26-16', notes:['FIXED: the category/label strip no longer jumps back to the first item every time \u2014 it keeps its sideways scroll position so you can tap straight through to the next one'] },
     { v:'2026.07.26-15', notes:['FIXED: tapping the Tickets tile did nothing when a ticket mail had no parsed ticket data \u2014 it now opens the list (those mails show as normal cards)', 'FIXED: the category chip on a list/archive card now always matches the category shown in the email detail (it could go stale after a correction)'] },
     { v:'2026.07.26-14', notes:['Amounts are colour-coded: green \u201cto receive\u201d vs red \u201cto pay\u201d, with a + / \u2013 sign and a small tag', 'In the email detail the \u201cShow original with images\u201d button moved to the top and the full email starts collapsed \u2014 no scrolling to the end', 'The \u201cIn Gmail\u201d info is now a collapsed section (it\u2019s just a mirror of your category/labels)'] },
     { v:'2026.07.26-13', notes:['Mail list cards now have an Archive button (not only in the detail)', 'Cleaner email detail: the suggested reply sits right under the summary, a sticky bar keeps Reply \u00b7 Archive \u00b7 Delete always in reach, and the extra actions fold into \u201cMore actions\u201d', 'Money categories show an Amount panel with a \u201cRe-read (incl. images)\u201d button so you can see what was found'] },
@@ -1409,12 +1410,17 @@
   }
 
   var _lastHash = null;
+  var _stripX = {};   // horizontal scroll of the tab/label strips, kept across re-renders
+  var STRIPS = ['.tabs', '.lblrow', '.acctbar', '.calchips'];
   function render(){
     var h = location.hash || '#/';
     // remember scroll so an in-place re-render (toggle, reorder, rename) keeps
     // your position instead of jumping to the top; only reset on real navigation.
     var prevView = root.querySelector('.view');
     var keepScroll = (h === _lastHash) && prevView ? prevView.scrollTop : 0;
+    // remember how far the category-tab / label strips are scrolled sideways, so
+    // clicking through them doesn't snap back to the first item on every rebuild.
+    STRIPS.forEach(function(sel){ var e = root.querySelector(sel); if(e && e.scrollLeft) _stripX[sel] = e.scrollLeft; });
     var v;
     if(h.indexOf('#/c/')===0) v = viewCategory(h.slice(4));
     else if(h.indexOf('#/focus/')===0) v = viewFocus(h.slice(8));
@@ -1440,6 +1446,8 @@
     }); }
     // keep position on in-place re-renders, top on navigation
     var view = root.querySelector('.view'); if(view) view.scrollTop = keepScroll;
+    // restore the sideways scroll of the tab/label strips
+    STRIPS.forEach(function(sel){ if(_stripX[sel]){ var e = root.querySelector(sel); if(e) e.scrollLeft = _stripX[sel]; } });
     if(document.getElementById('rb-preview')) rbUpdatePreview();   // seed the rule preview
     if(document.getElementById('searchresults')) runSearch();      // seed search state
     if(state){ saveTasks(); saveMeetings(); }   // persist tasks & agenda across reloads
