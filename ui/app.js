@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short', timeZone:'Europe/Amsterdam' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.26-3';
+  var BUILD = '2026.07.26-4';
   var CHANGELOG = [
+    { v:'2026.07.26-4', notes:['One clean unread indicator per mail (removed the duplicate dot), and the read/unread circle no longer overlaps the text'] },
     { v:'2026.07.26-3', notes:['Tiles show just the unread number \u2014 no subtitle text'] },
     { v:'2026.07.26-2', notes:['Cockpit & archive tiles now lead with the UNREAD count (big, in accent) with the total as a small \u201cunread of N\u201d line \u2014 removed the cluttered corner badge'] },
     { v:'2026.07.26', notes:['Version and cache-buster now use the real Amsterdam date (it was stuck on 25 Jul)'] },
@@ -695,7 +696,7 @@
       var ms = msgsIn(c.id), n = ms.length, unr = ms.filter(function(m){ return m.isUnread; }).length;
       return '<button class="tile" style="--tc:'+c.color+'" data-nav="#/c/'+c.id+'">'
         + '<span class="ticon">'+svg(iconFor(c),15)+'</span>'
-        + '<span class="tcount'+(unr>0?' hot':'')+'">'+unr+'</span>'
+        + (unr>0?'<span class="tcount hot">'+unr+'</span>':'')
         + '<span class="tname">'+esc(c.name)+'</span>'
         + '<span class="tsub">'+hintFor(c)+'</span></button>';
     }).join('');
@@ -719,7 +720,7 @@
   // ---------- screen: category list ----------
   function cardHTML(m){
     var card = '<button class="card'+(m.isUnread?' unread':'')+'" data-nav="#/m/'+m.id+'"><span class="av" style="background:'+m.av+'">'+esc(m.initials)+'</span>'
-      + '<span><span class="top"><span class="from">'+(m.isUnread?'<span class="unreaddot"></span>':'')+esc(m.from)+'</span><span class="time">'+esc((m.date?m.date+' · ':'')+(m.time||''))+'</span></span>'
+      + '<span><span class="top"><span class="from">'+esc(m.from)+'</span><span class="time">'+esc((m.date?m.date+' · ':'')+(m.time||''))+'</span></span>'
       + '<span class="subj">'+esc(m.subject)+'</span><span class="snip">'+esc(m.snippet)+'</span>'
       + (m.ai ? '<span class="ai-note">'+SPARK+esc(m.ai)+'</span>' : '')
       + (function(){ var gl=groupInfoLine(m); return gl ? '<span class="grpline">'+svg('<path d="M3 7h13v10H3z"/><path d="M16 10h4l1 3v4h-5z"/><circle cx="7" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/>',11)+' '+gl+'</span>' : ''; })()
@@ -1020,7 +1021,7 @@
       var c = catById(cid) || { name:cid, color:'var(--c-junk)', id:cid };
       var unr = arc.filter(function(m){ return m.cat===cid && m.isUnread; }).length;
       return '<button class="tile" style="--tc:'+c.color+'" data-nav="#/archive/'+cid+'"><span class="ticon">'+svg(iconFor(c),15)+'</span>'
-        + '<span class="tcount'+(unr>0?' hot':'')+'">'+unr+'</span><span class="tname">'+esc(c.name)+'</span><span class="tsub">tap to review</span></button>';
+        + (unr>0?'<span class="tcount hot">'+unr+'</span>':'')+'<span class="tname">'+esc(c.name)+'</span><span class="tsub">tap to review</span></button>';
     }).join('');
     var snoozeSec = sn.length ? '<div class="seghead" style="padding-left:14px">Snoozed · '+sn.length+'</div><div class="list" style="padding-top:0">'
       + '<button class="btn wide" data-act="advancetime" style="border-style:dashed;color:var(--accent-ink)">⏭ Advance demo clock (wake due snoozes)</button>'
