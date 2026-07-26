@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short', timeZone:'Europe/Amsterdam' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.25-23';
+  var BUILD = '2026.07.26';
   var CHANGELOG = [
+    { v:'2026.07.26', notes:['Version and cache-buster now use the real Amsterdam date (it was stuck on 25 Jul)'] },
     { v:'2026.07.25-23', notes:['Mark read/unread straight from the mail list (and archive) \u2014 the circle on each card, no need to open it', 'Cockpit & archive tiles show an unread badge and a \u201c\u00b7 N new\u201d count'] },
     { v:'2026.07.25-22', notes:['Dates and times now show in Amsterdam time (Europe/Amsterdam)'] },
     { v:'2026.07.25-21', notes:['Unread mail stands out (bold + accent bar + dot); Mark as read / unread in any mail (cockpit & archive)', 'Label chips & Settings now show a “filed” count so you see archived mail under a label', 'New Gmail is pulled automatically in the background when you open the app (plus the manual \u21bb)'] },
