@@ -58,6 +58,19 @@ class GmailClient:
             "isUnread": "UNREAD" in raw.get("labelIds", []),
         }
 
+    def get_when(self, message_id: str) -> tuple[str, str]:
+        """(date, time) strings from a message's Date header only — a cheap
+        metadata fetch used to repair older stored mail that predates these
+        fields. Empty strings on failure."""
+        raw = self._service().users().messages().get(
+            userId="me", id=message_id, format="metadata", metadataHeaders=["Date"]).execute()
+        hdr = ""
+        for h in raw.get("payload", {}).get("headers", []):
+            if h.get("name", "").lower() == "date":
+                hdr = h.get("value", "")
+                break
+        return _short_date(hdr), _short_time(hdr)
+
     def get_html(self, message_id: str) -> str:
         """Fetch a message's rich HTML body on demand (not stored — kept out of
         the per-user blob so storage stays small). Falls back to the plain text

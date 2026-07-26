@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short', timeZone:'Europe/Amsterdam' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.26-22';
+  var BUILD = '2026.07.26-23';
   var CHANGELOG = [
+    { v:'2026.07.26-23', notes:['Mails now show a DATE as well as the time in the lists \u2014 older mail that was missing a date gets one filled in on the next sync', 'Date + time also added to the Newsletter and Waiting lists'] },
     { v:'2026.07.26-22', notes:['Each mail in a list now has a Delete button next to File \u2014 delete straight from the cockpit (with an undo toast); the two sit in a tidy action column with the read/unread dot'] },
     { v:'2026.07.26-21', notes:['The \u201cFile\u201d button no longer shows on mail that\u2019s already in the Archive (it\u2019s already filed there \u2014 use Move to cockpit / Delete)'] },
     { v:'2026.07.26-20', notes:['The archive button on each mail in a list now has a clear \u201cFile\u201d label (it was an unlabeled icon), so you can file straight from the overview'] },
@@ -820,9 +821,10 @@
   }
 
   // ---------- screen: category list ----------
+  function whenStr(m){ return esc((m.date ? m.date+' · ' : '') + (m.time || '')); }
   function cardHTML(m){
     var card = '<button class="card'+(m.isUnread?' unread':'')+'" data-nav="#/m/'+m.id+'"><span class="av" style="background:'+m.av+'">'+esc(m.initials)+'</span>'
-      + '<span><span class="top"><span class="from">'+esc(m.from)+'</span><span class="time">'+esc((m.date?m.date+' · ':'')+(m.time||''))+'</span></span>'
+      + '<span><span class="top"><span class="from">'+esc(m.from)+'</span><span class="time">'+whenStr(m)+'</span></span>'
       + '<span class="subj">'+esc(m.subject)+'</span><span class="snip">'+esc(m.snippet)+'</span>'
       + (m.ai ? '<span class="ai-note">'+SPARK+esc(m.ai)+'</span>' : '')
       + (function(){ var gl=groupInfoLine(m); return gl ? '<span class="grpline">'+svg('<path d="M3 7h13v10H3z"/><path d="M16 10h4l1 3v4h-5z"/><circle cx="7" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/>',11)+' '+gl+'</span>' : ''; })()
@@ -864,13 +866,16 @@
     return out.join('');
   }
   function newsletterHTML(m){
-    return '<div class="nrow"><div><div class="nm">'+esc(m.from)+' '+acctTag(m)+'</div><div class="fr">'+esc(m.freq||'')+' · '+(m.unread||0)+' unread</div></div>'
+    var w = whenStr(m);
+    return '<div class="nrow"><div><div class="nm">'+esc(m.from)+' '+acctTag(m)+'</div><div class="fr">'+esc(m.freq||'')+' · '+(m.unread||0)+' unread'+(w?' · '+w:'')+'</div></div>'
       + '<div class="acts"><button class="pill unsub" data-act="unsub" data-id="'+m.id+'">Unsubscribe</button>'
       + '<button class="pill" data-act="archive" data-id="'+m.id+'">Archive</button></div></div>';
   }
   function waitingHTML(m){
+    var w = whenStr(m);
     return '<div class="wcard'+(m.overdue?' over':'')+'"><div class="top"><span class="to">'+esc(m.to||m.from)+' '+acctTag(m)+'</span>'
       + '<span class="days'+(m.overdue?' hot':'')+'">'+m.days+' day'+(m.days===1?'':'s')+(m.overdue?' · overdue':'')+'</span></div>'
+      + (w?'<div class="wwhen">Sent '+w+'</div>':'')
       + '<div class="sj">'+esc(m.subject)+'</div>'
       + '<div class="btnrow"><button class="btn pri" data-nav="#/m/'+m.id+'">Follow up</button>'
       + '<button class="btn" data-act="done" data-id="'+m.id+'">Done</button></div></div>';
@@ -1106,10 +1111,10 @@
     // otherwise its cockpit category.
     var backNav = m.archived ? '#/archive/'+m.cat : '#/c/'+m.cat;
     var backLabel = m.archived ? (cat.name+' · filed') : cat.name;
-    var whenStr = (m.date?m.date+' · ':'')+(m.time||'');
+    var when = whenStr(m);
     return {
       top: '<button class="back" data-nav="'+backNav+'">'+svg('<path d="M15 18l-6-6 6-6"/>',16)+' '+esc(backLabel)+'</button>'
-         + '<h1>'+esc(m.subject)+'</h1><div class="sub"><b>'+esc(m.from)+'</b> · '+esc(whenStr)+' '+acctTag(m)+'</div>',
+         + '<h1>'+esc(m.subject)+'</h1><div class="sub"><b>'+esc(m.from)+'</b> · '+when+' '+acctTag(m)+'</div>',
       withBack: true,
       body: '<div class="detail">'+parts.join('')+'</div>',
       nav: m.archived ? 'archive' : 'cockpit'

@@ -223,6 +223,7 @@ a{color:inherit}
 .wcard .to{font-size:13px;font-weight:650}
 .wcard .days{font-size:11px;font-weight:700;font-family:ui-monospace,monospace;color:var(--ink-3)}
 .wcard .days.hot{color:var(--c-urgent)}
+.wcard .wwhen{font-size:11px;color:var(--ink-3);font-family:ui-monospace,monospace;margin-top:3px}
 .wcard .sj{font-size:12px;color:var(--ink-2);margin:3px 0 9px}
 
 /* tickets */
