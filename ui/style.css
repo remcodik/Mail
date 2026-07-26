@@ -126,6 +126,15 @@ a{color:inherit}
 .tile.add{align-items:center;justify-content:center;min-height:74px;border-style:dashed;
   color:var(--accent-ink);font-weight:700;font-size:12.5px;gap:6px;flex-direction:row}
 .tile.add::before{display:none}
+.tile.newtile{--tc:var(--accent);flex-direction:row;align-items:center;gap:12px;min-height:0;
+  padding:12px 14px;background:color-mix(in srgb,var(--accent) 8%,var(--surface));
+  border-color:color-mix(in srgb,var(--accent) 30%,var(--line))}
+.tile.newtile .newtext{display:flex;flex-direction:column;min-width:0}
+.tile.newtile .tname{margin-top:0;font-size:15px}
+.tile.newtile .tsub{margin-top:1px}
+.tile.newtile .newbadge{margin-left:auto;background:var(--accent);color:#fff;font-weight:800;font-size:15px;
+  min-width:26px;height:26px;border-radius:13px;display:grid;place-items:center;padding:0 8px;
+  font-variant-numeric:tabular-nums}
 .tile:focus-visible,.card:focus-visible,.tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 /* ---- account switcher (multi-account separation) ---- */
