@@ -110,6 +110,34 @@ def detect_scheduling_intent(email: dict) -> bool:
     return out == "scheduling"
 
 
+def _parse_amt(s: str) -> float:
+    import re
+    s = re.sub(r"\s", "", s)
+    if re.search(r",\d{2}$", s):        # EU decimal comma: 1.234,56
+        s = s.replace(".", "").replace(",", ".")
+    elif re.search(r"\.\d{2}$", s):     # US decimal dot: 1,234.56
+        s = s.replace(",", "")
+    else:                                # integer
+        s = re.sub(r"[.,\s]", "", s)
+    try:
+        return float(s)
+    except Exception:
+        return 0.0
+
+
+def find_amount_in_text(text: str) -> float:
+    """Largest € figure in the text — €/EUR/euro(s) before or after the number,
+    both EU and US formats. Free (no API)."""
+    import re
+    best = 0.0
+    pat = r"(?:€|euros?|eur)\s*(\d[\d.,]*\d|\d)|(\d[\d.,]*\d|\d)\s*(?:€|euros?\b|eur\b)"
+    for m in re.finditer(pat, text or "", re.I):
+        v = _parse_amt(m.group(1) or m.group(2))
+        if v > best:
+            best = v
+    return best
+
+
 def read_amount(text: str, images: list[dict] | None = None) -> float:
     """Read the grand total (in euros) from a receipt/invoice — the text first,
     then any images via Claude vision. Returns 0.0 if none. Live only. The mail

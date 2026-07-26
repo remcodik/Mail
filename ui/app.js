@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short', timeZone:'Europe/Amsterdam' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.26-10';
+  var BUILD = '2026.07.26-11';
   var CHANGELOG = [
+    { v:'2026.07.26-11', notes:['Amount detection now also scans the mail\u2019s HTML text (many receipts put the total in HTML, not plain text) before using image vision \u2014 fixes \u20ac0 on Purchases'] },
     { v:'2026.07.26-10', notes:['Per-category € toggle in Settings \u2014 turn on \u201cshow amount\u201d for any category (e.g. Te betalen)', 'Reads amounts from receipt/invoice IMAGES too (Claude vision) when there is no amount in the text'] },
     { v:'2026.07.26-9', notes:['Amount recognition now understands the word \u201cEuro/EUR\u201d and amounts written after the number (e.g. \u201cEuro 120,03\u201d) \u2014 fixes Invoices totals'] },
     { v:'2026.07.26-8', notes:['Purchases & Invoices tiles show BOTH the count and the \u20ac amount (e.g. \u201c3 mails \u00b7 \u20ac249\u201d)'] },

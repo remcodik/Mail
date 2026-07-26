@@ -189,15 +189,23 @@ def message_amount(request: Request, message_id: str) -> dict:
         token = store.get_token(uid, msg.get("account"))
         if token:
             try:
+                import re
                 from .gmail_client import GmailClient
-                from .intelligence import read_amount
+                from .intelligence import read_amount, find_amount_in_text
                 client = GmailClient(uid, msg["account"], token)
-                text = (msg.get("subject", "") + " " + msg.get("snippet", "") + " " + msg.get("body", ""))
-                images = client.get_amount_images(message_id)
-                amount = read_amount(text, images)
+                text = msg.get("subject", "") + " " + msg.get("snippet", "") + " " + msg.get("body", "")
+                try:                                   # include the HTML body's text (stripped of tags)
+                    html = client.get_html(message_id)
+                    text += " " + re.sub(r"<[^>]+>", " ", html or "")
+                except Exception:
+                    pass
+                amount = find_amount_in_text(text)     # free text scan first
+                if amount <= 0:                        # only pay for vision when the text has nothing
+                    amount = read_amount(text, client.get_amount_images(message_id))
             except Exception:
                 amount = 0.0
-    store.set_money(uid, message_id, amount)
+    if amount > 0:                                     # don't cache 0 — let a later, better pass retry
+        store.set_money(uid, message_id, amount)
     return {"ok": True, "amount": amount}
 
 
