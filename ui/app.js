@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short', timeZone:'Europe/Amsterdam' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.26';
+  var BUILD = '2026.07.26-2';
   var CHANGELOG = [
+    { v:'2026.07.26-2', notes:['Cockpit & archive tiles now lead with the UNREAD count (big, in accent) with the total as a small \u201cunread of N\u201d line \u2014 removed the cluttered corner badge'] },
     { v:'2026.07.26', notes:['Version and cache-buster now use the real Amsterdam date (it was stuck on 25 Jul)'] },
     { v:'2026.07.25-23', notes:['Mark read/unread straight from the mail list (and archive) \u2014 the circle on each card, no need to open it', 'Cockpit & archive tiles show an unread badge and a \u201c\u00b7 N new\u201d count'] },
     { v:'2026.07.25-22', notes:['Dates and times now show in Amsterdam time (Europe/Amsterdam)'] },
@@ -692,9 +693,8 @@
     var tiles = visibleCats().map(function(c){
       var ms = msgsIn(c.id), n = ms.length, unr = ms.filter(function(m){ return m.isUnread; }).length;
       return '<button class="tile" style="--tc:'+c.color+'" data-nav="#/c/'+c.id+'">'
-        + (unr ? '<span class="tbadge">'+unr+'</span>' : '')
         + '<span class="ticon">'+svg(iconFor(c),15)+'</span>'
-        + '<span class="tcount">'+n+(unr?'<span class="tcount-un"> · '+unr+' new</span>':'')+'</span>'
+        + '<span class="tcount'+(unr>0?' hot':'')+'">'+unr+(n?'<span class="tof">unread of '+n+'</span>':'')+'</span>'
         + '<span class="tname">'+esc(c.name)+'</span>'
         + '<span class="tsub">'+hintFor(c)+'</span></button>';
     }).join('');
@@ -1018,8 +1018,8 @@
     }).map(function(cid){
       var c = catById(cid) || { name:cid, color:'var(--c-junk)', id:cid };
       var unr = arc.filter(function(m){ return m.cat===cid && m.isUnread; }).length;
-      return '<button class="tile" style="--tc:'+c.color+'" data-nav="#/archive/'+cid+'">'+(unr?'<span class="tbadge">'+unr+'</span>':'')+'<span class="ticon">'+svg(iconFor(c),15)+'</span>'
-        + '<span class="tcount">'+cats[cid]+(unr?'<span class="tcount-un"> · '+unr+' new</span>':'')+'</span><span class="tname">'+esc(c.name)+'</span><span class="tsub">tap to review</span></button>';
+      return '<button class="tile" style="--tc:'+c.color+'" data-nav="#/archive/'+cid+'"><span class="ticon">'+svg(iconFor(c),15)+'</span>'
+        + '<span class="tcount'+(unr>0?' hot':'')+'">'+unr+'<span class="tof">unread of '+cats[cid]+'</span></span><span class="tname">'+esc(c.name)+'</span><span class="tsub">tap to review</span></button>';
     }).join('');
     var snoozeSec = sn.length ? '<div class="seghead" style="padding-left:14px">Snoozed · '+sn.length+'</div><div class="list" style="padding-top:0">'
       + '<button class="btn wide" data-act="advancetime" style="border-style:dashed;color:var(--accent-ink)">⏭ Advance demo clock (wake due snoozes)</button>'
