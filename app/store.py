@@ -156,6 +156,15 @@ class Store:
                     return True
         return False
 
+    def set_unread(self, user_id: str, message_id: str, unread: bool) -> bool:
+        with self._lock:
+            for m in self._bucket(user_id)["messages"]:
+                if m["id"] == message_id:
+                    m["isUnread"] = bool(unread)
+                    self._persist(user_id)
+                    return True
+        return False
+
     def snooze_message(self, user_id: str, message_id: str, until: str, bucket: int) -> bool:
         """Hide a mail until it's due; persists the wake label + bucket."""
         with self._lock:

@@ -122,6 +122,25 @@ def delete_message(request: Request, message_id: str) -> dict:
     return {"ok": True}
 
 
+@app.post("/api/messages/{message_id}/read")
+def set_read(request: Request, message_id: str, unread: bool = Body(False, embed=True)) -> dict:
+    """Mark a message read (unread=false) or unread (unread=true). Mirrors to
+    Gmail's UNREAD label when live + a token is present."""
+    uid = _uid(request)
+    if not store.set_unread(uid, message_id, unread):
+        raise HTTPException(status_code=404, detail="message not found")
+    if settings.is_live:
+        msg = next((m for m in store.messages(uid, include_archived=True) if m["id"] == message_id), None)
+        token = store.get_token(uid, msg.get("account")) if msg else None
+        if token:
+            try:
+                from .gmail_client import GmailClient
+                GmailClient(uid, msg["account"], token).set_unread(message_id, unread)
+            except Exception:
+                pass
+    return {"ok": True, "unread": bool(unread)}
+
+
 @app.post("/api/messages/{message_id}/snooze")
 def snooze(request: Request, message_id: str,
            until: str = Body("", embed=True), bucket: int = Body(9, embed=True)) -> dict:

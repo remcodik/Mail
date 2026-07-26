@@ -37,7 +37,7 @@
 
   const messages = [
     // ---- urgent ----
-    { id: 'm1', cat: 'urgent', from: 'Sarah Bennett', initials: 'SB', av: '#E5484D', time: '08:12',
+    { id: 'm1', cat: 'urgent', from: 'Sarah Bennett', initials: 'SB', av: '#E5484D', time: '08:12', isUnread: true,
       subject: 'Re: Q3 board deck — need numbers by noon',
       snippet: 'Can you get me the revised revenue slide before the 12:00 review? The chair specifically asked for it.',
       chip: 'Urgent', ai: 'Deadline today 12:00 · 1 task extracted', needsAction: true,

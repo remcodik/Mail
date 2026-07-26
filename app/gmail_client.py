@@ -55,6 +55,7 @@ class GmailClient:
             "time": _short_time(headers.get("date", "")),
             "date": _short_date(headers.get("date", "")),
             "gmail_labels": raw.get("labelIds", []),
+            "isUnread": "UNREAD" in raw.get("labelIds", []),
         }
 
     def get_html(self, message_id: str) -> str:
@@ -83,6 +84,10 @@ class GmailClient:
     def remove_label(self, message_id: str, label_id: str) -> None:
         self._service().users().messages().modify(
             userId="me", id=message_id, body={"removeLabelIds": [label_id]}).execute()
+
+    def set_unread(self, message_id: str, unread: bool) -> None:
+        body = {"addLabelIds": ["UNREAD"]} if unread else {"removeLabelIds": ["UNREAD"]}
+        self._service().users().messages().modify(userId="me", id=message_id, body=body).execute()
 
     def ensure_label(self, name: str) -> str:
         """Return the Gmail label id for `name` (e.g. "MailAI/Urgent"), creating it

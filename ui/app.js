@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.25-20';
+  var BUILD = '2026.07.25-21';
   var CHANGELOG = [
+    { v:'2026.07.25-21', notes:['Unread mail stands out (bold + accent bar + dot); Mark as read / unread in any mail (cockpit & archive)', 'Label chips & Settings now show a “filed” count so you see archived mail under a label', 'New Gmail is pulled automatically in the background when you open the app (plus the manual \u21bb)'] },
     { v:'2026.07.25-20', notes:['Removed the leftover demo example tasks from the live app (an earlier version had saved them)'] },
     { v:'2026.07.25-19', notes:['FIXED: fixing a mail\u2019s category/label now sticks \u2014 it no longer snaps back to the old one when rules re-run', 'The \u21bb button (cockpit + archive) instantly re-sorts everything with your current rules'] },
     { v:'2026.07.25-18', notes:['Tasks & agenda now stay after a refresh (saved on your device)', 'Settings: a short “What is an AI rule?” explainer at the top of Label rules'] },
@@ -656,7 +657,8 @@
   function labelsRow(){
     if(!state.labels || !state.labels.length) return '';
     var chips = state.labels.map(function(l){
-      return '<button class="lblchip" style="--lc:'+l.color+'" data-nav="#/label/'+l.id+'">'+esc(l.name)+' <b>'+labelCount(l.id)+'</b></button>';
+      var filed = labelFiled(l.id).length;
+      return '<button class="lblchip" style="--lc:'+l.color+'" data-nav="#/label/'+l.id+'">'+esc(l.name)+' <b>'+labelCount(l.id)+'</b>'+(filed?'<span class="lblfiled">'+filed+' filed</span>':'')+'</button>';
     }).join('');
     return '<div class="lblrow"><span class="lblrow-h">'+SPARK+' Labels</span>'+chips+'</div>';
   }
@@ -711,8 +713,8 @@
 
   // ---------- screen: category list ----------
   function cardHTML(m){
-    return '<button class="card" data-nav="#/m/'+m.id+'"><span class="av" style="background:'+m.av+'">'+esc(m.initials)+'</span>'
-      + '<span><span class="top"><span class="from">'+esc(m.from)+'</span><span class="time">'+esc((m.date?m.date+' · ':'')+(m.time||''))+'</span></span>'
+    return '<button class="card'+(m.isUnread?' unread':'')+'" data-nav="#/m/'+m.id+'"><span class="av" style="background:'+m.av+'">'+esc(m.initials)+'</span>'
+      + '<span><span class="top"><span class="from">'+(m.isUnread?'<span class="unreaddot"></span>':'')+esc(m.from)+'</span><span class="time">'+esc((m.date?m.date+' · ':'')+(m.time||''))+'</span></span>'
       + '<span class="subj">'+esc(m.subject)+'</span><span class="snip">'+esc(m.snippet)+'</span>'
       + (m.ai ? '<span class="ai-note">'+SPARK+esc(m.ai)+'</span>' : '')
       + (function(){ var gl=groupInfoLine(m); return gl ? '<span class="grpline">'+svg('<path d="M3 7h13v10H3z"/><path d="M16 10h4l1 3v4h-5z"/><circle cx="7" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/>',11)+' '+gl+'</span>' : ''; })()
@@ -947,6 +949,9 @@
     if(m.cat==='newsletter'){
       parts.push('<div class="btnrow"><button class="btn danger wide" data-act="unsub" data-id="'+m.id+'">Unsubscribe</button></div>');
     }
+    parts.push('<div class="btnrow"><button class="btn wide" data-act="toggleread" data-id="'+m.id+'">'
+      + (m.isUnread ? svg('<path d="M4 4h16v16H4z" opacity="0"/><path d="M22 6l-10 7L2 6"/><rect x="2" y="4" width="20" height="16" rx="2"/>',14)+' Mark as read'
+                  : svg('<circle cx="12" cy="12" r="8"/>',13)+' Mark as unread') + '</button></div>');
     if(m.archived){
       parts.push('<div class="ai-note" style="padding:2px 4px">'+SPARK+'Filed — hidden from the cockpit, still kept under its labels.</div>');
       parts.push('<div class="btnrow"><button class="btn" data-act="restore" data-id="'+m.id+'">Restore to inbox</button>'
@@ -1181,7 +1186,7 @@
       + rows + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="addcat">+ Add a category</button>';
     var labelsInner = (state.labels||[]).map(function(l){ return '<div class="catrow"><span class="grip">#</span>'
         + '<button class="cdot" data-act="lblrecolor" data-id="'+l.id+'" style="background:'+l.color+';border:0;cursor:pointer" aria-label="recolor '+esc(l.name)+'"></button>'
-        + '<span><span class="cnm">'+esc(l.name)+'</span><br><span class="ccount">'+labelCount(l.id)+' mails</span></span>'
+        + '<span><span class="cnm">'+esc(l.name)+'</span><br><span class="ccount">'+labelCount(l.id)+' active'+(labelFiled(l.id).length?(' · '+labelFiled(l.id).length+' filed'):'')+'</span></span>'
         + '<button class="rule-x" data-act="lblrenamedef" data-id="'+l.id+'" aria-label="rename '+esc(l.name)+'">✎</button>'
         + '<button class="rule-x" data-act="lbldeldef" data-id="'+l.id+'" aria-label="delete '+esc(l.name)+'">✕</button></div>'; }).join('')
       + '<button class="btn wide" style="border-style:dashed;color:var(--accent-ink)" data-act="newlabeldef">+ Add a label</button>';
@@ -1651,6 +1656,7 @@
       }
       case 'rulefrommail': { var rfm=msgById(id); if(rfm){ rbPrefill = { kind: rfm.domain?'domain':'sender', value: rfm.domain||rfm.from }; location.hash='#/newrule'; } break; }
       case 'syncnow': syncNow(); break;
+      case 'toggleread': { var trm=msgById(id); if(trm){ trm.isUnread=!trm.isUnread; apiPost('/api/messages/'+id+'/read', { unread: trm.isUnread }); toast(trm.isUnread?'Marked unread':'Marked read'); } render(); break; }
       case 'bulklabel': { if(!srchResults.length){ toast('No results to tag'); break; } pendingRule = { applyOnce: srchResults.slice() }; render(); break; }
       case 'bulkarchive': {
         if(!srchResults.length){ toast('No results to archive'); break; }
@@ -1930,7 +1936,10 @@
     recomputeAll();
     render();
     evaluateAiRules();   // refine AI rules with Claude's semantic match (live)
+    // pull genuinely new Gmail once per session, in the background, after showing cached mail
+    if(API_OK && !_autoSynced){ _autoSynced = true; setTimeout(syncNow, 800); }
   }
+  var _autoSynced = false;
   function showSignIn(){
     var root = document.getElementById('root');
     root.innerHTML = '<div class="signin">'
