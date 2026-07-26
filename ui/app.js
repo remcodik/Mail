@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short', timeZone:'Europe/Amsterdam' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.26-12';
+  var BUILD = '2026.07.26-13';
   var CHANGELOG = [
+    { v:'2026.07.26-13', notes:['Mail list cards now have an Archive button (not only in the detail)', 'Cleaner email detail: the suggested reply sits right under the summary, a sticky bar keeps Reply \u00b7 Archive \u00b7 Delete always in reach, and the extra actions fold into \u201cMore actions\u201d', 'Money categories show an Amount panel with a \u201cRe-read (incl. images)\u201d button so you can see what was found'] },
     { v:'2026.07.26-12', notes:['Settings sections now start collapsed \u2014 tap a heading to open it', 'Every category can be deleted now (built-ins too), and a deleted built-in stays gone', 'Amount reading now also fetches remote banner images (e.g. energy \u201cTotaal te ontvangen\u201d) and reads the headline total whether it\u2019s to pay OR to receive'] },
     { v:'2026.07.26-11', notes:['Amount detection now also scans the mail\u2019s HTML text (many receipts put the total in HTML, not plain text) before using image vision \u2014 fixes \u20ac0 on Purchases'] },
     { v:'2026.07.26-10', notes:['Per-category € toggle in Settings \u2014 turn on \u201cshow amount\u201d for any category (e.g. Te betalen)', 'Reads amounts from receipt/invoice IMAGES too (Claude vision) when there is no amount in the text'] },
@@ -507,6 +508,21 @@
       + '<button class="pseg'+(p.scope==='domain'?' on':'')+'" data-act="'+act+'" data-v="domain">@'+esc(p.domain)+'</button>'
       + '<button class="pseg'+(p.scope==='subject'?' on':'')+'" data-act="'+act+'" data-v="subject">Subject…</button></div>';
   }
+  // sticky action bar on the email detail — primary actions always in reach,
+  // no scrolling to the bottom. Reply (jumps to the suggested reply), Archive
+  // (or Restore when filed), Delete.
+  function detailBar(){
+    var h = location.hash || '';
+    if(h.indexOf('#/m/')!==0) return '';
+    var m = msgById(h.slice(4));
+    if(!m) return '';
+    var reply = m.reply ? '<button class="btn pri" data-act="replyjump" data-id="'+m.id+'">'+svg('<path d="M9 17l-5-5 5-5"/><path d="M4 12h11a5 5 0 0 1 5 5v1"/>',15)+' Reply</button>' : '';
+    var file = m.archived
+      ? '<button class="btn" data-act="restore" data-id="'+m.id+'">Restore</button>'
+      : '<button class="btn" data-act="archive" data-id="'+m.id+'">'+svg('<rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/>',14)+' Archive</button>';
+    return '<div class="detailbar">'+reply+file
+      + '<button class="btn danger" data-act="delete" data-id="'+m.id+'">'+svg('<path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6"/>',14)+' Delete</button></div>';
+  }
   function proposalBar(){
     if(!pendingProposal) return '';
     var p = pendingProposal;
@@ -786,7 +802,8 @@
     // trailing read/unread toggle — a sibling button (valid HTML, and it sits
     // outside .card so it never triggers the card swipe)
     return '<div class="cardwrap">' + card
-      + '<button class="cardread'+(m.isUnread?' un':'')+'" data-act="toggleread" data-id="'+m.id+'" aria-label="'+(m.isUnread?'mark read':'mark unread')+'" title="'+(m.isUnread?'Mark as read':'Mark as unread')+'"></button></div>';
+      + '<button class="cardread'+(m.isUnread?' un':'')+'" data-act="toggleread" data-id="'+m.id+'" aria-label="'+(m.isUnread?'mark read':'mark unread')+'" title="'+(m.isUnread?'Mark as read':'Mark as unread')+'"></button>'
+      + '<button class="cardarch" data-act="archive" data-id="'+m.id+'" aria-label="archive" title="Archive (file it)">'+svg('<rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/>',14)+'</button></div>';
   }
   // group related mail (same parcel/order/trip) — show the latest, collapse the rest
   var expandedGroups = {};
@@ -952,6 +969,12 @@
     parts.push('<div class="panel ai"><p class="h">'+SPARK+' AI summary</p><p>'+esc(m.summary || m.snippet)+'</p>'
       + (function(){ var gl=groupInfoLine(m); return gl ? '<p class="grpline" style="margin-top:8px">'+svg('<path d="M3 7h13v10H3z"/><path d="M16 10h4l1 3v4h-5z"/><circle cx="7" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/>',12)+' '+gl+'</p>' : ''; })()
       + '</div>');
+    // reply sits right under the summary — the main thing you came here to do
+    if(m.reply){
+      parts.push('<div class="panel reply" id="replypanel-'+m.id+'"><p class="h">'+SPARK+' Suggested reply · professional</p><div class="reply-body">'+esc(m.reply)+'</div>'
+        + '<div class="btnrow"><button class="btn pri" data-act="send" data-id="'+m.id+'">'+svg('<path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/>',14)+' Send</button>'
+        + '<button class="btn" data-act="edit">Edit</button><button class="btn ghost" data-act="discard">Discard</button></div></div>');
+    }
     var bodyText = m.body || m.snippet || '';
     parts.push('<details class="panel mailpanel" open><summary class="h">Full email</summary>'
       + '<div class="mailbody" id="mailbody-'+m.id+'">'+esc(bodyText).replace(/\n/g,'<br>')+'</div>'
@@ -985,6 +1008,15 @@
       }).join('');
       parts.push('<div class="panel"><p class="h">'+SPARK+' Extracted details</p>'+kv+'</div>');
     }
+    // amount panel — for money categories (Purchases/Invoices/your own). Shows the
+    // detected € total and lets you re-read it (incl. from banner/receipt images).
+    if(wantsMoney(cat)){
+      var amt = amountOf(m);
+      parts.push('<div class="panel"><p class="h">'+svg('<path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',13)+' Amount</p>'
+        + '<div class="amtline"><span class="amtval'+(amt>0?'':' none')+'">'+(amt>0?('€ '+amt.toFixed(2).replace('.',',')):'Not found yet')+'</span>'
+        + (API_OK ? '<button class="btn" data-act="readamount" data-id="'+m.id+'">'+svg('<path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/>',13)+' Re-read (incl. images)</button>' : '')+'</div>'
+        + '<div class="ai-note" style="margin-top:8px">Reads the headline total — to pay or to receive. If it stays empty, the amount may sit in an image I can’t reach.</div></div>');
+    }
     if(m.tasks && m.tasks.length){
       parts.push('<div class="panel"><p class="h">Extracted tasks</p>'+m.tasks.map(function(t,ti){
         var added = (state.tasks||[]).some(function(x){ return x.msgId===m.id && x.text===t.text; });
@@ -992,41 +1024,32 @@
           + '<button class="miniadd'+(added?' done':'')+'" data-act="addtask" data-id="'+m.id+'" data-ti="'+ti+'"'+(added?' disabled':'')+'>'+(added?'✓ Added':'+ Task')+'</button></div>';
       }).join('')+'</div>');
     }
-    parts.push('<button class="btn wide" data-act="newtask" data-id="'+m.id+'" style="border-style:dashed;color:var(--accent-ink)">+ Create task from this email</button>');
-    parts.push('<button class="btn wide" data-act="rulefrommail" data-id="'+m.id+'" style="border-style:dashed;color:var(--accent-ink)">'+SPARK+' Make a rule from this sender…</button>');
-    // manual grouping (option B): merge this delivery/purchase with another, or split it off
+    // secondary actions tucked into a collapsible "More" so they don't bury the page
+    var more = [];
+    more.push('<button class="btn wide" data-act="newtask" data-id="'+m.id+'" style="border-style:dashed;color:var(--accent-ink)">+ Create task from this email</button>');
+    more.push('<button class="btn wide" data-act="rulefrommail" data-id="'+m.id+'" style="border-style:dashed;color:var(--accent-ink)">'+SPARK+' Make a rule from this sender…</button>');
     if(m.cat==='delivery' || m.cat==='purchase'){
       var inManual = state.merges && state.merges[m.id]!==undefined;
       var mates = m.group ? (state.messages||[]).filter(function(x){ return x.group===m.group && x.id!==m.id; }).length : 0;
-      parts.push('<button class="btn wide" data-act="merge" data-id="'+m.id+'" style="border-style:dashed;color:var(--accent-ink)">'
+      more.push('<button class="btn wide" data-act="merge" data-id="'+m.id+'" style="border-style:dashed;color:var(--accent-ink)">'
         + svg('<path d="M7 4v6a4 4 0 0 0 4 4h6"/><path d="M17 10l4 4-4 4"/>',13)+' Merge with another delivery…</button>');
       if(inManual || mates){
-        parts.push('<button class="btn wide" data-act="unmerge" data-id="'+m.id+'" style="border-style:dashed">Remove this mail from its group</button>');
+        more.push('<button class="btn wide" data-act="unmerge" data-id="'+m.id+'" style="border-style:dashed">Remove this mail from its group</button>');
       }
     }
-    // scheduling: propose a meeting/appointment for the agenda (parallel to tasks)
     if(looksScheduley(m)){
-      parts.push('<div class="ai-note" style="padding:2px 4px">'+SPARK+'Looks like scheduling — want an appointment on your agenda?</div>');
+      more.push('<div class="ai-note" style="padding:2px 4px">'+SPARK+'Looks like scheduling — want an appointment on your agenda?</div>');
     }
-    parts.push('<button class="btn wide" data-act="proposemeeting" data-id="'+m.id+'" style="border-style:dashed;color:var(--accent-ink)">+ Propose meeting for agenda</button>');
-    if(m.reply){
-      parts.push('<div class="panel"><p class="h">Suggested reply · professional</p><div class="reply-body">'+esc(m.reply)+'</div>'
-        + '<div class="btnrow"><button class="btn pri" data-act="send" data-id="'+m.id+'">Send</button>'
-        + '<button class="btn" data-act="edit">Edit</button><button class="btn ghost" data-act="discard">Discard</button></div></div>');
-    }
+    more.push('<button class="btn wide" data-act="proposemeeting" data-id="'+m.id+'" style="border-style:dashed;color:var(--accent-ink)">+ Propose meeting for agenda</button>');
     if(m.cat==='newsletter'){
-      parts.push('<div class="btnrow"><button class="btn danger wide" data-act="unsub" data-id="'+m.id+'">Unsubscribe</button></div>');
+      more.push('<button class="btn danger wide" data-act="unsub" data-id="'+m.id+'">Unsubscribe</button>');
     }
-    parts.push('<div class="btnrow"><button class="btn wide" data-act="toggleread" data-id="'+m.id+'">'
-      + (m.isUnread ? svg('<path d="M4 4h16v16H4z" opacity="0"/><path d="M22 6l-10 7L2 6"/><rect x="2" y="4" width="20" height="16" rx="2"/>',14)+' Mark as read'
-                  : svg('<circle cx="12" cy="12" r="8"/>',13)+' Mark as unread') + '</button></div>');
+    more.push('<button class="btn wide" data-act="toggleread" data-id="'+m.id+'">'
+      + (m.isUnread ? svg('<path d="M22 6l-10 7L2 6"/><rect x="2" y="4" width="20" height="16" rx="2"/>',14)+' Mark as read'
+                  : svg('<circle cx="12" cy="12" r="8"/>',13)+' Mark as unread') + '</button>');
+    parts.push('<details class="panel moreacts"><summary class="h">More actions</summary><div class="moregrid">'+more.join('')+'</div></details>');
     if(m.archived){
       parts.push('<div class="ai-note" style="padding:2px 4px">'+SPARK+'Filed — hidden from the cockpit, still kept under its labels.</div>');
-      parts.push('<div class="btnrow"><button class="btn" data-act="restore" data-id="'+m.id+'">Restore to inbox</button>'
-        + '<button class="btn danger" data-act="delete" data-id="'+m.id+'">Delete</button></div>');
-    } else {
-      parts.push('<div class="btnrow"><button class="btn" data-act="archive" data-id="'+m.id+'">Archive (file it)</button>'
-        + '<button class="btn danger" data-act="delete" data-id="'+m.id+'">Delete</button></div>');
     }
     // back goes where the mail actually lives: the Archive if it's filed,
     // otherwise its cockpit category.
@@ -1384,7 +1407,7 @@
     var html = '<div class="topbar'+(v.withBack?' with-back':'')+'">'+v.top+'</div>'
       + (v.tabs||'')
       + (v.bare ? v.body : '<div class="view">'+v.body+'</div>')
-      + proposalBar() + catProposalBar() + unsubBar() + snoozeBar() + followupBar() + meetingBar() + mergeBar() + rulePickBar() + catPickBar()
+      + detailBar() + proposalBar() + catProposalBar() + unsubBar() + snoozeBar() + followupBar() + meetingBar() + mergeBar() + rulePickBar() + catPickBar()
       + tabbar(v.nav);
     root.innerHTML = html;
     localize(root);   // switch UI chrome to Dutch when selected
@@ -1460,6 +1483,17 @@
       case 'togglecal': { var cc=calById(id); if(cc){ cc.on=!cc.on; saveCalPrefs(); toast(cc.on?('Showing '+cc.name):('Hidden '+cc.name)); } render(); break; }
       case 'addcal': { var nm=window.prompt('Add a calendar to view (name):',''); if(nm&&nm.trim()){ var pal=['#D6336C','#0891B2','#059669','#B45309','#7C3AED']; state.calendars.push({ id:'cal'+Date.now(), name:nm.trim(), color:pal[state.calendars.length%pal.length], on:true }); saveCalPrefs(); toast('Calendar added'); } render(); break; }
       case 'wallet': toast('Added to Apple Wallet (demo)'); break;
+      case 'replyjump': { var rp=document.getElementById('replypanel-'+id); if(rp){ rp.scrollIntoView({behavior:'smooth', block:'center'}); rp.classList.add('flash'); setTimeout(function(){ rp.classList.remove('flash'); }, 900); } break; }
+      case 'readamount': {
+        var am=msgById(id); if(!am) break;
+        el.disabled = true; toast(SPARK+'Reading the amount…');
+        _amtChecked[id] = 1;
+        fetch('/api/messages/'+encodeURIComponent(id)+'/amount', { method:'POST', credentials:'same-origin' })
+          .then(function(r){ return r.ok ? r.json() : null; })
+          .then(function(d){ var v = d && d.amount || 0; am.money = v; toast(v>0 ? ('Found € '+v.toFixed(2).replace('.',',')) : 'No amount found in this mail'); render(); })
+          .catch(function(){ toast('Could not read the amount — try again'); render(); });
+        break;
+      }
       case 'edit': toast('Editing (demo)'); break;
       case 'discard': toast('Draft discarded'); break;
       case 'addrule': toast('Rule editor coming in a later sprint'); break;
