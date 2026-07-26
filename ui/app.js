@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short', timeZone:'Europe/Amsterdam' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.26-24';
+  var BUILD = '2026.07.26-25';
   var CHANGELOG = [
+    { v:'2026.07.26-25', notes:['Attachments: mail with attachments now shows a list in the detail with a Get button per file \u2014 nothing is downloaded until you tap it; images preview inline. (Older mail gets its attachment list on the next sync.)'] },
     { v:'2026.07.26-24', notes:['Bigger, further-apart action buttons on each mail (File / Del / read dot) so they\u2019re easier to tap without hitting the wrong one; also enlarged the Newsletter, group and detail buttons a touch'] },
     { v:'2026.07.26-23', notes:['Mails now show a DATE as well as the time in the lists \u2014 older mail that was missing a date gets one filled in on the next sync', 'Date + time also added to the Newsletter and Waiting lists'] },
     { v:'2026.07.26-22', notes:['Each mail in a list now has a Delete button next to File \u2014 delete straight from the cockpit (with an undo toast); the two sit in a tidy action column with the read/unread dot'] },
@@ -203,6 +204,7 @@
     'Archive (file it)':'Archiveren (opbergen)','Restore to inbox':'Terug naar inbox',
     'Move to cockpit':'Naar cockpit','Unsubscribe':'Uitschrijven','+ New':'+ Nieuw',
     'New':'Nieuw','all caught up':'alles bijgewerkt','File':'Archief','Del':'Wis',
+    'Get':'Ophalen','Open':'Openen','Nothing is downloaded until you tap Get.':'Er wordt niets opgehaald tot je op Ophalen tikt.',
     '+ Create task from this email':'+ Maak een taak van deze e-mail',
     '+ Propose meeting for agenda':'+ Stel afspraak voor agenda voor',
     'Wake now':'Nu wekken','Cancel':'Annuleren','Apply rule':'Regel toepassen',
@@ -823,6 +825,7 @@
 
   // ---------- screen: category list ----------
   function whenStr(m){ return esc((m.date ? m.date+' · ' : '') + (m.time || '')); }
+  function fmtSize(n){ n = +n || 0; if(n < 1024) return n+' B'; if(n < 1048576) return Math.round(n/1024)+' KB'; return (n/1048576).toFixed(1)+' MB'; }
   function cardHTML(m){
     var card = '<button class="card'+(m.isUnread?' unread':'')+'" data-nav="#/m/'+m.id+'"><span class="av" style="background:'+m.av+'">'+esc(m.initials)+'</span>'
       + '<span><span class="top"><span class="from">'+esc(m.from)+'</span><span class="time">'+whenStr(m)+'</span></span>'
@@ -1032,6 +1035,16 @@
       + '<button class="btn wide" data-act="showhtml" data-id="'+m.id+'" style="margin:2px 0 10px;border-style:dashed;color:var(--accent-ink)">'
       + svg('<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/>',13)+' Show original with images</button>'
       + '<div class="mailbody" id="mailbody-'+m.id+'">'+esc(bodyText).replace(/\n/g,'<br>')+'</div></details>');
+    // attachments — only shown when the mail has any; bytes fetched on tap
+    if(m.attachments && m.attachments.length){
+      parts.push('<div class="panel"><p class="h">'+svg('<path d="M21 8l-9 9a5 5 0 0 1-7-7l9-9a3.5 3.5 0 0 1 5 5l-8 8a1.5 1.5 0 0 1-2-2l7-7"/>',13)+' Attachments · '+m.attachments.length+'</p>'
+        + m.attachments.map(function(a){
+            return '<div class="attrow" id="att-'+esc(a.attachmentId)+'"><span class="attinfo"><span class="attname">'+esc(a.filename||'attachment')+'</span>'
+              + '<span class="attmeta">'+fmtSize(a.size)+'</span></span>'
+              + (API_OK ? '<button class="btn" data-act="getatt" data-id="'+m.id+'" data-att="'+esc(a.attachmentId)+'" data-name="'+esc(a.filename||'attachment')+'" data-mime="'+esc(a.mime||'')+'">'+svg('<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>',13)+' Get</button>' : '')+'</div>';
+          }).join('')
+        + '<div class="ai-note" style="margin-top:8px">Nothing is downloaded until you tap Get.</div></div>');
+    }
     // labels — AI-assigned, tap to fix (the app learns from the change)
     var lblEditor = (state.labels||[]).map(function(l){
       var on = (m.labels||[]).indexOf(l.id) >= 0;
@@ -1565,6 +1578,25 @@
           .then(function(r){ return r.ok ? r.json() : null; })
           .then(function(d){ var v = d && d.amount || 0; am.money = v; if(d && d.direction) am.moneyDir = d.direction; toast(v>0 ? ('Found € '+v.toFixed(2).replace('.',',')) : 'No amount found in this mail'); render(); })
           .catch(function(){ toast('Could not read the amount — try again'); render(); });
+        break;
+      }
+      case 'getatt': {
+        var aid = el.getAttribute('data-att'), nm = el.getAttribute('data-name') || 'attachment', mime = el.getAttribute('data-mime') || '';
+        var oldhtml = el.innerHTML; el.disabled = true; el.textContent = '…'; toast(SPARK+'Fetching '+nm+'…');
+        fetch('/api/messages/'+encodeURIComponent(id)+'/attachment/'+encodeURIComponent(aid), { credentials:'same-origin' })
+          .then(function(r){ return r.ok ? r.json() : null; })
+          .then(function(d){
+            if(!d || !d.data){ toast('Could not fetch attachment'); el.disabled=false; el.innerHTML=oldhtml; return; }
+            var href = 'data:'+(d.mime || mime || 'application/octet-stream')+';base64,'+d.data;
+            var row = document.getElementById('att-'+aid);
+            if(row){
+              var btn = row.querySelector('[data-act="getatt"]');
+              if(btn) btn.outerHTML = '<a class="btn pri" href="'+href+'" download="'+esc(d.filename||nm)+'" target="_blank" rel="noopener">Open</a>';
+              if((d.mime || mime || '').indexOf('image/')===0){ var pv = document.createElement('img'); pv.className='attimg'; pv.src=href; pv.alt=esc(d.filename||nm); row.appendChild(pv); }
+            }
+            toast('Fetched '+(d.filename||nm));
+          })
+          .catch(function(){ toast('Could not fetch attachment'); el.disabled=false; el.innerHTML=oldhtml; });
         break;
       }
       case 'edit': toast('Editing (demo)'); break;

@@ -54,9 +54,19 @@ class GmailClient:
             "body": _extract_body(raw.get("payload", {})),
             "time": _short_time(headers.get("date", "")),
             "date": _short_date(headers.get("date", "")),
+            "attachments": _attachments_from_payload(raw.get("payload", {})),
             "gmail_labels": raw.get("labelIds", []),
             "isUnread": "UNREAD" in raw.get("labelIds", []),
         }
+
+    def get_attachment(self, message_id: str, attachment_id: str) -> str:
+        """Download one attachment's bytes on demand, as standard base64 (for a
+        data: URL / download). Only called when the user taps 'Get'."""
+        import base64
+        att = self._service().users().messages().attachments().get(
+            userId="me", messageId=message_id, id=attachment_id).execute()
+        raw = base64.urlsafe_b64decode(att.get("data", ""))
+        return base64.b64encode(raw).decode()
 
     def get_when(self, message_id: str) -> tuple[str, str]:
         """(date, time) strings from a message's Date header only — a cheap
@@ -226,6 +236,25 @@ def _color_for(name: str) -> str:
     for ch in name:
         h = (h * 31 + ord(ch)) & 0xFFFFFFFF
     return palette[h % len(palette)]
+
+
+def _attachments_from_payload(payload: dict) -> list[dict]:
+    """Real (named) attachments in a message — metadata only, no bytes. Cheap:
+    read from the payload we already have. Inline images without a filename are
+    skipped so the list is just the files a user would want to download."""
+    out: list[dict] = []
+    def walk(part):
+        fn = part.get("filename") or ""
+        body = part.get("body", {})
+        if fn and body.get("attachmentId"):
+            out.append({"filename": fn,
+                        "mime": part.get("mimeType", "application/octet-stream"),
+                        "size": int(body.get("size", 0) or 0),
+                        "attachmentId": body["attachmentId"]})
+        for p in part.get("parts", []) or []:
+            walk(p)
+    walk(payload)
+    return out
 
 
 def _extract_body(payload: dict) -> str:

@@ -238,6 +238,30 @@ def message_html(request: Request, message_id: str) -> dict:
     return {"ok": True, "html": "<pre style='white-space:pre-wrap;font:inherit'>" + _h.escape(text) + "</pre>"}
 
 
+@app.get("/api/messages/{message_id}/attachment/{attachment_id}")
+def message_attachment(request: Request, message_id: str, attachment_id: str) -> dict:
+    """Download one attachment's bytes on demand (live only). Only called when the
+    user taps 'Get' on an attachment, so nothing is fetched until then. Returns
+    base64 for a data: URL / download."""
+    uid = _uid(request)
+    msg = next((m for m in store.messages(uid, include_archived=True) if m["id"] == message_id), None)
+    if not msg:
+        raise HTTPException(status_code=404, detail="message not found")
+    att = next((a for a in msg.get("attachments", []) if a.get("attachmentId") == attachment_id), {})
+    if not settings.is_live:
+        raise HTTPException(status_code=400, detail="attachments are live-only")
+    token = store.get_token(uid, msg.get("account"))
+    if not token:
+        raise HTTPException(status_code=400, detail="no token for account")
+    try:
+        from .gmail_client import GmailClient
+        data = GmailClient(uid, msg["account"], token).get_attachment(message_id, attachment_id)
+    except Exception:
+        raise HTTPException(status_code=502, detail="could not fetch attachment")
+    return {"ok": True, "filename": att.get("filename", "attachment"),
+            "mime": att.get("mime", "application/octet-stream"), "data": data}
+
+
 @app.post("/api/messages/{message_id}/labels")
 def fix_label(request: Request, message_id: str, label_id: str = Body(embed=True)) -> dict:
     """Add/remove a label on a message and learn from it (applies to same-sender mail)."""
