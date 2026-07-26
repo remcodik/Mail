@@ -90,8 +90,11 @@ a{color:inherit}
 .tile::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--tc,var(--ink-3))}
 .tile .ticon{width:27px;height:27px;border-radius:8px;display:grid;place-items:center;
   background:color-mix(in srgb,var(--tc) 15%,transparent);color:var(--tc)}
-.tile .tcount{position:absolute;top:9px;right:13px;font-size:26px;font-weight:800;line-height:1;
-  letter-spacing:-.02em;color:var(--ink);font-family:ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.tile .tcount{position:absolute;top:9px;right:13px;font-size:28px;font-weight:800;line-height:1;
+  letter-spacing:-.02em;color:var(--ink-3);font-family:ui-monospace,monospace;font-variant-numeric:tabular-nums;
+  display:flex;flex-direction:column;align-items:flex-end}
+.tile .tcount.hot{color:var(--accent-ink)}
+.tile .tof{font-size:10px;font-weight:700;color:var(--ink-3);margin-top:4px;font-family:var(--font,inherit);letter-spacing:0;white-space:nowrap}
 .tile .tname{font-size:13.5px;font-weight:700;margin-top:9px;letter-spacing:-.01em}
 .tile .tsub{font-size:11px;color:var(--ink-2);margin-top:1px}
 .tile .tsub b{color:var(--tc)}
@@ -257,8 +260,6 @@ a{color:inherit}
 .cardread.un{background:var(--accent);border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent)}
 .cardread:active{transform:translateY(-50%) scale(.9)}
 .tile{position:relative}
-.tbadge{position:absolute;top:9px;right:9px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--accent);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;box-sizing:border-box}
-.tcount-un{font-size:12px;font-weight:700;color:var(--accent-ink)}
 .srchacts{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-bottom:12px;padding:10px;background:color-mix(in srgb,var(--accent) 6%,var(--surface));border:1px solid var(--line);border-radius:11px}
 .srchacts-h{font-size:11.5px;font-weight:700;color:var(--ink-2);width:100%}
 .srchacts .btn{padding:7px 11px;font-size:12.5px}
