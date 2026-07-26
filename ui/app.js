@@ -26,11 +26,12 @@
 
   // ---------- helpers ----------
   function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); }
-  function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short' }); } catch(e){ return ''; } }
+  function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short', timeZone:'Europe/Amsterdam' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.25-21';
+  var BUILD = '2026.07.25-22';
   var CHANGELOG = [
+    { v:'2026.07.25-22', notes:['Dates and times now show in Amsterdam time (Europe/Amsterdam)'] },
     { v:'2026.07.25-21', notes:['Unread mail stands out (bold + accent bar + dot); Mark as read / unread in any mail (cockpit & archive)', 'Label chips & Settings now show a “filed” count so you see archived mail under a label', 'New Gmail is pulled automatically in the background when you open the app (plus the manual \u21bb)'] },
     { v:'2026.07.25-20', notes:['Removed the leftover demo example tasks from the live app (an earlier version had saved them)'] },
     { v:'2026.07.25-19', notes:['FIXED: fixing a mail\u2019s category/label now sticks \u2014 it no longer snaps back to the old one when rules re-run', 'The \u21bb button (cockpit + archive) instantly re-sorts everything with your current rules'] },

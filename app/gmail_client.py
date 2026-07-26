@@ -179,18 +179,31 @@ def _extract_html(payload: dict) -> str:
     return walk(payload)
 
 
-def _short_time(date_header: str) -> str:
+def _amsterdam(date_header: str):
+    """Parse a Date header and convert it to Europe/Amsterdam local time so the
+    UI shows times in the user's zone (falls back to the parsed time as-is)."""
     from email.utils import parsedate_to_datetime
+    from datetime import timezone
+    dt = parsedate_to_datetime(date_header)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
     try:
-        return parsedate_to_datetime(date_header).strftime("%H:%M")
+        from zoneinfo import ZoneInfo
+        return dt.astimezone(ZoneInfo("Europe/Amsterdam"))
+    except Exception:
+        return dt
+
+
+def _short_time(date_header: str) -> str:
+    try:
+        return _amsterdam(date_header).strftime("%H:%M")
     except Exception:
         return ""
 
 
 def _short_date(date_header: str) -> str:
-    """Compact day+month for the mail list, e.g. '25 Jul'."""
-    from email.utils import parsedate_to_datetime
+    """Compact day+month for the mail list, e.g. '25 Jul' (Amsterdam time)."""
     try:
-        return parsedate_to_datetime(date_header).strftime("%d %b").lstrip("0")
+        return _amsterdam(date_header).strftime("%d %b").lstrip("0")
     except Exception:
         return ""
