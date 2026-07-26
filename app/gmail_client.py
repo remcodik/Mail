@@ -100,6 +100,14 @@ class GmailClient:
         self._service().users().messages().modify(
             userId="me", id=message_id, body={"removeLabelIds": ["INBOX"]}).execute()
 
+    def trash(self, message_id: str) -> None:
+        """Move the message to Gmail's Trash (recoverable ~30 days), not permanent."""
+        self._service().users().messages().trash(userId="me", id=message_id).execute()
+
+    def untrash(self, message_id: str) -> None:
+        """Bring a message back out of Gmail's Trash (undo a delete)."""
+        self._service().users().messages().untrash(userId="me", id=message_id).execute()
+
     def apply_label(self, message_id: str, label_id: str) -> None:
         self._service().users().messages().modify(
             userId="me", id=message_id, body={"addLabelIds": [label_id]}).execute()

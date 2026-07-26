@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short', timeZone:'Europe/Amsterdam' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.26-25';
+  var BUILD = '2026.07.26-26';
   var CHANGELOG = [
+    { v:'2026.07.26-26', notes:['Delete now moves the mail to Gmail\u2019s Trash (recoverable ~30 days) instead of only hiding it in MailAI \u2014 Undo brings it straight back'] },
     { v:'2026.07.26-25', notes:['Attachments: mail with attachments now shows a list in the detail with a Get button per file \u2014 nothing is downloaded until you tap it; images preview inline. (Older mail gets its attachment list on the next sync.)'] },
     { v:'2026.07.26-24', notes:['Bigger, further-apart action buttons on each mail (File / Del / read dot) so they\u2019re easier to tap without hitting the wrong one; also enlarged the Newsletter, group and detail buttons a touch'] },
     { v:'2026.07.26-23', notes:['Mails now show a DATE as well as the time in the lists \u2014 older mail that was missing a date gets one filled in on the next sync', 'Date + time also added to the Newsletter and Waiting lists'] },
@@ -1534,7 +1535,7 @@
     if(undoable) toast(msg, function(){ m.archived=false; render(); }); else toast(msg); }
   function snoozeMsg(id, label, key){ var m=msgById(id); if(m){ m.snoozed=true; m.snoozeUntil=label||''; m.snoozeBucket=SNOOZE_ORDER[key]||9; apiPost('/api/messages/'+id+'/snooze', { until:m.snoozeUntil, bucket:m.snoozeBucket }); toast('Snoozed'+(label?' · '+label:'')+' · '+m.from, function(){ m.snoozed=false; m.snoozeUntil=''; m.snoozeBucket=0; apiPost('/api/messages/'+id+'/restore'); render(); }); } }
   function removeMsg(id){ var idx=-1, m=null; for(var i=0;i<state.messages.length;i++){ if(state.messages[i].id===id){ idx=i; m=state.messages[i]; state.messages.splice(i,1); break; } }
-    if(m){ apiPost('/api/messages/'+id+'/delete'); toast('Deleted · '+m.from, function(){ state.messages.splice(idx,0,m); render(); }); } }
+    if(m){ apiPost('/api/messages/'+id+'/delete'); toast('Moved to Trash · '+m.from, function(){ state.messages.splice(idx,0,m); apiPost('/api/messages/'+id+'/untrash'); render(); }); } }
   function restoreMsg(id){ var m=msgById(id); if(m){ m.archived=false; m.snoozed=false; apiPost('/api/messages/'+id+'/restore'); toast('Moved to cockpit · '+m.from); } }
   function archiveGroup(gid){ var hit=[]; state.messages.forEach(function(m){ if(m.group===gid && isActive(m) && inSel(m)){ m.archived=true; apiPost('/api/messages/'+m.id+'/archive'); hit.push(m); } });
     toast('Filed '+hit.length+' update'+(hit.length===1?'':'s'), function(){ hit.forEach(function(m){ m.archived=false; apiPost('/api/messages/'+m.id+'/restore'); }); render(); }); }
@@ -1954,7 +1955,7 @@
         if(gone.length && window.confirm('Delete all '+gone.length+' filed mail? (You can Undo right after.)')){
           gone.forEach(function(m){ apiPost('/api/messages/'+m.id+'/delete'); });
           state.messages = state.messages.filter(function(m){ return !(m.archived && !m.snoozed); });
-          toast('Archive emptied · '+gone.length, function(){ gone.forEach(function(m){ if(!msgById(m.id)){ state.messages.push(m); apiPost('/api/messages/'+m.id+'/restore'); } }); render(); });
+          toast('Moved '+gone.length+' to Trash', function(){ gone.forEach(function(m){ if(!msgById(m.id)){ state.messages.push(m); apiPost('/api/messages/'+m.id+'/untrash'); } }); render(); });
         }
         render(); break;
       }
@@ -1964,7 +1965,7 @@
         if(goneC.length && window.confirm('Delete all '+goneC.length+' filed '+(cat2?cat2.name:dc)+' mail?')){
           goneC.forEach(function(m){ apiPost('/api/messages/'+m.id+'/delete'); });
           state.messages = state.messages.filter(function(m){ return !(m.archived && !m.snoozed && m.cat===dc); });
-          toast('Deleted '+goneC.length+' · '+(cat2?cat2.name:dc), function(){ goneC.forEach(function(m){ if(!msgById(m.id)){ state.messages.push(m); apiPost('/api/messages/'+m.id+'/restore'); } }); render(); });
+          toast('Moved '+goneC.length+' to Trash · '+(cat2?cat2.name:dc), function(){ goneC.forEach(function(m){ if(!msgById(m.id)){ state.messages.push(m); apiPost('/api/messages/'+m.id+'/untrash'); } }); render(); });
         }
         location.hash = '#/archive'; break;
       }
