@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short', timeZone:'Europe/Amsterdam' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.26-23';
+  var BUILD = '2026.07.26-24';
   var CHANGELOG = [
+    { v:'2026.07.26-24', notes:['Bigger, further-apart action buttons on each mail (File / Del / read dot) so they\u2019re easier to tap without hitting the wrong one; also enlarged the Newsletter, group and detail buttons a touch'] },
     { v:'2026.07.26-23', notes:['Mails now show a DATE as well as the time in the lists \u2014 older mail that was missing a date gets one filled in on the next sync', 'Date + time also added to the Newsletter and Waiting lists'] },
     { v:'2026.07.26-22', notes:['Each mail in a list now has a Delete button next to File \u2014 delete straight from the cockpit (with an undo toast); the two sit in a tidy action column with the read/unread dot'] },
     { v:'2026.07.26-21', notes:['The \u201cFile\u201d button no longer shows on mail that\u2019s already in the Archive (it\u2019s already filed there \u2014 use Move to cockpit / Delete)'] },
@@ -834,8 +835,8 @@
     // Delete only for live (not-yet-filed) mail — the Archive keeps its own
     // Move-to-cockpit / Delete actions on the row.
     var liveActs = m.archived ? '' :
-      '<button class="cardarch" data-act="archive" data-id="'+m.id+'" aria-label="archive" title="Archive (file it)">'+svg('<rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/>',13)+'<span class="calbl">File</span></button>'
-    + '<button class="carddel" data-act="delete" data-id="'+m.id+'" aria-label="delete" title="Delete">'+svg('<path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6"/>',13)+'<span class="calbl">Del</span></button>';
+      '<button class="cardarch" data-act="archive" data-id="'+m.id+'" aria-label="archive" title="Archive (file it)">'+svg('<rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/>',15)+'<span class="calbl">File</span></button>'
+    + '<button class="carddel" data-act="delete" data-id="'+m.id+'" aria-label="delete" title="Delete">'+svg('<path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6"/>',15)+'<span class="calbl">Del</span></button>';
     return '<div class="cardwrap'+(m.archived?' filed':'')+'">' + card
       + '<div class="cardacts">'
       + '<button class="cardread'+(m.isUnread?' un':'')+'" data-act="toggleread" data-id="'+m.id+'" aria-label="'+(m.isUnread?'mark read':'mark unread')+'" title="'+(m.isUnread?'Mark as read':'Mark as unread')+'"></button>'
