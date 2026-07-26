@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short', timeZone:'Europe/Amsterdam' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.26-13';
+  var BUILD = '2026.07.26-14';
   var CHANGELOG = [
+    { v:'2026.07.26-14', notes:['Amounts are colour-coded: green \u201cto receive\u201d vs red \u201cto pay\u201d, with a + / \u2013 sign and a small tag', 'In the email detail the \u201cShow original with images\u201d button moved to the top and the full email starts collapsed \u2014 no scrolling to the end', 'The \u201cIn Gmail\u201d info is now a collapsed section (it\u2019s just a mirror of your category/labels)'] },
     { v:'2026.07.26-13', notes:['Mail list cards now have an Archive button (not only in the detail)', 'Cleaner email detail: the suggested reply sits right under the summary, a sticky bar keeps Reply \u00b7 Archive \u00b7 Delete always in reach, and the extra actions fold into \u201cMore actions\u201d', 'Money categories show an Amount panel with a \u201cRe-read (incl. images)\u201d button so you can see what was found'] },
     { v:'2026.07.26-12', notes:['Settings sections now start collapsed \u2014 tap a heading to open it', 'Every category can be deleted now (built-ins too), and a deleted built-in stays gone', 'Amount reading now also fetches remote banner images (e.g. energy \u201cTotaal te ontvangen\u201d) and reads the headline total whether it\u2019s to pay OR to receive'] },
     { v:'2026.07.26-11', notes:['Amount detection now also scans the mail\u2019s HTML text (many receipts put the total in HTML, not plain text) before using image vision \u2014 fixes \u20ac0 on Purchases'] },
@@ -723,6 +724,15 @@
     return best;
   }
   function catMoney(ms){ return ms.reduce(function(s,m){ return s + amountOf(m); }, 0); }
+  // is this amount money you RECEIVE ('in', green) or PAY ('out', red)? Prefers the
+  // backend's reading (m.moneyDir), else scans the mail text for the usual wording.
+  function amountDir(m){
+    if(m.moneyDir==='in' || m.moneyDir==='out') return m.moneyDir;
+    var t = ((m.subject||'')+' '+(m.snippet||'')+' '+(m.summary||'')+' '+(m.body||'')).toLowerCase();
+    if(/te ontvangen|ontvang|je krijgt|terug te ontvangen|terugbetaling|terugstort|tegoed|refund|credit|you (?:will )?receive|we owe you/.test(t)) return 'in';
+    if(/te betalen|te voldoen|factuurbedrag|openstaand|verschuldigd|amount due|please pay|incasso|automatisch afgeschreven|te incasseren/.test(t)) return 'out';
+    return '';
+  }
   // for money-tiles: when a mail has no € in its text, ask the backend to read it
   // (incl. from images via vision) and cache it. Batched + capped to limit cost.
   var _amtChecked = {};
@@ -735,7 +745,7 @@
     Promise.all(todo.map(function(m){
       return fetch('/api/messages/'+encodeURIComponent(m.id)+'/amount', { method:'POST', credentials:'same-origin' })
         .then(function(r){ return r.ok ? r.json() : null; })
-        .then(function(d){ if(d) m.money = d.amount || 0; }).catch(function(){});
+        .then(function(d){ if(d){ m.money = d.amount || 0; if(d.direction) m.moneyDir = d.direction; } }).catch(function(){});
     })).then(function(){ render(); });
   }
   function isMoneyCat(cat){ return /invoice|factu|rekening|\bbill|betaal|betaling|payment|te betalen/i.test(cat.name||''); }
@@ -976,10 +986,12 @@
         + '<button class="btn" data-act="edit">Edit</button><button class="btn ghost" data-act="discard">Discard</button></div></div>');
     }
     var bodyText = m.body || m.snippet || '';
-    parts.push('<details class="panel mailpanel" open><summary class="h">Full email</summary>'
-      + '<div class="mailbody" id="mailbody-'+m.id+'">'+esc(bodyText).replace(/\n/g,'<br>')+'</div>'
-      + '<button class="btn wide" data-act="showhtml" data-id="'+m.id+'" style="margin-top:8px;border-style:dashed;color:var(--accent-ink)">'
-      + svg('<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/>',13)+' Show original with images</button></details>');
+    // Full email starts collapsed; the "show original with images" button sits at
+    // the TOP so you don't scroll the whole body to reach it.
+    parts.push('<details class="panel mailpanel"><summary class="h">Full email</summary>'
+      + '<button class="btn wide" data-act="showhtml" data-id="'+m.id+'" style="margin:2px 0 10px;border-style:dashed;color:var(--accent-ink)">'
+      + svg('<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/>',13)+' Show original with images</button>'
+      + '<div class="mailbody" id="mailbody-'+m.id+'">'+esc(bodyText).replace(/\n/g,'<br>')+'</div></details>');
     // labels — AI-assigned, tap to fix (the app learns from the change)
     var lblEditor = (state.labels||[]).map(function(l){
       var on = (m.labels||[]).indexOf(l.id) >= 0;
@@ -995,11 +1007,12 @@
     }).join('');
     parts.push('<div class="panel"><p class="h">'+SPARK+' Category · tap to fix</p><div class="lbledit">'+catEditor+'</div>'
       + '<div class="ai-note" style="margin-top:8px">Wrong bucket? Tap the right one — I learn from it.</div></div>');
-    // if Gmail sync is on, show exactly which Gmail labels this mail gets
+    // if Gmail sync is on, show exactly which Gmail labels this mail gets —
+    // collapsed, since it's just a mirror of the category/labels above.
     if(state.mirrorGmail){
-      parts.push('<div class="panel"><p class="h">'+svg('<path d="M3 6l9 6 9-6"/><rect x="3" y="5" width="18" height="14" rx="2"/>',13)+' In Gmail</p><div class="lbledit">'
+      parts.push('<details class="panel gmailpanel"><summary class="h">'+svg('<path d="M3 6l9 6 9-6"/><rect x="3" y="5" width="18" height="14" rx="2"/>',13)+' In Gmail</summary><div class="lbledit" style="margin-top:10px">'
         + gmailLabelNames(m).map(function(n,i){ return '<span class="lbl gmail'+(i===0?' main':'')+'">'+esc(n)+'</span>'; }).join('')
-        + '</div><div class="ai-note" style="margin-top:8px">These appear on this mail in the Gmail app too. The <b>first</b> is the main label (your category); the rest are your labels.</div></div>');
+        + '</div><div class="ai-note" style="margin-top:8px">These appear on this mail in the Gmail app too. The <b>first</b> is the main label (your category); the rest are your labels.</div></details>');
     }
     if(m.extracted){
       var kv = Object.keys(m.extracted).map(function(k){
@@ -1011,11 +1024,15 @@
     // amount panel — for money categories (Purchases/Invoices/your own). Shows the
     // detected € total and lets you re-read it (incl. from banner/receipt images).
     if(wantsMoney(cat)){
-      var amt = amountOf(m);
+      var amt = amountOf(m), dir = amt>0 ? amountDir(m) : '';
+      var sign = dir==='in' ? '+ ' : (dir==='out' ? '– ' : '');
+      var tag = dir==='in' ? '<span class="amttag in">to receive</span>' : (dir==='out' ? '<span class="amttag out">to pay</span>' : '');
+      var valHtml = amt>0 ? '<span class="amtval '+dir+'">'+sign+'€ '+amt.toFixed(2).replace('.',',')+'</span>'+tag
+                          : '<span class="amtval none">Not found yet</span>';
       parts.push('<div class="panel"><p class="h">'+svg('<path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',13)+' Amount</p>'
-        + '<div class="amtline"><span class="amtval'+(amt>0?'':' none')+'">'+(amt>0?('€ '+amt.toFixed(2).replace('.',',')):'Not found yet')+'</span>'
+        + '<div class="amtline">'+valHtml
         + (API_OK ? '<button class="btn" data-act="readamount" data-id="'+m.id+'">'+svg('<path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/>',13)+' Re-read (incl. images)</button>' : '')+'</div>'
-        + '<div class="ai-note" style="margin-top:8px">Reads the headline total — to pay or to receive. If it stays empty, the amount may sit in an image I can’t reach.</div></div>');
+        + '<div class="ai-note" style="margin-top:8px"><span style="color:var(--pos)">Green</span> = money you receive · <span style="color:var(--neg)">red</span> = money you pay. If it stays empty, the amount may sit in an image I can’t reach.</div></div>');
     }
     if(m.tasks && m.tasks.length){
       parts.push('<div class="panel"><p class="h">Extracted tasks</p>'+m.tasks.map(function(t,ti){
@@ -1490,7 +1507,7 @@
         _amtChecked[id] = 1;
         fetch('/api/messages/'+encodeURIComponent(id)+'/amount', { method:'POST', credentials:'same-origin' })
           .then(function(r){ return r.ok ? r.json() : null; })
-          .then(function(d){ var v = d && d.amount || 0; am.money = v; toast(v>0 ? ('Found € '+v.toFixed(2).replace('.',',')) : 'No amount found in this mail'); render(); })
+          .then(function(d){ var v = d && d.amount || 0; am.money = v; if(d && d.direction) am.moneyDir = d.direction; toast(v>0 ? ('Found € '+v.toFixed(2).replace('.',',')) : 'No amount found in this mail'); render(); })
           .catch(function(){ toast('Could not read the amount — try again'); render(); });
         break;
       }

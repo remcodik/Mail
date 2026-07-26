@@ -138,6 +138,18 @@ def find_amount_in_text(text: str) -> float:
     return best
 
 
+def amount_direction(text: str) -> str:
+    """Is the amount money you RECEIVE ('in') or PAY ('out')? Keyword scan of the
+    mail text (Dutch + English). '' when unclear. Free (no API)."""
+    import re
+    t = (text or "").lower()
+    if re.search(r"te ontvangen|ontvang|je krijgt|terug te ontvangen|terugbetaling|terugstort|tegoed|refund|credit|you (?:will )?receive|we owe you", t):
+        return "in"
+    if re.search(r"te betalen|te voldoen|factuurbedrag|openstaand|verschuldigd|amount due|please pay|incasso|automatisch afgeschreven|te incasseren", t):
+        return "out"
+    return ""
+
+
 def read_amount(text: str, images: list[dict] | None = None) -> float:
     """Read the grand total (in euros) from a receipt/invoice — the text first,
     then any images via Claude vision. Returns 0.0 if none. Live only. The mail

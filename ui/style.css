@@ -4,6 +4,7 @@
   --paper:#EEF2F6; --surface:#FFFFFF; --surface-2:#F5F7FA;
   --ink:#15202B; --ink-2:#4A5A6A; --ink-3:#7C8B9A; --line:#E2E8EF;
   --accent:#0FA398; --accent-ink:#0A6E67;
+  --pos:#0A7D3C; --neg:#C0261F;
   --c-urgent:#E5484D; --c-reply:#E8912B; --c-news:#3E7BF0; --c-junk:#8A94A6;
   --c-ticket:#8257E6; --c-wait:#0FA398; --c-delivery:#2E9E5B; --c-purchase:#D6336C;
   --c-travel:#0EA5E9; --c-fyi:#64748B;
@@ -12,10 +13,10 @@
 @media (prefers-color-scheme:dark){
   :root{--paper:#0B1016;--surface:#141D28;--surface-2:#101821;--ink:#EAF0F5;
     --ink-2:#A7B4C0;--ink-3:#6F7E8C;--line:#223040;--accent:#23C4B6;--accent-ink:#7EE9DF;
-    --shadow:0 6px 20px -8px rgba(0,0,0,.5);}
+    --pos:#3DDC84;--neg:#FF6B66;--shadow:0 6px 20px -8px rgba(0,0,0,.5);}
 }
 :root[data-theme="light"]{--paper:#EEF2F6;--surface:#FFFFFF;--surface-2:#F5F7FA;--ink:#15202B;--ink-2:#4A5A6A;--ink-3:#7C8B9A;--line:#E2E8EF;--accent:#0FA398;--accent-ink:#0A6E67;--shadow:0 6px 20px -8px rgba(21,32,43,.18);}
-:root[data-theme="dark"]{--paper:#0B1016;--surface:#141D28;--surface-2:#101821;--ink:#EAF0F5;--ink-2:#A7B4C0;--ink-3:#6F7E8C;--line:#223040;--accent:#23C4B6;--accent-ink:#7EE9DF;--shadow:0 6px 20px -8px rgba(0,0,0,.5);}
+:root[data-theme="dark"]{--paper:#0B1016;--surface:#141D28;--surface-2:#101821;--ink:#EAF0F5;--ink-2:#A7B4C0;--ink-3:#6F7E8C;--line:#223040;--accent:#23C4B6;--accent-ink:#7EE9DF;--pos:#3DDC84;--neg:#FF6B66;--shadow:0 6px 20px -8px rgba(0,0,0,.5);}
 
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
@@ -91,10 +92,15 @@ a{color:inherit}
 .moreacts[open]>summary::after{content:'▴'}
 .moregrid{display:flex;flex-direction:column;gap:8px;margin-top:11px}
 .moregrid .btn{margin:0}
-.amtline{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap}
+.amtline{display:flex;align-items:center;gap:10px;justify-content:flex-start;flex-wrap:wrap}
 .amtval{font-size:22px;font-weight:800;letter-spacing:-.02em}
+.amtval.in{color:var(--pos)}
+.amtval.out{color:var(--neg)}
 .amtval.none{font-size:14px;font-weight:600;color:var(--ink-3)}
-.amtline .btn{padding:8px 11px;font-size:12.5px}
+.amttag{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;padding:3px 8px;border-radius:999px}
+.amttag.in{color:var(--pos);background:color-mix(in srgb,var(--pos) 14%,transparent)}
+.amttag.out{color:var(--neg);background:color-mix(in srgb,var(--neg) 14%,transparent)}
+.amtline .btn{padding:8px 11px;font-size:12.5px;margin-left:auto}
 .panel.reply.flash{animation:replyflash .9s ease}
 @keyframes replyflash{0%,100%{box-shadow:none}35%{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 45%,transparent)}}
 /* swipe target */
