@@ -116,9 +116,42 @@ def restore(request: Request, message_id: str) -> dict:
 
 @app.post("/api/messages/{message_id}/delete")
 def delete_message(request: Request, message_id: str) -> dict:
+    """Delete = move the mail to Gmail's Trash (recoverable ~30 days), and hide it
+    in MailAI (soft delete, so it can be undone). Live moves the real Gmail
+    message to Trash; demo/no-token just hides it locally."""
     uid = _uid(request)
-    if not store.delete_message(uid, message_id):
+    msg = next((m for m in store.messages(uid, include_archived=True) if m["id"] == message_id), None)
+    if not msg:
         raise HTTPException(status_code=404, detail="message not found")
+    if settings.is_live:
+        token = store.get_token(uid, msg.get("account"))
+        if token:
+            try:
+                from .gmail_client import GmailClient
+                GmailClient(uid, msg["account"], token).trash(message_id)
+            except Exception:
+                pass  # best-effort; still hide it in MailAI
+    store.trash_message(uid, message_id)
+    return {"ok": True}
+
+
+@app.post("/api/messages/{message_id}/untrash")
+def untrash_message(request: Request, message_id: str) -> dict:
+    """Undo a delete: bring the mail back out of Gmail's Trash and un-hide it."""
+    uid = _uid(request)
+    b = store._bucket(uid)  # include trashed when looking it up
+    msg = next((m for m in b["messages"] if m["id"] == message_id), None)
+    if not msg:
+        raise HTTPException(status_code=404, detail="message not found")
+    if settings.is_live:
+        token = store.get_token(uid, msg.get("account"))
+        if token:
+            try:
+                from .gmail_client import GmailClient
+                GmailClient(uid, msg["account"], token).untrash(message_id)
+            except Exception:
+                pass
+    store.untrash_message(uid, message_id)
     return {"ok": True}
 
 

@@ -72,6 +72,8 @@ class Store:
         msgs = self._bucket(user_id)["messages"]
         out = []
         for m in msgs:
+            if m.get("trashed"):            # deleted → in Gmail Trash; hide everywhere
+                continue
             if not include_archived and m.get("archived"):
                 continue
             if account not in ("all", None) and m.get("account") != account:
@@ -146,12 +148,33 @@ class Store:
         return False
 
     def delete_message(self, user_id: str, message_id: str) -> bool:
-        """Remove a message everywhere for this user."""
+        """Remove a message everywhere for this user (hard delete from the store)."""
         with self._lock:
             msgs = self._bucket(user_id)["messages"]
             for i, m in enumerate(msgs):
                 if m["id"] == message_id:
                     del msgs[i]
+                    self._persist(user_id)
+                    return True
+        return False
+
+    def trash_message(self, user_id: str, message_id: str) -> bool:
+        """Soft-delete: mark as trashed (hidden everywhere) but keep it so a delete
+        can be undone. Mirrors the mail being moved to Gmail's Trash."""
+        with self._lock:
+            for m in self._bucket(user_id)["messages"]:
+                if m["id"] == message_id:
+                    m["trashed"] = True
+                    self._persist(user_id)
+                    return True
+        return False
+
+    def untrash_message(self, user_id: str, message_id: str) -> bool:
+        """Undo a delete — bring a trashed message back."""
+        with self._lock:
+            for m in self._bucket(user_id)["messages"]:
+                if m["id"] == message_id:
+                    m["trashed"] = False
                     self._persist(user_id)
                     return True
         return False
