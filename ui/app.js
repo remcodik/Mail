@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short', timeZone:'Europe/Amsterdam' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.26-8';
+  var BUILD = '2026.07.26-9';
   var CHANGELOG = [
+    { v:'2026.07.26-9', notes:['Amount recognition now understands the word \u201cEuro/EUR\u201d and amounts written after the number (e.g. \u201cEuro 120,03\u201d) \u2014 fixes Invoices totals'] },
     { v:'2026.07.26-8', notes:['Purchases & Invoices tiles show BOTH the count and the \u20ac amount (e.g. \u201c3 mails \u00b7 \u20ac249\u201d)'] },
     { v:'2026.07.26-7', notes:['FIXED: the \u20ac amount on Invoices/Purchases tiles now reads the live detector value (extracted.total), so it no longer shows \u20ac0'] },
     { v:'2026.07.26-6', notes:['Invoice-type categories (Invoices/Facturen\u2026) now show the total \u20ac amount in the cockpit, like Purchases \u2014 amount read from the mail (\u20ac1.234,56 and \u20ac12.99 both understood)'] },
@@ -691,8 +692,9 @@
       if(v0 > 0) return v0;
     }
     var t = (m.subject||'')+' '+(m.snippet||'')+' '+(m.summary||'')+' '+(m.body||'');
-    var re = /(?:€|eur)\s*(\d[\d.,]*\d|\d)/gi, best=0, mm;
-    while((mm = re.exec(t))){ var v = _parseAmt(mm[1]); if(v > best) best = v; }
+    // € / EUR / euro(s), currency before OR after the number (e.g. "Euro 120,03" or "120,03 EUR")
+    var re = /(?:€|euros?|eur)\s*(\d[\d.,]*\d|\d)|(\d[\d.,]*\d|\d)\s*(?:€|euros?\b|eur\b)/gi, best=0, mm;
+    while((mm = re.exec(t))){ var v = _parseAmt(mm[1] || mm[2]); if(v > best) best = v; }
     return best;
   }
   function catMoney(ms){ return ms.reduce(function(s,m){ return s + amountOf(m); }, 0); }
