@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short', timeZone:'Europe/Amsterdam' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.26-11';
+  var BUILD = '2026.07.26-12';
   var CHANGELOG = [
+    { v:'2026.07.26-12', notes:['Settings sections now start collapsed \u2014 tap a heading to open it', 'Every category can be deleted now (built-ins too), and a deleted built-in stays gone', 'Amount reading now also fetches remote banner images (e.g. energy \u201cTotaal te ontvangen\u201d) and reads the headline total whether it\u2019s to pay OR to receive'] },
     { v:'2026.07.26-11', notes:['Amount detection now also scans the mail\u2019s HTML text (many receipts put the total in HTML, not plain text) before using image vision \u2014 fixes \u20ac0 on Purchases'] },
     { v:'2026.07.26-10', notes:['Per-category € toggle in Settings \u2014 turn on \u201cshow amount\u201d for any category (e.g. Te betalen)', 'Reads amounts from receipt/invoice IMAGES too (Claude vision) when there is no amount in the text'] },
     { v:'2026.07.26-9', notes:['Amount recognition now understands the word \u201cEuro/EUR\u201d and amounts written after the number (e.g. \u201cEuro 120,03\u201d) \u2014 fixes Invoices totals'] },
@@ -126,6 +127,9 @@
   // custom categories & labels (adds, renames, colours, deletes) survive reloads
   var CATS_KEY = 'mailai-cats-v1', LABELS_KEY = 'mailai-labels-v1';
   function saveCats(){ try { localStorage.setItem(CATS_KEY, JSON.stringify(state.categories || [])); } catch(e){} }
+  var CATSDEL_KEY = 'mailai-catdel-v1';   // built-in category ids the user deleted (tombstones)
+  function loadCatDeleted(){ try { return JSON.parse(localStorage.getItem(CATSDEL_KEY) || '[]'); } catch(e){ return []; } }
+  function rememberCatDeleted(id){ try { var s = loadCatDeleted(); if(s.indexOf(id)<0){ s.push(id); localStorage.setItem(CATSDEL_KEY, JSON.stringify(s)); } } catch(e){} }
   function loadCats(){ try { return JSON.parse(localStorage.getItem(CATS_KEY) || 'null'); } catch(e){ return null; } }
   function saveLabels(){ try { localStorage.setItem(LABELS_KEY, JSON.stringify(state.labels || [])); } catch(e){} }
   function loadLabels(){ try { return JSON.parse(localStorage.getItem(LABELS_KEY) || 'null'); } catch(e){ return null; } }
@@ -136,7 +140,9 @@
     var savedC = loadCats();
     if(savedC && savedC.length){
       var have = {}; savedC.forEach(function(c){ have[c.id] = 1; });
-      (defaultCats || []).forEach(function(c){ if(c.builtin && !have[c.id]) savedC.push(c); });
+      var gone = {}; loadCatDeleted().forEach(function(id){ gone[id] = 1; });
+      // re-append built-ins the server adds later, but never a built-in the user deleted
+      (defaultCats || []).forEach(function(c){ if(c.builtin && !have[c.id] && !gone[c.id]) savedC.push(c); });
       state.categories = savedC;
     }
     var savedL = loadLabels();
@@ -1220,10 +1226,10 @@
         + '<span class="ccount">'+msgsIn(c.id).length+' mails'+(c.visible?'':' · hidden')+'</span></span>'
         + '<button class="etog'+(wantsMoney(c)?' on':'')+'" data-act="togglemoney" data-id="'+c.id+'" aria-label="show amount on '+esc(c.name)+'" title="Show € total on this tile">€</button>'
         + '<button class="rule-x" data-act="catrenamedef" data-id="'+c.id+'" aria-label="rename '+esc(c.name)+'">✎</button>'
-        + (c.builtin?'':'<button class="rule-x" data-act="catdeldef" data-id="'+c.id+'" aria-label="delete '+esc(c.name)+'">✕</button>')
+        + '<button class="rule-x" data-act="catdeldef" data-id="'+c.id+'" aria-label="delete '+esc(c.name)+'">✕</button>'
         + '<button class="toggle'+(c.visible?'':' off')+'" data-act="togglecat" data-id="'+c.id+'" aria-label="toggle '+esc(c.name)+'"></button></div>';
     }).join('');
-    if(!settingsOpen) settingsOpen = { rules:true, catrules:false, cats:false, labels:false, accounts:false, gmail:false, lang:false, cleanup:false, version:false };
+    if(!settingsOpen) settingsOpen = { rules:false, catrules:false, cats:false, labels:false, accounts:false, gmail:false, lang:false, cleanup:false, version:false };
     function sec(id, title, inner){
       return '<details class="setsec" data-sec="'+id+'"'+(settingsOpen[id]?' open':'')+'>'
         + '<summary class="setsum">'+title+'</summary><div class="setbody">'+inner+'</div></details>';
@@ -1838,9 +1844,10 @@
       }
       case 'catdeldef': {
         var xc = catById(id);
-        if(xc && !xc.builtin && window.confirm('Delete category “'+xc.name+'”? Its mail moves to FYI.')){
+        if(xc && window.confirm('Delete category “'+xc.name+'”? Its mail moves to FYI.')){
+          if(xc.builtin) rememberCatDeleted(id);   // tombstone so it doesn't reappear on reload
           state.categories = state.categories.filter(function(c){ return c.id!==id; });
-          state.messages.forEach(function(m){ if(m.cat===id){ m.cat='fyi'; m.chip=(catById('fyi')||{}).name||'FYI'; } });
+          var fb = catById('fyi'); state.messages.forEach(function(m){ if(m.cat===id){ m.cat = fb?'fyi':(state.categories[0]||{}).id; m.chip=(fb||catById(m.cat)||{}).name||''; } });
           state.catRules = (state.catRules||[]).filter(function(r){ return r.catId!==id; }); saveCatRules();
           saveCats(); recomputeAll(); toast('Category “'+xc.name+'” deleted');
         }

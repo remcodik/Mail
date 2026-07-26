@@ -115,6 +115,39 @@ class GmailClient:
         walk(raw.get("payload", {}))
         return out
 
+    @staticmethod
+    def fetch_html_images(html: str, max_images: int = 3, max_bytes: int = 3_000_000) -> list[dict]:
+        """Fetch a few remote-hosted images referenced in the HTML (<img src="http…">)
+        as base64 for Claude vision. Many receipts/invoices (e.g. energy annual
+        statements) put the total inside a banner image loaded from a URL, so it
+        never appears as a MIME part or as text. Server-side only; capped and
+        best-effort (network/host errors are ignored)."""
+        import re, base64, urllib.request
+        out: list[dict] = []
+        urls, seen = [], set()
+        for m in re.finditer(r'<img[^>]+src\s*=\s*["\']?(https?://[^"\'\s>]+)', html or "", re.I):
+            u = m.group(1)
+            if u not in seen:
+                seen.add(u)
+                urls.append(u)
+        for u in urls:
+            if len(out) >= max_images:
+                break
+            try:
+                req = urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0"})
+                with urllib.request.urlopen(req, timeout=8) as resp:
+                    ctype = (resp.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+                    if ctype not in ("image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"):
+                        continue
+                    rawb = resp.read(max_bytes + 1)
+                if not rawb or len(rawb) > max_bytes or len(rawb) < 1500:   # skip tracking pixels
+                    continue
+                out.append({"mime": "image/jpeg" if ctype == "image/jpg" else ctype,
+                            "data": base64.b64encode(rawb).decode()})
+            except Exception:
+                continue
+        return out
+
     def set_unread(self, message_id: str, unread: bool) -> None:
         body = {"addLabelIds": ["UNREAD"]} if unread else {"removeLabelIds": ["UNREAD"]}
         self._service().users().messages().modify(userId="me", id=message_id, body=body).execute()

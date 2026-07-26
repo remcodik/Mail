@@ -194,14 +194,18 @@ def message_amount(request: Request, message_id: str) -> dict:
                 from .intelligence import read_amount, find_amount_in_text
                 client = GmailClient(uid, msg["account"], token)
                 text = msg.get("subject", "") + " " + msg.get("snippet", "") + " " + msg.get("body", "")
+                html = ""
                 try:                                   # include the HTML body's text (stripped of tags)
                     html = client.get_html(message_id)
                     text += " " + re.sub(r"<[^>]+>", " ", html or "")
                 except Exception:
-                    pass
+                    html = ""
                 amount = find_amount_in_text(text)     # free text scan first
                 if amount <= 0:                        # only pay for vision when the text has nothing
-                    amount = read_amount(text, client.get_amount_images(message_id))
+                    images = client.get_amount_images(message_id)          # inline/attached images
+                    if len(images) < 3 and html:                           # many totals live in a remote banner image
+                        images += client.fetch_html_images(html, max_images=3 - len(images))
+                    amount = read_amount(text, images)
             except Exception:
                 amount = 0.0
     if amount > 0:                                     # don't cache 0 — let a later, better pass retry
