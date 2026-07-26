@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short', timeZone:'Europe/Amsterdam' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.26-5';
+  var BUILD = '2026.07.26-6';
   var CHANGELOG = [
+    { v:'2026.07.26-6', notes:['Invoice-type categories (Invoices/Facturen\u2026) now show the total \u20ac amount in the cockpit, like Purchases \u2014 amount read from the mail (\u20ac1.234,56 and \u20ac12.99 both understood)'] },
     { v:'2026.07.26-5', notes:['Tiles show two numbers only \u2014 unread big (accent) and total small (grey) \u2014 no words'] },
     { v:'2026.07.26-4', notes:['One clean unread indicator per mail (removed the duplicate dot), and the read/unread circle no longer overlaps the text'] },
     { v:'2026.07.26-3', notes:['Tiles show just the unread number \u2014 no subtitle text'] },
@@ -670,18 +671,38 @@
     return '<div class="lblrow"><span class="lblrow-h">'+SPARK+' Labels</span>'+chips+'</div>';
   }
 
+  // parse a money string in EU or US format to a number (€1.234,56 → 1234.56)
+  function _parseAmt(s){
+    s = s.replace(/\s/g,'');
+    if(/,\d{2}$/.test(s)) s = s.replace(/\./g,'').replace(',', '.');   // EU decimal comma
+    else if(/\.\d{2}$/.test(s)) s = s.replace(/,/g,'');                 // US decimal dot
+    else s = s.replace(/[.,\s]/g,'');                                   // integer
+    var n = parseFloat(s); return isNaN(n) ? 0 : n;
+  }
+  // the amount on a mail: the detector's total, else the largest € figure in its text
+  function amountOf(m){
+    if(m.total) return m.total;
+    var t = (m.subject||'')+' '+(m.snippet||'')+' '+(m.summary||'')+' '+(m.body||'');
+    var re = /(?:€|eur)\s*(\d[\d.,]*\d|\d)/gi, best=0, mm;
+    while((mm = re.exec(t))){ var v = _parseAmt(mm[1]); if(v > best) best = v; }
+    return best;
+  }
+  function catMoney(ms){ return ms.reduce(function(s,m){ return s + amountOf(m); }, 0); }
+  function isMoneyCat(cat){ return /invoice|factu|rekening|\bbill|betaling|payment/i.test(cat.name||''); }
   function hintFor(cat){
     var ms = msgsIn(cat.id), n = ms.length, a;
     switch(cat.id){
       case 'urgent': a = ms.filter(function(m){return m.needsAction;}).length; return '<b>'+a+'</b> need action';
       case 'reply': return '<b>'+n+'</b> drafts ready';
       case 'delivery': a = ms.filter(function(m){return m.pickup;}).length; return a ? '<b>'+a+'</b> ready for pickup' : n+' in transit';
-      case 'purchase': a = ms.reduce(function(s,m){return s+(m.total||0);},0); return '€'+a.toFixed(0)+' this week';
+      case 'purchase': return '€'+catMoney(ms).toFixed(0)+' this week';
       case 'travel': a = Math.min.apply(null, ms.map(function(m){return m.daysUntil==null?999:m.daysUntil;})); return (a<999) ? 'Trip in <b>'+a+' days</b>' : 'no trips';
       case 'newsletter': a = ms.reduce(function(s,m){return s+(m.unread||0);},0); return a+' unread';
       case 'ticket': return '<b>'+n+'</b> for Wallet';
       case 'waiting': a = ms.filter(function(m){return m.overdue;}).length; return a ? '<b>'+a+'</b> overdue' : n+' waiting';
-      default: return n+' mail'+(n===1?'':'s');
+      default:
+        if(isMoneyCat(cat)){ var money = catMoney(ms); return money>0 ? ('€'+money.toFixed(0)+' total') : (n+' mail'+(n===1?'':'s')); }
+        return n+' mail'+(n===1?'':'s');
     }
   }
 
