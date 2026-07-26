@@ -118,6 +118,24 @@ docker run -p 8000:8000 --env-file .env mailai
 The image honours the platform's `$PORT`. (Vercel wasn't usable here — the
 connected account can't create projects — so we target any container host.)
 
+## Keeping the app "warm" (Render free tier)
+
+Render's free instance **spins down after ~15 min idle**, so the next open pays a
+~30–60s cold start. The repo ships `.github/workflows/keepwarm.yml` to ping
+`/api/health`, but **GitHub's scheduler throttles frequent crons** — an
+every-10-min schedule actually fires only once every 1–3 h on a quiet repo,
+which is too sparse. The workflow now schedules **hourly** and **self-loops**
+(pings every 5 min for ~55 min per run) to bridge those gaps.
+
+For a **rock-solid** keep-alive, add a free external monitor — this is the
+recommended fix:
+
+1. Go to **cron-job.org** (or UptimeRobot), create a free account.
+2. Add a job hitting `https://<your-app>.onrender.com/api/health` **every 5 min**.
+3. Done — it pings on a real 5-min schedule, independent of GitHub throttling.
+
+The only **zero-gap** option is a **paid Render instance** (no spin-down).
+
 ## What's implemented vs. pending (Sprint 2)
 
 - ✅ **2a:** FastAPI backend, multi-user tenancy + isolation, per-account
