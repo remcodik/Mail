@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short', timeZone:'Europe/Amsterdam' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.26-16';
+  var BUILD = '2026.07.26-17';
   var CHANGELOG = [
+    { v:'2026.07.26-17', notes:['New \u201cNew\u201d tile at the top of the cockpit \u2014 all your unread mail in one place, newest first, so you can see what just arrived; each mail still stays in its own category', 'FIXED: the category/label strip now keeps its position when you scroll back the other way too'] },
     { v:'2026.07.26-16', notes:['FIXED: the category/label strip no longer jumps back to the first item every time \u2014 it keeps its sideways scroll position so you can tap straight through to the next one'] },
     { v:'2026.07.26-15', notes:['FIXED: tapping the Tickets tile did nothing when a ticket mail had no parsed ticket data \u2014 it now opens the list (those mails show as normal cards)', 'FIXED: the category chip on a list/archive card now always matches the category shown in the email detail (it could go stale after a correction)'] },
     { v:'2026.07.26-14', notes:['Amounts are colour-coded: green \u201cto receive\u201d vs red \u201cto pay\u201d, with a + / \u2013 sign and a small tag', 'In the email detail the \u201cShow original with images\u201d button moved to the top and the full email starts collapsed \u2014 no scrolling to the end', 'The \u201cIn Gmail\u201d info is now a collapsed section (it\u2019s just a mirror of your category/labels)'] },
@@ -194,6 +195,7 @@
     'Send':'Versturen','Edit':'Bewerken','Discard':'Weggooien','Delete':'Verwijderen',
     'Archive (file it)':'Archiveren (opbergen)','Restore to inbox':'Terug naar inbox',
     'Move to cockpit':'Naar cockpit','Unsubscribe':'Uitschrijven','+ New':'+ Nieuw',
+    'New':'Nieuw','all caught up':'alles bijgewerkt',
     '+ Create task from this email':'+ Maak een taak van deze e-mail',
     '+ Propose meeting for agenda':'+ Stel afspraak voor agenda voor',
     'Wake now':'Nu wekken','Cancel':'Annuleren','Apply rule':'Regel toepassen',
@@ -787,6 +789,14 @@
         + '<span class="tname">'+esc(c.name)+'</span>'
         + '<span class="tsub">'+hintFor(c)+'</span></button>';
     }).join('');
+    // "New" — a cross-cutting tile that gathers all unread mail so you can see what
+    // just arrived without hunting each category. The mail stays in its category too.
+    var newCount = active.filter(function(m){ return m.isUnread; }).length;
+    var newTile = '<button class="tile newtile'+(newCount>0?' has':'')+'" style="grid-column:1/-1" data-nav="#/focus/new">'
+      + '<span class="ticon">'+svg('<path d="M22 6l-10 7L2 6"/><rect x="2" y="4" width="20" height="16" rx="2"/>',15)+'</span>'
+      + '<span class="newtext"><span class="tname">New</span>'
+      + '<span class="tsub">'+(newCount>0?('<b>'+newCount+'</b> unread across all categories'):'all caught up')+'</span></span>'
+      + (newCount>0?'<span class="newbadge">'+newCount+'</span>':'')+'</button>';
     return {
       top: '<div class="brand">'+BRANDMARK+' MailAI · Cockpit'
          + '<span class="topbtns"><button class="iconbtn" data-nav="#/search" aria-label="Search">'+svg('<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',18)+'</button>'
@@ -798,7 +808,7 @@
           + '<button class="hstat soft" data-nav="#/focus/auto"><div class="big">'+autoHandled+'</div><div class="hl">auto-handled ›</div></button>'
           + '</div>'
           + '<div class="herohint">Tap a number to see those emails. <b>Need you</b> = waiting on your action (urgent, replies, overdue). <b>Auto-handled</b> = MailAI already sorted it (newsletters, receipts, deliveries…).</div>'
-          + '<div class="tilegrid">'+tiles
+          + '<div class="tilegrid">'+newTile+tiles
           + '<button class="tile add" style="grid-column:1/-1" data-act="addcat">'+svg('<path d="M12 5v14M5 12h14"/>',15)+' Add a category tile</button></div>',
       nav: 'cockpit'
     };
@@ -890,9 +900,15 @@
   function isNeedYou(m){ return m.needsAction || m.cat==='reply' || (m.cat==='waiting' && m.overdue); }
   function viewFocus(kind){
     var visSet = {}; visibleCats().forEach(function(c){ visSet[c.id] = true; });
-    var ms = state.messages.filter(function(m){ if(m.archived || m.snoozed || !inSel(m) || !visSet[m.cat]) return false; return kind==='need' ? isNeedYou(m) : !isNeedYou(m); });
-    var title = kind==='need' ? 'Need you today' : 'Auto-handled';
-    var desc = kind==='need'
+    var ms = state.messages.filter(function(m){
+      if(m.archived || m.snoozed || !inSel(m) || !visSet[m.cat]) return false;
+      if(kind==='new') return !!m.isUnread;
+      return kind==='need' ? isNeedYou(m) : !isNeedYou(m);
+    });
+    var title = kind==='new' ? 'New' : (kind==='need' ? 'Need you today' : 'Auto-handled');
+    var desc = kind==='new'
+      ? 'Everything <b>unread</b> in one place, newest first — each mail still sits in its own category too. Marking it read here clears it from New.'
+      : kind==='need'
       ? 'Emails waiting on <b>your action</b> — urgent items, replies to send, and overdue follow-ups.'
       : 'MailAI <b>already sorted these</b> — newsletters, receipts, deliveries and FYIs you don’t need to act on.';
     var body = '<div class="focusdesc">'+desc+'</div>'
@@ -1420,7 +1436,7 @@
     var keepScroll = (h === _lastHash) && prevView ? prevView.scrollTop : 0;
     // remember how far the category-tab / label strips are scrolled sideways, so
     // clicking through them doesn't snap back to the first item on every rebuild.
-    STRIPS.forEach(function(sel){ var e = root.querySelector(sel); if(e && e.scrollLeft) _stripX[sel] = e.scrollLeft; });
+    STRIPS.forEach(function(sel){ var e = root.querySelector(sel); if(e) _stripX[sel] = e.scrollLeft; });
     var v;
     if(h.indexOf('#/c/')===0) v = viewCategory(h.slice(4));
     else if(h.indexOf('#/focus/')===0) v = viewFocus(h.slice(8));
@@ -1447,7 +1463,7 @@
     // keep position on in-place re-renders, top on navigation
     var view = root.querySelector('.view'); if(view) view.scrollTop = keepScroll;
     // restore the sideways scroll of the tab/label strips
-    STRIPS.forEach(function(sel){ if(_stripX[sel]){ var e = root.querySelector(sel); if(e) e.scrollLeft = _stripX[sel]; } });
+    STRIPS.forEach(function(sel){ if(sel in _stripX){ var e = root.querySelector(sel); if(e) e.scrollLeft = _stripX[sel]; } });
     if(document.getElementById('rb-preview')) rbUpdatePreview();   // seed the rule preview
     if(document.getElementById('searchresults')) runSearch();      // seed search state
     if(state){ saveTasks(); saveMeetings(); }   // persist tasks & agenda across reloads
