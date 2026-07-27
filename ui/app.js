@@ -29,8 +29,9 @@
   function todayStr(){ try { return new Date().toLocaleDateString(state.lang==='nl'?'nl-NL':'en-GB', { weekday:'short', day:'numeric', month:'short', timeZone:'Europe/Amsterdam' }); } catch(e){ return ''; } }
   // App version — bump BUILD + add a CHANGELOG entry on each release. The same
   // stamp is on the app.js/style.css URLs in index.html so a new build busts the cache.
-  var BUILD = '2026.07.26-26';
+  var BUILD = '2026.07.26-27';
   var CHANGELOG = [
+    { v:'2026.07.26-27', notes:['FIXED: new mail wasn\u2019t coming through \u2014 the date/attachment backfill was running before the sync and could time out; new mail is now fetched first and the backfill runs after (capped, best-effort)'] },
     { v:'2026.07.26-26', notes:['Delete now moves the mail to Gmail\u2019s Trash (recoverable ~30 days) instead of only hiding it in MailAI \u2014 Undo brings it straight back'] },
     { v:'2026.07.26-25', notes:['Attachments: mail with attachments now shows a list in the detail with a Get button per file \u2014 nothing is downloaded until you tap it; images preview inline. (Older mail gets its attachment list on the next sync.)'] },
     { v:'2026.07.26-24', notes:['Bigger, further-apart action buttons on each mail (File / Del / read dot) so they\u2019re easier to tap without hitting the wrong one; also enlarged the Newsletter, group and detail buttons a touch'] },

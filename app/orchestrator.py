@@ -86,7 +86,6 @@ def process_account(user_id: str, account_id: str, max_results: int = 25) -> int
     if not token:
         raise RuntimeError(f"no OAuth token for account {account_id}")
     client = GmailClient(user_id, account_id, token)
-    _repair_meta(user_id, client)   # backfill date + attachments on older stored mail
     valid = {c["id"] for c in store.categories(user_id)}
     mirror = store.get_settings(user_id).get("mirror_gmail", False)
     # First connect: file all existing mail to the Archive so the cockpit starts
@@ -126,6 +125,12 @@ def process_account(user_id: str, account_id: str, max_results: int = 25) -> int
                 mirror_to_gmail(client, mid, gmail_label_names(user_id, msg))
         store.upsert_message(user_id, msg)
         processed += 1
+    # New mail is in first; now best-effort backfill date/attachments on older
+    # stored mail. Guarded + capped so it can never slow down or break the sync.
+    try:
+        _repair_meta(user_id, client, cap=12)
+    except Exception:
+        pass
     return processed
 
 
