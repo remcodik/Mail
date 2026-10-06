@@ -41,11 +41,23 @@ class Settings:
         return self.oauth_redirect_base.lower().startswith("https")
 
 
+_DEV_SECRET = "dev-insecure-secret-change-me"
+
+
 def load_settings() -> Settings:
     mode = os.getenv("MAILAI_MODE", "demo").strip().lower()
+    secret = os.getenv("MAILAI_SESSION_SECRET", _DEV_SECRET)
+    # The default is public (it's in this repo). In live mode a forged
+    # session cookie would give access to the connected Gmail, so refuse
+    # to start rather than silently signing cookies with a known key.
+    if mode == "live" and (secret == _DEV_SECRET or len(secret) < 32):
+        raise RuntimeError(
+            "MAILAI_SESSION_SECRET ontbreekt of is te kort (min. 32 tekens). "
+            "Zet hem met: fly secrets set MAILAI_SESSION_SECRET=$(openssl rand -hex 32)"
+        )
     return Settings(
         mode=mode,
-        session_secret=os.getenv("MAILAI_SESSION_SECRET", "dev-insecure-secret-change-me"),
+        session_secret=secret,
         model_classify=os.getenv("MAILAI_MODEL_CLASSIFY", "claude-haiku-4-5-20251001"),
         model_reason=os.getenv("MAILAI_MODEL_REASON", "claude-sonnet-5"),
         anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
